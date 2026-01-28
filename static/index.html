@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Search</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">Property Search</h1>
+                <span class="header-badge">Sale Listings</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-card">
+                    <h2 class="search-title">Find Properties</h2>
+                    <p class="search-subtitle">Search for active sale listings by address or zip code</p>
+                    
+                    <form id="searchForm" class="search-form">
+                        <div class="form-row">
+                            <div class="form-group form-group-large">
+                                <label for="searchQuery">Location</label>
+                                <input 
+                                    type="text" 
+                                    id="searchQuery" 
+                                    name="query" 
+                                    placeholder="Enter address or zip code..."
+                                    autocomplete="off"
+                                    required
+                                >
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="searchType">Search Type</label>
+                                <select id="searchType" name="searchType">
+                                    <option value="area">Area Search</option>
+                                    <option value="specific">Exact Address</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group" id="radiusGroup">
+                                <label for="radius">Radius: <span id="radiusValue">5</span> miles</label>
+                                <input 
+                                    type="range" 
+                                    id="radius" 
+                                    name="radius" 
+                                    min="1" 
+                                    max="50" 
+                                    value="5"
+                                >
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="limit">Results</label>
+                                <select id="limit" name="limit">
+                                    <option value="5">5 properties</option>
+                                    <option value="10" selected>10 properties</option>
+                                    <option value="20">20 properties</option>
+                                    <option value="30">30 properties</option>
+                                    <option value="50">50 properties</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group form-group-button">
+                                <button type="submit" class="btn btn-primary" id="searchBtn">
+                                    <span class="btn-text">Search</span>
+                                    <span class="btn-loader" style="display: none;"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <!-- Stats Bar -->
+                <div class="stats-bar" id="statsBar">
+                    <div class="stat">
+                        <span class="stat-value" id="statCount">0</span>
+                        <span class="stat-label">Properties</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="statAvgPrice">-</span>
+                        <span class="stat-label">Avg. Price</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="statPriceRange">-</span>
+                        <span class="stat-label">Price Range</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="statAvgDays">-</span>
+                        <span class="stat-label">Avg. Days on Market</span>
+                    </div>
+                </div>
+
+                <!-- Message Banner -->
+                <div class="message-banner" id="messageBanner" style="display: none;">
+                    <p id="messageText"></p>
+                </div>
+
+                <!-- Results Grid -->
+                <div class="results-grid" id="resultsGrid">
+                    <!-- Property cards will be inserted here -->
+                </div>
+
+                <!-- No Results -->
+                <div class="no-results" id="noResults" style="display: none;">
+                    <div class="no-results-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </div>
+                    <h3>No Properties Found</h3>
+                    <p>Try adjusting your search criteria or expanding the radius.</p>
+                </div>
+            </section>
+
+            <!-- Error Section -->
+            <div class="error-banner" id="errorBanner" style="display: none;">
+                <p id="errorText"></p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Powered by RentCast API &bull; Each search uses 1 API call &bull; Results cached for efficiency</p>
+        </footer>
+    </div>
+
+    <!-- Property Detail Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display: none;">
+        <div class="modal" id="propertyModal">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <div class="modal-content" id="modalContent">
+                <!-- Modal content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
