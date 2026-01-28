@@ -5,6 +5,7 @@ Flask server that proxies requests to RentCast API
 
 import os
 import math
+import re
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -21,6 +22,22 @@ API_KEY = os.getenv('RENTCAST_API_KEY', '')
 API_BASE_URL = "https://api.rentcast.io/v1/listings/sale"
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
+
+# Playwright browser check flag
+PLAYWRIGHT_AVAILABLE = False
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    pass
+
+# DuckDuckGo search check
+DUCKDUCKGO_AVAILABLE = False
+try:
+    from duckduckgo_search import DDGS
+    DUCKDUCKGO_AVAILABLE = True
+except ImportError:
+    pass
 
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -264,6 +281,223 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'api_configured': bool(API_KEY and API_KEY != 'API_KEY_HERE')
+    })
+
+
+def search_zillow_url(address: str) -> str:
+    """
+    Search DuckDuckGo for Zillow listing URL.
+    Returns the first Zillow URL found or empty string.
+    """
+    if not DUCKDUCKGO_AVAILABLE:
+        return ''
+    
+    try:
+        with DDGS() as ddgs:
+            query = f"site:zillow.com {address}"
+            results = list(ddgs.text(query, max_results=5))
+            
+            for result in results:
+                url = result.get('href', '')
+                if 'zillow.com' in url and '/homedetails/' in url:
+                    return url
+            
+            # Fallback: return first zillow result even if not homedetails
+            for result in results:
+                url = result.get('href', '')
+                if 'zillow.com' in url:
+                    return url
+                    
+    except Exception as e:
+        print(f"DuckDuckGo search error: {e}")
+    
+    return ''
+
+
+def scrape_zillow_price(url: str) -> dict:
+    """
+    Use Playwright to scrape price from Zillow page.
+    Returns dict with price, days_on_market, and success status.
+    """
+    result = {
+        'success': False,
+        'price': None,
+        'days_on_market': None,
+        'error': None
+    }
+    
+    if not PLAYWRIGHT_AVAILABLE:
+        result['error'] = 'Playwright not installed'
+        return result
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport={'width': 1920, 'height': 1080}
+            )
+            page = context.new_page()
+            
+            # Navigate with timeout
+            page.goto(url, timeout=30000, wait_until='domcontentloaded')
+            page.wait_for_timeout(2000)  # Wait for JS to render
+            
+            # Try multiple selectors for price
+            price_selectors = [
+                '[data-testid="price"]',
+                'span[data-testid="price"]',
+                '.summary-container span.Text-c11n-8-84-3__sc-aiai24-0',
+                '.hdp__sc-1tsvzbc-1',  # Zillow price class
+                'span.dpf__sc-1me8eh6-0',
+                '[class*="price"]',
+                'h3[class*="Price"]',
+            ]
+            
+            price_text = None
+            for selector in price_selectors:
+                try:
+                    element = page.query_selector(selector)
+                    if element:
+                        text = element.inner_text()
+                        # Check if it looks like a price
+                        if '$' in text or text.replace(',', '').replace('.', '').isdigit():
+                            price_text = text
+                            break
+                except:
+                    continue
+            
+            # Fallback: search page content for price pattern
+            if not price_text:
+                content = page.content()
+                price_match = re.search(r'\$[\d,]+(?:\.\d{2})?', content)
+                if price_match:
+                    price_text = price_match.group()
+            
+            if price_text:
+                # Clean up price text
+                price_clean = price_text.replace('$', '').replace(',', '').strip()
+                # Handle "Est." or other prefixes
+                price_clean = re.sub(r'[^\d.]', '', price_clean)
+                try:
+                    result['price'] = int(float(price_clean))
+                except:
+                    result['price'] = price_text
+            
+            # Try to find days on market
+            dom_selectors = [
+                '[data-testid="days-on-zillow"]',
+                'span:has-text("days on Zillow")',
+                'dt:has-text("Time on Zillow")',
+            ]
+            
+            for selector in dom_selectors:
+                try:
+                    element = page.query_selector(selector)
+                    if element:
+                        result['days_on_market'] = element.inner_text()
+                        break
+                except:
+                    continue
+            
+            # Fallback: search for days pattern
+            if not result['days_on_market']:
+                content = page.content()
+                dom_match = re.search(r'(\d+)\s*days?\s*on\s*Zillow', content, re.IGNORECASE)
+                if dom_match:
+                    result['days_on_market'] = f"{dom_match.group(1)} days"
+            
+            browser.close()
+            
+            if result['price']:
+                result['success'] = True
+            else:
+                result['error'] = 'Could not extract price from page'
+                
+    except Exception as e:
+        result['error'] = f'Scraping failed: {str(e)}'
+    
+    return result
+
+
+@app.route('/api/verify-live', methods=['POST'])
+def verify_listing_live():
+    """
+    Verify a listing against live Zillow data.
+    
+    Request Body:
+        - address: Property address to verify
+        - rentcast_price: Original price from RentCast for comparison
+    """
+    data = request.get_json() or {}
+    address = data.get('address', '').strip()
+    rentcast_price = data.get('rentcast_price')
+    
+    if not address:
+        return jsonify({
+            'success': False,
+            'error': 'Address is required'
+        }), 400
+    
+    # Check dependencies
+    if not DUCKDUCKGO_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'DuckDuckGo search library not installed. Run: pip install duckduckgo-search'
+        }), 500
+    
+    if not PLAYWRIGHT_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Playwright not installed. Run: pip install playwright && playwright install chromium'
+        }), 500
+    
+    # Step 1: Search for Zillow URL
+    zillow_url = search_zillow_url(address)
+    
+    if not zillow_url:
+        return jsonify({
+            'success': False,
+            'error': 'Could not find Zillow listing for this address',
+            'manual_search_url': f'https://www.zillow.com/homes/{address.replace(" ", "-").replace(",", "")}_rb/'
+        })
+    
+    # Step 2: Scrape the Zillow page
+    scrape_result = scrape_zillow_price(zillow_url)
+    
+    if not scrape_result['success']:
+        return jsonify({
+            'success': False,
+            'error': scrape_result.get('error', 'Automated check blocked'),
+            'zillow_url': zillow_url,
+            'message': 'Automated check failed. Please verify manually using the link below.'
+        })
+    
+    # Step 3: Compare prices
+    live_price = scrape_result['price']
+    price_difference = None
+    price_change_percent = None
+    price_status = 'same'
+    
+    if rentcast_price and isinstance(live_price, int):
+        price_difference = live_price - rentcast_price
+        if rentcast_price > 0:
+            price_change_percent = round((price_difference / rentcast_price) * 100, 1)
+        
+        if price_difference < 0:
+            price_status = 'lower'
+        elif price_difference > 0:
+            price_status = 'higher'
+    
+    return jsonify({
+        'success': True,
+        'zillow_url': zillow_url,
+        'live_price': live_price,
+        'live_days_on_market': scrape_result.get('days_on_market'),
+        'rentcast_price': rentcast_price,
+        'price_difference': price_difference,
+        'price_change_percent': price_change_percent,
+        'price_status': price_status
     })
 
 

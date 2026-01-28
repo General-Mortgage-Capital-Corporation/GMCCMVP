@@ -664,3 +664,115 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* ==========================================================================
+   Live Verification Styles
+   ========================================================================== */
+
+.verify-description {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.btn-verify {
+    background: var(--color-accent);
+    color: var(--color-white);
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-verify:hover {
+    background: #2563eb;
+}
+
+.btn-verify:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-verify .btn-loader {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 0.5rem;
+}
+
+.verify-result {
+    margin-top: 1rem;
+}
+
+.verify-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+.verify-card.verify-error {
+    border-color: #fecaca;
+    background: var(--color-error-light);
+}
+
+.verify-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.verify-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.verify-label {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+}
+
+.verify-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.verify-value.price-lower {
+    color: var(--color-success);
+}
+
+.verify-value.price-higher {
+    color: var(--color-error);
+}
+
+.verify-value.price-same {
+    color: var(--color-text);
+}
+
+.verify-link {
+    display: inline-block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.verify-link:hover {
+    text-decoration: underline;
+}
+
+.verify-error-text {
+    font-size: 0.875rem;
+    color: #b91c1c;
+    margin-bottom: 0.5rem;
+}
+
+.verify-error-hint {
+    font-size: 0.8125rem;
+    color: #92400e;
+    margin-bottom: 0.75rem;
+}

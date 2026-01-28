@@ -54,6 +54,20 @@ async function searchListings(query, radius, limit, searchType) {
     return await response.json();
 }
 
+async function verifyListingLive(address, rentcastPrice) {
+    const response = await fetch('/api/verify-live', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            address: address,
+            rentcast_price: rentcastPrice
+        })
+    });
+    return await response.json();
+}
+
 // =============================================================================
 // UI Functions
 // =============================================================================
@@ -342,10 +356,104 @@ function openPropertyModal(listing) {
                 </div>
             ` : ''}
         </div>
+        
+        <div class="modal-section">
+            <div class="modal-section-title">Live Verification</div>
+            <p class="verify-description">Check current listing data from Zillow to compare with RentCast data.</p>
+            <button type="button" class="btn btn-verify" id="verifyBtn" 
+                data-address="${(listing.formattedAddress || '').replace(/"/g, '&quot;')}"
+                data-price="${listing.price || 0}">
+                <span class="btn-text">Run Live Web Check</span>
+                <span class="btn-loader" style="display: none;"></span>
+            </button>
+            <div id="verifyResult" class="verify-result" style="display: none;"></div>
+        </div>
     `;
+    
+    // Add event listener for verify button
+    const verifyBtn = content.querySelector('#verifyBtn');
+    verifyBtn.addEventListener('click', handleLiveVerify);
     
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+async function handleLiveVerify(e) {
+    const btn = e.currentTarget;
+    const address = btn.dataset.address;
+    const rentcastPrice = parseInt(btn.dataset.price) || null;
+    const resultContainer = document.getElementById('verifyResult');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    
+    // Show loading state
+    btn.disabled = true;
+    btnText.textContent = 'Agent is searching live listings...';
+    btnLoader.style.display = 'inline-block';
+    resultContainer.style.display = 'none';
+    
+    try {
+        const result = await verifyListingLive(address, rentcastPrice);
+        
+        if (result.success) {
+            // Build comparison card
+            const priceClass = result.price_status === 'lower' ? 'price-lower' : 
+                              result.price_status === 'higher' ? 'price-higher' : 'price-same';
+            
+            const priceDiffText = result.price_difference !== null 
+                ? `(${result.price_difference >= 0 ? '+' : ''}$${result.price_difference.toLocaleString()} / ${result.price_change_percent >= 0 ? '+' : ''}${result.price_change_percent}%)`
+                : '';
+            
+            resultContainer.innerHTML = `
+                <div class="verify-card">
+                    <div class="verify-comparison">
+                        <div class="verify-item">
+                            <span class="verify-label">RentCast Price</span>
+                            <span class="verify-value">${formatPrice(rentcastPrice)}</span>
+                        </div>
+                        <div class="verify-item">
+                            <span class="verify-label">Live Zillow Price</span>
+                            <span class="verify-value ${priceClass}">${formatPrice(result.live_price)} ${priceDiffText}</span>
+                        </div>
+                        ${result.live_days_on_market ? `
+                        <div class="verify-item">
+                            <span class="verify-label">Zillow Days on Market</span>
+                            <span class="verify-value">${result.live_days_on_market}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <a href="${result.zillow_url}" target="_blank" class="verify-link">View on Zillow</a>
+                </div>
+            `;
+        } else {
+            // Show error with manual link
+            const manualUrl = result.zillow_url || result.manual_search_url || 
+                `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`;
+            
+            resultContainer.innerHTML = `
+                <div class="verify-card verify-error">
+                    <p class="verify-error-text">${result.error || 'Automated check failed'}</p>
+                    ${result.message ? `<p class="verify-error-hint">${result.message}</p>` : ''}
+                    <a href="${manualUrl}" target="_blank" class="verify-link">Verify manually on Zillow</a>
+                </div>
+            `;
+        }
+        
+        resultContainer.style.display = 'block';
+        
+    } catch (error) {
+        resultContainer.innerHTML = `
+            <div class="verify-card verify-error">
+                <p class="verify-error-text">Failed to connect to verification service</p>
+                <a href="https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/" target="_blank" class="verify-link">Search manually on Zillow</a>
+            </div>
+        `;
+        resultContainer.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Run Live Web Check';
+        btnLoader.style.display = 'none';
+    }
 }
 
 function closeModal() {
