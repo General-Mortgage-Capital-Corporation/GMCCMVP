@@ -1,0 +1,1129 @@
+{
+  "program_name": "Thunder",
+  "qm_status": "Unknown",
+  "tiers": [
+    {
+      "tier_name": "Conforming - Principal Residence - Purchase - 1 Unit",
+      "transaction_types": [
+        "Purchase"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806500.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 95.0,
+      "max_cltv": 95.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Limited Cash-Out Refinance - 2 Unit",
+      "transaction_types": [
+        "Limited Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1032650.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 85.0,
+      "max_cltv": 85.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        2
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Limited Cash-Out Refinance - 3 Unit",
+      "transaction_types": [
+        "Limited Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1248150.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        3
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Limited Cash-Out Refinance - 4 Unit",
+      "transaction_types": [
+        "Limited Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1551250.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        4
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Purchase - Condo",
+      "transaction_types": [
+        "Purchase"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806500.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 95.0,
+      "max_cltv": 95.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Cash Out Refinance - 1 Unit",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806500.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 80.0,
+      "max_cltv": 80.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Cash Out Refinance - 2 Unit",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1032650.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        2
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Cash Out Refinance - 3 Unit",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1248150.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        3
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Cash Out Refinance - 4 Unit",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1551250.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        4
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Conforming - Principal Residence - Cash Out Refinance - Condo",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806500.0,
+      "min_loan_amount": 100000.0,
+      "max_ltv": 70.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - 1 Unit - Loan Amt $806,501-$1,500,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 80.0,
+      "max_cltv": 80.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - 1 Unit - Loan Amt $1,500,001-$2,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 2000000.0,
+      "min_loan_amount": 1500001.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - 1 Unit - Loan Amt $2,000,001-$3,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 3000000.0,
+      "min_loan_amount": 2000001.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - 1 Unit - Loan Amt $3,000,001-$5,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 5000000.0,
+      "min_loan_amount": 3000001.0,
+      "max_ltv": 60.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - 1 Unit - Loan Amt $5,000,001-$8,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 8000000.0,
+      "min_loan_amount": 5000001.0,
+      "max_ltv": 55.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - Condo - Loan Amt $806,501-$1,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 80.0,
+      "max_cltv": 80.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - Condo - Loan Amt $1,000,001-$1,200,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1200000.0,
+      "min_loan_amount": 1000001.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Purchase/Rate & Term - Condo - Loan Amt $1,200,001-$1,500,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 1200001.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - 1 Unit - Loan Amt $806,501",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 70.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - 1 Unit - Loan Amt $806,502-$1,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - 1 Unit - Loan Amt $1,000,001-$1,500,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 1000001.0,
+      "max_ltv": 60.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - 1 Unit - Loan Amt $1,500,001-$3,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 3000000.0,
+      "min_loan_amount": 1500001.0,
+      "max_ltv": 55.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - Condo - Loan Amt $806,501",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - Condo - Loan Amt $806,502-$850,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 850000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 60.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Principal Residence - Cash Out Refinance - Condo - Loan Amt $850,001-$1,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 850001.0,
+      "max_ltv": 55.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - 1 Unit - Loan Amt $806,501",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - 1 Unit - Loan Amt $806,502-$1,500,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 70.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - 1 Unit - Loan Amt $1,500,001-$3,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 3000000.0,
+      "min_loan_amount": 1500001.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - 1 Unit - Loan Amt $3,000,001-$5,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 5000000.0,
+      "min_loan_amount": 3000001.0,
+      "max_ltv": 60.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - Condo - Loan Amt $806,501",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 70.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Purchase/Rate & Term - Condo - Loan Amt $806,502-$1,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - 1 Unit - Loan Amt $806,501",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 65.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - 1 Unit - Loan Amt $806,502-$1,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 60.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - 1 Unit - Loan Amt $1,000,001-$1,500,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 1000001.0,
+      "max_ltv": 55.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - 1 Unit - Loan Amt $1,500,001-$3,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 3000000.0,
+      "min_loan_amount": 1500001.0,
+      "max_ltv": 50.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - Condo - Loan Amt $806,501",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 806501.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 55.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - Condo - Loan Amt $806,502-$850,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 850000.0,
+      "min_loan_amount": 806502.0,
+      "max_ltv": 50.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Second Home - Cash Out Refinance - Condo - Loan Amt $850,001-$1,000,000",
+      "transaction_types": [
+        "Cash-Out Refinance"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Second Home"
+      ],
+      "max_loan_amount": 1000000.0,
+      "min_loan_amount": 850001.0,
+      "max_ltv": 45.0,
+      "max_cltv": 70.0,
+      "min_fico": 680,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Interest Only - Principal Residence - SFR - Purchase/Rate & Term - Loan Amt $806,501-$1,500,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 65.0,
+      "max_cltv": null,
+      "min_fico": 740,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Interest Only - Principal Residence - SFR - Purchase/Rate & Term - Loan Amt $1,500,001-$3,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 3000000.0,
+      "min_loan_amount": 1500001.0,
+      "max_ltv": 60.0,
+      "max_cltv": null,
+      "min_fico": 740,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Interest Only - Principal Residence - SFR - Purchase/Rate & Term - Loan Amt $3,000,001-$5,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 5000000.0,
+      "min_loan_amount": 3000001.0,
+      "max_ltv": 55.0,
+      "max_cltv": null,
+      "min_fico": 740,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo A - Interest Only - Principal Residence - SFR - Purchase/Rate & Term - Loan Amt $5,000,001-$8,000,000",
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 8000000.0,
+      "min_loan_amount": 5000001.0,
+      "max_ltv": 50.0,
+      "max_cltv": null,
+      "min_fico": 740,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo - MI - Principal Residence - Purchase - 1 Unit",
+      "transaction_types": [
+        "Purchase"
+      ],
+      "property_types": [
+        "SFR"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 90.0,
+      "max_cltv": 90.0,
+      "min_fico": 720,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    },
+    {
+      "tier_name": "Jumbo - MI - Principal Residence - Purchase - Condo",
+      "transaction_types": [
+        "Purchase"
+      ],
+      "property_types": [
+        "Condo"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
+      "max_loan_amount": 1500000.0,
+      "min_loan_amount": 806501.0,
+      "max_ltv": 90.0,
+      "max_cltv": 90.0,
+      "min_fico": 720,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "location_restrictions": [],
+      "unit_count_limits": [
+        1
+      ],
+      "additional_rules": {}
+    }
+  ],
+  "general_notes": [
+    "Purchase and Ref Incentives [3- and 5- Jumbo ARM Loans Only]: If below 65% LTV, borrower receives 0.125 rate discount; If below 55% LTV, borrower receives 0.250 rate discount.",
+    "TCU Origination Charges: Loan origination fee $995.00, Tech CU Membership Fee $5.00.",
+    "Non-Permanent Borrowers: Second home, investment home, and cash out transactions are not allowed.",
+    "Non-Permanent Borrowers: Property must be located in a state in which Tech CU is permitted to lend.",
+    "Non-Permanent Borrowers: Borrowers must be able to document the probability of maintaining employment in the U.S with one of the following acceptable Visas: E-1, H-1B, H-2A, H-2B, H-3, H-4, L-1A, L-1B, L2, O-1A, O1B, TN or an Employment Authorization (EAD). For Work Visa \u2013 A Valid I-797 Form is required.",
+    "Non-Permanent Borrowers: Downpayment and reserve funds must be in U.S. institutions. If funds are transferred from a foreign country, borrowers must provide proof of ownership for a minimum of 60 days of application.",
+    "Non-Permanent Borrowers: Documentation requirements- Copy of Wall Street Journal showing conversion rate with a written conversion of beginning and ending balance.",
+    "Non-Permanent Borrowers: Maximum 80% LTV.",
+    "Non-Permanent Borrowers: DTI not to exceed 45%.",
+    "Asset Depletion Income can be used as qualified income for a mortgage loan. TCU will derive an income from the applicant\u2019s assets and add the computed monthly amount to other verifiable income. Once the assets were used for depletion, then these assets cannot be used again for down payment or/and reserve. It cannot be \u201cdouble dip\u201d.",
+    "Acceptable assets for Asset Depletion Income are: Cash or Cash equivalent, Money Market Accounts, Savings & Checking accounts, Trust Funds (must document borrower\u2019s full access to funds), Investment Portfolios: stocks, bonds, mutual funds (use 70% balance), 401K account (use 60% balance only if the applicant is at least 59.5 years old), IRA account (use 70% balance only if the applicant is at least 59.5 years old).",
+    "Cash value of life insurance policies not allowed for Asset Depletion Income.",
+    "TCU will consider the assets available after all the closing cost fund at 5% Rate of Return over amortized 30 years term to determine the monthly income available to service the debts.",
+    "RSU Income (Restricted Stock Unit): Use of restricted stock as income to qualify must meet current Fannie Mae guidelines.",
+    "RSU Income (Restricted Stock Unit): 80% maximum LTV/CLTV.",
+    "RSU Income Documentation Needed: [A] Vesting Schedule covering 2-year previous vesting + 3-year future vesting. [B] Last Two-Year Y-End Paystub + Last Two Year W2. [C] Brokerage Statements where RSU Grants are vested to.",
+    "Reserve Requirements (PITI reserves, Primary Residence 1 Unit/Condo, Purchase/Rate & Term): $806,501 - $1.0 M: 6 months; $1,000,001 - $1.5 M: 12 months; $1,500,001 - $2.0 M: 18 months; $2,000,001 - $2.5 M: 18 months; $2,500,001 - $8.0 M: 24 months.",
+    "Reserve Requirements (PITI reserves, Primary Residence 1 Unit/Condo, Cash Out Refinance): $806,501 - $1.0 M: 9 months; $1,000,001 - $1.5 M: 12 months; $1,500,001 - $2.0 M+: 18 months.",
+    "Reserve Requirements (PITI reserves, Second Home, Purchase/Rate & Term): $806,501 - $1.0 M: 9 months; $1,000,001 - $1.5 M: 12 months; $1,500,001 - $2.0 M+: 18 months.",
+    "Reserve Requirements: Additional Real Estate Owned: 6 months PITI(A) each.",
+    "Reserve Requirements Note: 401K (60%)/ Stock (70%)/ Mutual Fund (70%)/ Check & Saving can be used for reserve.",
+    "Departing Residence: No Lease Agreement & No security deposit required.",
+    "Departing Residence: TCU - 75% of the estimate rental amount from a Rental Survey, minus outstanding PITI(A) payment for offsetting only. No positive cash flow allowed. The Rental Survey ordered by TCU Processor and paid by the borrower (approximately $275 or more).",
+    "Non-Occupant Co-Borrowers: TCU allows non-occupant co-borrowers, but it must be parents/children relationship only or vice versa.",
+    "Maximum DTI and Qualifying Ratio: Primary Residence Purchase/Ref - Max 45% DTI. Second Home Purchase/Refi - Max 43% DTI.",
+    "Maximum DTI and Qualifying Ratio (ARM): 3/6 ARM qualified at 4% above the note rate. 5/6 ARM qualified at 2% above the note rate. 5/6 ARM Interest Only qualified at 2% above note rate at Principal and Interest payment. 7/6 ARM qualified at the note rate up to 43% DTI; otherwise use fully index rate. 10/6 ARM qualified at the note rate up to 43% DTI; otherwise use fully index rate.",
+    "Jumbo A program is not offered for Investment properties.",
+    "Jumbo Loan 90% LTV/CLTV with ARCHMI Mortgage Insurance: Max DTI 43%. Allow 10% for debts other than housing costs.",
+    "Jumbo Loan 90% LTV/CLTV with ARCHMI Mortgage Insurance: An additional 0.125% increase to the rate. Max loan amount $1,500,000.00. Min FICO 720.",
+    "Jumbo Loan 90% LTV/CLTV with ARCHMI Mortgage Insurance: NON-PERMANENT RESIDENT BORROWERS subject to MI Approval. No Secondary Financing permitted, no Interest Only. Current ARCH MI Jumbo UW Guidelines at 30% coverage subject to TechCU UW Overlays. ARCH MI underwriting approval of CONDO and/or CONDO project required.",
+    "Rate Lock Policy (effective 01/01/2025): Purchase Transactions: 30-days pricing locks at submission (Notify AE prior to lock). Refinance Transactions: 45-days pricing at submission; 30-days pricing requires UW Initial Loan Approval.",
+    "Rate Lock Policy: Lock extension cost: 0.10 for the first 10 days. 0.03 subsequent day beginning on day 11th. No courtesy lock extension granted for 30-days rate lock. Exception cost if granted: 0.25 in fee.",
+    "Appraisal Requirements: $100,000.00 - $3,000,000.00 - One full appraisal and desk review. $3,000,000.00 - $8,000,000.00 - Two full appraisals and desk reviews. Please email all appraisal orders to TECHCU Processor.",
+    "Living Trust: TechCU will lend to individual borrowers whose collateral (residential real estate) is held under a revocable living trust as long as the trustees are responsible for the loan. The loan will be underwritten based on the credit worthiness of the individual borrowers and in accordance with investor requirements. The trustees and individual borrowers behind the trust will need to sign both the promissory note and the security instrument along with any other documents as required by investors. TCU will require a trust certification from the borrowers prior to the funding of the loan for its records and will not obtain or request a copy of the living trust at any time.",
+    "General TCU Underwriting Overlays: Please DocuSign for all documents where borrower(s) signature required if possible (except Loan Docs).",
+    "General TCU Underwriting Overlays: Business funds may be used for reserves, down payment and/or closing costs if: (a) A cash flow analysis using 3 months business bank statement determines no negative impact to business based on withdrawal of funds or a CPA letter confirming that the withdrawal will not harm the financial strength of the business; and (b) Borrower must have access to the funds and listed on the account; and (c) Borrower must be the sole propriety or 100% owner of the business (or all borrowers combined own 100%).",
+    "General TCU Underwriting Overlays: Non-ARM length purchase transaction not allowed by TCU overlay Guideline.",
+    "General TCU Underwriting Overlays: TCU requires business tax returns to complete the liquidity test if the Ordinary Income used in lieu of Distribution Income.",
+    "General TCU Underwriting Overlays: CONDO Project Approval not needed if there are only 2-4 units in the project.",
+    "General TCU Underwriting Overlays: CALPERS and CalSTRS are not eligible for reserve.",
+    "General TCU Underwriting Overlays: POA not allowed in refi cash out transactions.",
+    "General TCU Underwriting Overlays: Appraisal Waivers not allowed.",
+    "General TCU Underwriting Overlays: Cashout to buy out Ex-spouse transaction considered a refi rate & term.",
+    "General TCU Underwriting Overlays: Borrowers are on the loan who also must be on the Title.",
+    "Heloc Calculations: TCU HELOC \u2013 Using the full credit limit stress the interest rate by increasing the interest rate by 3% over the existing rate and calculate an interest and principal (P & I) payment amortized over 15 years.",
+    "Heloc Calculations: Outside Non-TCU HELOC \u2013 If the Note documentation could not obtain for future payment calculation, then 1% of the limit may use to calculate P & I for the qualifying payment.",
+    "Any content in this Quick Guide can change without notice."
+  ]
+}
