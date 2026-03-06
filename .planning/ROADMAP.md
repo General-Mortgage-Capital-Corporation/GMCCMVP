@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Running the ingestion script against a GMCC guideline PDF produces a structured JSON rule set with property types, location restrictions, loan amount ranges, and LTV limits
   2. Program rule chunks are stored in ChromaDB and retrievable by semantic query (e.g., "what property types does program X allow")
   3. Dropping an updated PDF into the input directory and re-running ingestion updates the stored rules without any code changes
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Pydantic schemas, PDF extraction, and LLM structuring pipeline (KB-01)
+- [ ] 01-02-PLAN.md -- ChromaDB vector store, CLI ingestion pipeline, and end-to-end validation (KB-02, KB-03)
 
 ### Phase 2: Matching Engine
 **Goal**: Given any property listing, the system returns which GMCC programs could apply with per-criterion eligibility status
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Program Knowledge Base | 0/0 | Not started | - |
+| 1. Program Knowledge Base | 0/2 | Planning complete | - |
 | 2. Matching Engine | 0/0 | Not started | - |
 | 3. Frontend Integration | 0/0 | Not started | - |
 | 4. DSCR Matching | 0/0 | Not started | - |
