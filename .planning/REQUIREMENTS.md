@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **MATCH-01**: System matches each property listing against all GMCC programs based on available listing data (price, property type, location, county)
 - [x] **MATCH-02**: Each program match includes per-criterion pass/fail/unknown status (property type eligible, loan amount in range, location allowed)
 - [x] **MATCH-03**: When listing data is insufficient to determine eligibility, system marks criterion as "unverified" rather than excluding the program
-- [ ] **MATCH-04**: Matching uses deterministic rule checking for eligibility decisions and LLM only for generating natural-language explanations
+- [x] **MATCH-04**: Matching uses deterministic rule checking for eligibility decisions and LLM only for generating natural-language explanations
 
 ### DSCR Matching
 
@@ -95,7 +95,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | MATCH-01 | Phase 2 | Complete |
 | MATCH-02 | Phase 2 | Complete |
 | MATCH-03 | Phase 2 | Complete |
-| MATCH-04 | Phase 2 | Pending |
+| MATCH-04 | Phase 2 | Complete |
 | UI-01 | Phase 3 | Pending |
 | UI-02 | Phase 3 | Pending |
 | UI-03 | Phase 3 | Pending |
