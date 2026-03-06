@@ -73,22 +73,23 @@ class TestGeminiEmbeddingFunction:
         fn = GeminiEmbeddingFunction(api_key="test-key")
         result = fn(["hello world", "foo bar"])
 
-        assert isinstance(result, list)
         assert len(result) == 2
-        assert result[0] == [0.1, 0.2, 0.3]
-        assert result[1] == [0.4, 0.5, 0.6]
+        assert list(result[0]) == [0.1, 0.2, 0.3]
+        assert list(result[1]) == [0.4, 0.5, 0.6]
 
     @patch("rag.vectorstore.genai")
     def test_uses_configured_model(self, mock_genai):
         """Should pass the configured model name to embed_content."""
+        mock_embedding = MagicMock()
+        mock_embedding.values = [0.1, 0.2, 0.3]
         mock_result = MagicMock()
-        mock_result.embeddings = []
+        mock_result.embeddings = [mock_embedding]
         mock_client = MagicMock()
         mock_client.models.embed_content.return_value = mock_result
         mock_genai.Client.return_value = mock_client
 
         fn = GeminiEmbeddingFunction(api_key="test-key", model="custom-model")
-        fn([])
+        fn(["test doc"])
 
         call_kwargs = mock_client.models.embed_content.call_args
         assert call_kwargs.kwargs["model"] == "custom-model"
