@@ -29,8 +29,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### UI Integration
 
 - [x] **UI-01**: Property cards display number of matched programs as a badge/indicator
-- [ ] **UI-02**: Property detail modal includes a "Matching Programs" section with per-program eligibility breakdown
-- [ ] **UI-03**: User can filter search results to show only listings eligible for a specific GMCC program
+- [x] **UI-02**: Property detail modal includes a "Matching Programs" section with per-program eligibility breakdown
+- [x] **UI-03**: User can filter search results to show only listings eligible for a specific GMCC program
 - [x] **UI-04**: Loading states shown while AI matching processes (matching may be async after initial search results load)
 
 ### Authentication
@@ -97,8 +97,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | MATCH-03 | Phase 2 | Complete |
 | MATCH-04 | Phase 2 | Complete |
 | UI-01 | Phase 3 | Complete |
-| UI-02 | Phase 3 | Pending |
-| UI-03 | Phase 3 | Pending |
+| UI-02 | Phase 3 | Complete |
+| UI-03 | Phase 3 | Complete |
 | UI-04 | Phase 3 | Complete |
 | DSCR-01 | Phase 4 | Pending |
 | DSCR-02 | Phase 4 | Pending |
