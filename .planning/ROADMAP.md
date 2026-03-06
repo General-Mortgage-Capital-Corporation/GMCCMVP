@@ -13,7 +13,7 @@ Transform the existing property search MVP into an AI-powered listing tool where
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Program Knowledge Base** - Extract GMCC guideline PDFs into structured rules and vector store (completed 2026-03-06)
-- [ ] **Phase 2: Matching Engine** - Deterministic program matching against property listing data
+- [x] **Phase 2: Matching Engine** - Deterministic program matching against property listing data (completed 2026-03-06)
 - [ ] **Phase 3: Frontend Integration** - Program match badges on cards and detailed breakdowns in modal
 - [ ] **Phase 4: DSCR Matching** - Rent estimation and DSCR program matching for investment properties
 - [ ] **Phase 5: Authentication** - Microsoft OAuth SSO login for GMCC internal users
@@ -46,8 +46,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Core matching engine: Pydantic models, property type mapping, geocode fallback, and deterministic matching logic (MATCH-01, MATCH-02, MATCH-03)
-- [ ] 02-02-PLAN.md -- Flask API endpoints and on-demand LLM explanation generation (MATCH-01, MATCH-04)
+- [x] 02-01-PLAN.md -- Core matching engine: Pydantic models, property type mapping, geocode fallback, and deterministic matching logic (MATCH-01, MATCH-02, MATCH-03)
+- [x] 02-02-PLAN.md -- Flask API endpoints and on-demand LLM explanation generation (MATCH-01, MATCH-04)
 
 ### Phase 3: Frontend Integration
 **Goal**: Loan officers see program match results directly on property cards and can drill into per-program breakdowns
@@ -61,7 +61,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- CSS styles, filter bar HTML, async matching pipeline, and progressive badge reveal on property cards (UI-01, UI-04)
+- [x] 03-01-PLAN.md -- CSS styles, filter bar HTML, async matching pipeline, and progressive badge reveal on property cards (UI-01, UI-04)
 - [ ] 03-02-PLAN.md -- Modal program breakdown with expandable cards, criteria grid, LLM talking points, and program filter dropdown (UI-02, UI-03, UI-04)
 
 ### Phase 4: DSCR Matching
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Program Knowledge Base | 2/2 | Complete   | 2026-03-06 |
-| 2. Matching Engine | 0/2 | Planning complete | - |
-| 3. Frontend Integration | 0/2 | Planning complete | - |
+| 2. Matching Engine | 2/2 | Complete | 2026-03-06 |
+| 3. Frontend Integration | 1/2 | In progress | - |
 | 4. DSCR Matching | 0/0 | Not started | - |
 | 5. Authentication | 0/0 | Not started | - |
