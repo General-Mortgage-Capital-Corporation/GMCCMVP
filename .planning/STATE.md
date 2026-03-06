@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-06T19:52:13.132Z"
-last_activity: 2026-03-06 — Roadmap created
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-06T20:34:27Z"
+last_activity: 2026-03-06 — Completed 01-01 schemas, extraction, structuring
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 10
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 1 of 5 (Program Knowledge Base)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-03-06 — Roadmap created
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-06 — Completed 01-01 schemas, extraction, structuring
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 4min
+- Total execution time: 0.07 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 - Program Knowledge Base | 1 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (4min)
+- Trend: Starting
 
 *Updated after each plan completion*
 
@@ -58,7 +58,9 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- None yet.
+- Used response_schema (Pydantic model directly) for Gemini structured output instead of response_json_schema
+- Registered custom pytest integration marker in pyproject.toml for clean test separation
+- All optional numeric fields on EligibilityTier default to None for clean null handling
 
 ### Pending Todos
 
@@ -66,12 +68,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 1 depends on having actual GMCC guideline PDFs to validate extraction approach
 - Ground truth validation set (20-30 test cases) requires LO or product specialist input
-- Google SDK package name (`google-genai` vs `google-generativeai`) needs verification at install time
+- RESOLVED: Google SDK package name confirmed as `google-genai` (v1.66.0 installed)
+- RESOLVED: Sample PDF extraction works, table structure preserved in Markdown output
 
 ## Session Continuity
 
-Last session: 2026-03-06T19:52:13.126Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-program-knowledge-base/01-CONTEXT.md
+Last session: 2026-03-06T20:34:27Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: .planning/phases/01-program-knowledge-base/01-01-SUMMARY.md

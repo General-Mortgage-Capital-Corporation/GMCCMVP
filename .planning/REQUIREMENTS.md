@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Knowledge Base
 
-- [ ] **KB-01**: System can parse GMCC loan program guideline PDFs into structured JSON rule sets (property types, location restrictions, loan amount ranges, LTV limits)
+- [x] **KB-01**: System can parse GMCC loan program guideline PDFs into structured JSON rule sets (property types, location restrictions, loan amount ranges, LTV limits)
 - [ ] **KB-02**: System stores program rules in a vector store (ChromaDB) for explanation retrieval alongside structured JSON for deterministic matching
 - [ ] **KB-03**: Program data can be updated by re-ingesting updated guideline PDFs without code changes
 
@@ -89,7 +89,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| KB-01 | Phase 1 | Pending |
+| KB-01 | Phase 1 | Complete |
 | KB-02 | Phase 1 | Pending |
 | KB-03 | Phase 1 | Pending |
 | MATCH-01 | Phase 2 | Pending |
