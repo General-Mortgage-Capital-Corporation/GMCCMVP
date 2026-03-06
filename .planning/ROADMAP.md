@@ -58,11 +58,11 @@ Plans:
   2. Clicking a property card opens the detail modal with a "Matching Programs" section showing per-program eligibility breakdown (which criteria passed, failed, or are unverified)
   3. User can filter the search results list to show only properties eligible for a specific GMCC program
   4. While matching results are loading (async after search), property cards show a loading indicator that resolves to the match badge
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- CSS styles, filter bar HTML, async matching pipeline, and progressive badge reveal on property cards (UI-01, UI-04)
+- [ ] 03-02-PLAN.md -- Modal program breakdown with expandable cards, criteria grid, LLM talking points, and program filter dropdown (UI-02, UI-03, UI-04)
 
 ### Phase 4: DSCR Matching
 **Goal**: Investment properties are evaluated for DSCR loan programs using estimated rent data
@@ -99,6 +99,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Program Knowledge Base | 2/2 | Complete   | 2026-03-06 |
 | 2. Matching Engine | 0/2 | Planning complete | - |
-| 3. Frontend Integration | 0/0 | Not started | - |
+| 3. Frontend Integration | 0/2 | Planning complete | - |
 | 4. DSCR Matching | 0/0 | Not started | - |
 | 5. Authentication | 0/0 | Not started | - |
