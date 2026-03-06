@@ -43,11 +43,11 @@ Plans:
   2. Each program match result includes per-criterion pass/fail/unknown breakdown (property type eligible, loan amount in range, location allowed)
   3. When a listing is missing data needed for a criterion (e.g., no county info), that criterion shows "unverified" rather than failing the program
   4. Eligibility decisions are made by deterministic rule checking against structured JSON; the LLM is only called to generate natural-language explanations
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Core matching engine: Pydantic models, property type mapping, geocode fallback, and deterministic matching logic (MATCH-01, MATCH-02, MATCH-03)
+- [ ] 02-02-PLAN.md -- Flask API endpoints and on-demand LLM explanation generation (MATCH-01, MATCH-04)
 
 ### Phase 3: Frontend Integration
 **Goal**: Loan officers see program match results directly on property cards and can drill into per-program breakdowns
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Program Knowledge Base | 2/2 | Complete   | 2026-03-06 |
-| 2. Matching Engine | 0/0 | Not started | - |
+| 2. Matching Engine | 0/2 | Planning complete | - |
 | 3. Frontend Integration | 0/0 | Not started | - |
 | 4. DSCR Matching | 0/0 | Not started | - |
 | 5. Authentication | 0/0 | Not started | - |
