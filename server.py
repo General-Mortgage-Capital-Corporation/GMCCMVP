@@ -10,6 +10,10 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
 
+from matching.models import ListingInput
+from matching.matcher import match_listing, load_programs
+from matching.explain import explain_match
+
 # Load environment variables
 load_dotenv()
 
@@ -256,6 +260,86 @@ def search_listings():
         'exact_match': False,
         'message': 'No properties found matching your search criteria.'
     })
+
+
+@app.route('/api/match', methods=['POST'])
+def match_listing_endpoint():
+    """Match a RentCast listing against all GMCC programs.
+
+    Accepts a RentCast listing JSON and returns program eligibility results.
+    This endpoint is fully deterministic -- zero LLM calls.
+    """
+    try:
+        listing_data = request.get_json(silent=True)
+
+        if not listing_data:
+            return jsonify({
+                'success': False,
+                'error': 'Request body must be a non-empty JSON object with listing data.'
+            }), 400
+
+        listing = ListingInput.from_rentcast(listing_data)
+        results = match_listing(listing)
+
+        eligible_count = sum(
+            1 for r in results if r.status.value != "Ineligible"
+        )
+
+        return jsonify({
+            'success': True,
+            'programs': [r.model_dump() for r in results],
+            'eligible_count': eligible_count,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Matching error: {str(e)}'
+        }), 500
+
+
+@app.route('/api/explain', methods=['POST'])
+def explain_endpoint():
+    """Generate an on-demand LLM explanation for a program match.
+
+    Accepts {program_name, listing, tier_name} and returns Gemini Flash
+    explanation with ChromaDB guideline context.
+    """
+    try:
+        body = request.get_json(silent=True)
+
+        if not body:
+            return jsonify({
+                'success': False,
+                'error': 'Request body must be a non-empty JSON object.'
+            }), 400
+
+        program_name = body.get('program_name')
+        listing = body.get('listing')
+        tier_name = body.get('tier_name', '')
+
+        if not program_name:
+            return jsonify({
+                'success': False,
+                'error': 'program_name is required.'
+            }), 400
+
+        if not listing:
+            return jsonify({
+                'success': False,
+                'error': 'listing is required.'
+            }), 400
+
+        explanation = explain_match(program_name, listing, tier_name)
+
+        return jsonify({
+            'success': True,
+            'explanation': explanation,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate explanation'
+        }), 500
 
 
 @app.route('/api/health', methods=['GET'])
