@@ -9,6 +9,12 @@
 let currentListings = [];
 let matchPending = 0;
 
+const STATUS_ICONS = {
+    pass: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    fail: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    unverified: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#94a3b8" stroke-width="2"/><path d="M6.5 6a1.5 1.5 0 013 0c0 1-1.5 1-1.5 2M8 11h.01" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>'
+};
+
 // =============================================================================
 // Utility Functions
 // =============================================================================
@@ -37,6 +43,48 @@ function formatDistance(distance) {
     return distance < 1 
         ? `${(distance * 5280).toFixed(0)} ft away`
         : `${distance.toFixed(1)} mi away`;
+}
+
+function renderSimpleMarkdown(text) {
+    // Escape HTML entities to prevent XSS
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Bold: **text** -> <strong>text</strong>
+    escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Process lines for bullet lists
+    const lines = escaped.split('\n');
+    let html = '';
+    let inList = false;
+
+    lines.forEach(line => {
+        const trimmed = line.trimStart();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            if (!inList) {
+                html += '<ul>';
+                inList = true;
+            }
+            html += '<li>' + trimmed.slice(2) + '</li>';
+        } else {
+            if (inList) {
+                html += '</ul>';
+                inList = false;
+            }
+            if (html.length > 0) {
+                html += '<br>';
+            }
+            html += line;
+        }
+    });
+
+    if (inList) {
+        html += '</ul>';
+    }
+
+    return html;
 }
 
 // =============================================================================
@@ -110,15 +158,197 @@ function updateCardBadge(index, eligibleCount) {
     }
 }
 
+function renderCriteriaGrid(program) {
+    const tier = program.matching_tiers.find(t => t.tier_name === program.best_tier) || program.matching_tiers[0];
+    if (!tier) return '';
+
+    const items = tier.criteria.map(criterion => {
+        const icon = STATUS_ICONS[criterion.status] || STATUS_ICONS.unverified;
+        const label = criterion.criterion.replace(/_/g, ' ');
+        return `<div class="criterion-item">
+            <span class="criterion-icon">${icon}</span>
+            <div>
+                <div class="criterion-label">${label}</div>
+                <div class="criterion-detail">${criterion.detail}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="criteria-grid">${items}</div>`;
+}
+
+function createProgramCard(program, listing) {
+    const card = document.createElement('div');
+    card.className = 'program-card';
+
+    const statusClass = program.status === 'Eligible' ? 'status-eligible' : 'status-potentially';
+    const tierText = program.best_tier
+        ? (program.best_tier.length > 40 ? program.best_tier.slice(0, 40) + '...' : program.best_tier)
+        : '';
+
+    const header = document.createElement('div');
+    header.className = 'program-card-header';
+    header.innerHTML = `
+        <span class="program-name">${program.program_name}</span>
+        <span class="program-status ${statusClass}">${program.status}</span>
+        <span class="program-tier">${tierText}</span>
+        <span class="program-chevron">&#9656;</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'program-card-body';
+    body.style.display = 'none';
+    body.innerHTML = `
+        ${renderCriteriaGrid(program)}
+        <button class="btn-talking-points" data-program="${program.program_name}" data-tier="${program.best_tier || ''}">Get Talking Points</button>
+        <div class="talking-points-content"></div>
+    `;
+
+    // Toggle expand/collapse
+    header.addEventListener('click', () => {
+        const isExpanded = card.classList.toggle('expanded');
+        body.style.display = isExpanded ? 'block' : 'none';
+    });
+
+    // Get Talking Points button handler
+    const tpBtn = body.querySelector('.btn-talking-points');
+    const tpContent = body.querySelector('.talking-points-content');
+
+    tpBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+
+        // Check cache first
+        if (listing._explanationCache && listing._explanationCache[program.program_name]) {
+            tpContent.innerHTML = renderSimpleMarkdown(listing._explanationCache[program.program_name]);
+            return;
+        }
+
+        // Disable button and show loading
+        tpBtn.disabled = true;
+        tpBtn.innerHTML = 'Loading... <span class="btn-loader"></span>';
+
+        try {
+            const response = await fetch('/api/explain', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    program_name: program.program_name,
+                    listing: listing,
+                    tier_name: program.best_tier || ''
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                listing._explanationCache = listing._explanationCache || {};
+                listing._explanationCache[program.program_name] = data.explanation;
+                tpContent.innerHTML = renderSimpleMarkdown(data.explanation);
+            } else {
+                tpContent.textContent = 'Unable to load talking points. Try again.';
+            }
+        } catch {
+            tpContent.textContent = 'Unable to load talking points. Try again.';
+        } finally {
+            tpBtn.disabled = false;
+            tpBtn.textContent = 'Get Talking Points';
+        }
+    });
+
+    card.appendChild(header);
+    card.appendChild(body);
+    return card;
+}
+
 function onAllMatchesComplete() {
-    // Filter bar population handled in Plan 02
+    populateFilterDropdown();
+    showFilterBar();
+}
+
+function populateFilterDropdown() {
+    const select = document.getElementById('programFilter');
+    const programNames = new Set();
+
+    currentListings.forEach(listing => {
+        if (listing.matchData && listing.matchData.programs) {
+            listing.matchData.programs.forEach(p => {
+                if (p.status !== 'Ineligible') {
+                    programNames.add(p.program_name);
+                }
+            });
+        }
+    });
+
+    // Clear existing options
+    select.innerHTML = '<option value="">All Programs</option>';
+
+    // Add sorted program names
+    Array.from(programNames).sort().forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    });
+}
+
+function showFilterBar() {
+    const filterBar = document.getElementById('filterBar');
+    if (filterBar) filterBar.classList.remove('hidden');
+}
+
+function filterByProgram(programName) {
+    const cards = document.querySelectorAll('.property-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const index = parseInt(card.getAttribute('data-index'), 10);
+        const listing = currentListings[index];
+
+        if (!programName) {
+            // All Programs -- show everything
+            card.classList.remove('hidden');
+            visibleCount++;
+        } else if (listing && listing.matchData && listing.matchData.programs) {
+            const hasProgram = listing.matchData.programs.some(
+                p => p.program_name === programName && p.status !== 'Ineligible'
+            );
+            if (hasProgram) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+
+    const summary = document.getElementById('filterSummary');
+    if (programName) {
+        summary.textContent = `Showing ${visibleCount} of ${currentListings.length} properties`;
+    } else {
+        summary.textContent = '';
+    }
 }
 
 function resetMatching() {
     matchPending = 0;
+
     // Hide filter bar on new search
     const filterBar = document.getElementById('filterBar');
     if (filterBar) filterBar.classList.add('hidden');
+
+    // Reset filter dropdown to "All Programs"
+    const select = document.getElementById('programFilter');
+    if (select) select.innerHTML = '<option value="">All Programs</option>';
+
+    // Clear filter summary
+    const summary = document.getElementById('filterSummary');
+    if (summary) summary.textContent = '';
+
+    // Re-show any hidden cards
+    document.querySelectorAll('.property-card.hidden').forEach(card => {
+        card.classList.remove('hidden');
+    });
 }
 
 // =============================================================================
@@ -348,7 +578,17 @@ function openPropertyModal(listing) {
                 </div>
             </div>
         </div>
-        
+
+        <!-- Matching Programs Section -->
+        <div class="modal-section" id="modalProgramsSection">
+            <div class="modal-section-title">Matching Programs</div>
+            <div id="programCardsContainer">
+                ${listing.matchLoading ? '<div class="programs-loading">Loading program matches...</div>' : ''}
+                ${!listing.matchData && !listing.matchLoading ? '' : ''}
+                ${listing.matchData && listing.matchData.programs.filter(p => p.status !== 'Ineligible').length === 0 && !listing.matchLoading ? '<div class="programs-empty">No matching GMCC programs found for this property</div>' : ''}
+            </div>
+        </div>
+
         <div class="modal-section">
             <div class="modal-section-title">Listing Information</div>
             <div class="modal-grid">
@@ -412,6 +652,15 @@ function openPropertyModal(listing) {
         </div>
     `;
     
+    // Append program cards with event listeners
+    if (listing.matchData) {
+        const container = document.getElementById('programCardsContainer');
+        const matchedPrograms = listing.matchData.programs.filter(p => p.status !== 'Ineligible');
+        matchedPrograms.forEach(program => {
+            container.appendChild(createProgramCard(program, listing));
+        });
+    }
+
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
@@ -515,6 +764,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Program filter
+    document.getElementById('programFilter').addEventListener('change', (e) => {
+        filterByProgram(e.target.value);
+    });
+
     // Initialize search type state
     handleSearchTypeChange();
 });
