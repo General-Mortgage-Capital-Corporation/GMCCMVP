@@ -32,13 +32,16 @@ def structure_with_llm(markdown_text: str, program_name: str) -> ProgramRules:
 The program is called "{program_name}".
 
 Instructions:
-- Each distinct eligibility matrix/tier should be a separate tier entry.
-- Identify the QM/Non-QM status of the program. Use "QM", "Non-QM", or "Both".
+- The document contains sections labeled "ACCURATELY EXTRACTED TABLES" — these are the most reliable source for loan amounts, LTV, CLTV, FICO, and other matrix values. ALWAYS prefer these over any other table data in the document.
+- Create a separate tier entry for EACH ROW in the eligibility matrices. Each combination of transaction type, unit count/property type, and loan amount range is its own tier.
+- For example, if the matrix shows Purchase/1 Unit/$806,501-$1,500,000/80% LTV and Purchase/1 Unit/$1,500,001-$2,000,000/75% LTV, those are TWO separate tiers.
+- For QM/Non-QM status: ONLY set this if the guideline explicitly states QM or Non-QM status. If the document does not explicitly mention QM or Non-QM classification, use "Unknown". Do NOT infer QM status from product features like Interest Only — that determination requires domain expertise.
 - Only extract values explicitly stated in the guideline. Use null for values not found.
 - For transaction_types, use the exact terms from the guideline (e.g., "Purchase", "Rate/Term Refi", "Cash-Out Refi").
 - For property_types, use the exact terms from the guideline (e.g., "SFR", "Condo", "PUD", "2-4 Units").
 - For occupancy_types, use the exact terms from the guideline (e.g., "Primary Residence", "Second Home", "Investment").
 - Capture any general program notes that apply across all tiers.
+- Include the occupancy type (Principal Residence, Second Home, etc.) from the table headers in each tier.
 
 Guideline content:
 {markdown_text}"""

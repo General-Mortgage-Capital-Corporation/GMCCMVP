@@ -12,7 +12,7 @@ PROGRAMS_DIR = "data/programs"
 CHROMA_DIR = "data/chroma"
 
 # Gemini configuration
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Embedding configuration
