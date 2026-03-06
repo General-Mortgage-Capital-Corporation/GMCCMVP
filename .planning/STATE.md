@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-06T20:34:27Z"
-last_activity: 2026-03-06 — Completed 01-01 schemas, extraction, structuring
+status: completed
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-06T21:33:05.946Z"
+last_activity: 2026-03-06 — Completed 01-02 ChromaDB vector store and CLI ingestion pipeline
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 10
+  completed_plans: 2
+  percent: 20
 ---
 
 # Project State
@@ -25,29 +25,29 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 1 of 5 (Program Knowledge Base)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-06 — Completed 01-01 schemas, extraction, structuring
+Phase: 1 of 5 (Program Knowledge Base) -- COMPLETE
+Plan: 2 of 2 in current phase (all done)
+Status: Phase 1 Complete
+Last activity: 2026-03-06 — Completed 01-02 ChromaDB vector store and CLI ingestion pipeline
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4min
-- Total execution time: 0.07 hours
+- Total plans completed: 2
+- Average duration: 9.5min
+- Total execution time: 0.32 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 - Program Knowledge Base | 1 | 4min | 4min |
+| 1 - Program Knowledge Base | 2 | 19min | 9.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min)
-- Trend: Starting
+- Last 5 plans: 01-01 (4min), 01-02 (15min)
+- Trend: Ramping up
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - Used response_schema (Pydantic model directly) for Gemini structured output instead of response_json_schema
 - Registered custom pytest integration marker in pyproject.toml for clean test separation
 - All optional numeric fields on EligibilityTier default to None for clean null handling
+- [Phase 01]: Used ChromaDB PersistentClient at data/chroma/ for durable vector storage across runs
+- [Phase 01]: Enhanced PDF extraction with PyMuPDF find_tables() for accurate table boundaries
+- [Phase 01]: Idempotent store_chunks deletes existing program chunks before re-adding to prevent duplicates
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-06T20:34:27Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-program-knowledge-base/01-01-SUMMARY.md
+Last session: 2026-03-06T21:33:05.944Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: None

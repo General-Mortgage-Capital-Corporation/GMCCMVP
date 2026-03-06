@@ -12,7 +12,7 @@ Transform the existing property search MVP into an AI-powered listing tool where
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Program Knowledge Base** - Extract GMCC guideline PDFs into structured rules and vector store
+- [x] **Phase 1: Program Knowledge Base** - Extract GMCC guideline PDFs into structured rules and vector store (completed 2026-03-06)
 - [ ] **Phase 2: Matching Engine** - Deterministic program matching against property listing data
 - [ ] **Phase 3: Frontend Integration** - Program match badges on cards and detailed breakdowns in modal
 - [ ] **Phase 4: DSCR Matching** - Rent estimation and DSCR program matching for investment properties
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Program Knowledge Base | 1/2 | In Progress|  |
+| 1. Program Knowledge Base | 2/2 | Complete   | 2026-03-06 |
 | 2. Matching Engine | 0/0 | Not started | - |
 | 3. Frontend Integration | 0/0 | Not started | - |
 | 4. DSCR Matching | 0/0 | Not started | - |
