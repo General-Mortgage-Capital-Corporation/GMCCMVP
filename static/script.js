@@ -7,6 +7,7 @@
 // =============================================================================
 
 let currentListings = [];
+let matchPending = 0;
 
 // =============================================================================
 // Utility Functions
@@ -52,6 +53,72 @@ async function searchListings(query, radius, limit, searchType) {
 
     const response = await fetch(`/api/search?${params}`);
     return await response.json();
+}
+
+// =============================================================================
+// Program Matching Functions
+// =============================================================================
+
+function startMatching(listings) {
+    matchPending = listings.length;
+
+    listings.forEach((listing, index) => {
+        listing.matchLoading = true;
+
+        fetch('/api/match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(listing)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                listing.matchData = data;
+                updateCardBadge(index, data.eligible_count);
+            }
+        })
+        .catch(() => {
+            // Silent failure -- no badge shown
+        })
+        .finally(() => {
+            listing.matchLoading = false;
+            matchPending--;
+            if (matchPending <= 0) {
+                onAllMatchesComplete();
+            }
+        });
+    });
+}
+
+function updateCardBadge(index, eligibleCount) {
+    const card = document.querySelector('[data-index="' + index + '"]');
+    if (!card) return;
+
+    const badges = card.querySelector('.property-badges');
+    if (!badges) return;
+
+    // Remove skeleton loading badge
+    const skeleton = badges.querySelector('.badge-programs-loading');
+    if (skeleton) skeleton.remove();
+
+    // Add program count badge if eligible
+    if (eligibleCount > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'badge badge-programs';
+        badge.textContent = eligibleCount + ' Program' + (eligibleCount !== 1 ? 's' : '');
+        badges.appendChild(badge);
+    }
+}
+
+function onAllMatchesComplete() {
+    // Filter bar population handled in Plan 02
+}
+
+function resetMatching() {
+    matchPending = 0;
+    // Hide filter bar on new search
+    const filterBar = document.getElementById('filterBar');
+    if (filterBar) filterBar.classList.add('hidden');
 }
 
 // =============================================================================
@@ -146,6 +213,7 @@ function createPropertyCard(listing, index) {
             <div class="property-badges">
                 <span class="badge badge-days">${days} days on market</span>
                 <span class="badge badge-type">${propertyType}</span>
+                <span class="badge badge-programs-loading">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
             </div>
             <div class="property-stats">
                 <div class="property-stat">
@@ -372,6 +440,7 @@ async function handleSearch(e) {
     
     hideError();
     showMessage(null);
+    resetMatching();
     showLoading(true);
     
     try {
@@ -380,7 +449,10 @@ async function handleSearch(e) {
         if (result.success) {
             currentListings = result.listings;
             renderListings(result.listings);
-            
+
+            // Fire async program matching for each listing
+            startMatching(currentListings);
+
             if (result.message) {
                 showMessage(result.message);
             }
