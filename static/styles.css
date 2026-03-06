@@ -304,6 +304,50 @@ body {
 }
 
 /* ==========================================================================
+   Filter Bar
+   ========================================================================== */
+
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1.25rem;
+}
+
+.filter-bar label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.filter-bar select {
+    height: 36px;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    outline: none;
+}
+
+.filter-bar select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.filter-summary {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin-left: auto;
+}
+
+/* ==========================================================================
    Message Banner
    ========================================================================== */
 
@@ -444,6 +488,27 @@ body {
     border-top: 1px solid var(--color-border);
     font-size: 0.8125rem;
     color: var(--color-text-secondary);
+}
+
+/* ==========================================================================
+   Program Badge
+   ========================================================================== */
+
+.badge-programs-loading {
+    background: var(--color-border);
+    color: transparent;
+    animation: pulse 1.5s ease-in-out infinite;
+    min-width: 70px;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+.badge-programs {
+    background: var(--color-success-light);
+    color: #065f46;
 }
 
 /* ==========================================================================
@@ -600,6 +665,176 @@ body {
 }
 
 /* ==========================================================================
+   Program Card
+   ========================================================================== */
+
+.program-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.program-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.program-card-header:hover {
+    background: var(--color-bg);
+}
+
+.program-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-text);
+}
+
+.program-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 9999px;
+}
+
+.status-eligible {
+    background: var(--color-success-light);
+    color: #065f46;
+}
+
+.status-potentially {
+    background: var(--color-warning-light);
+    color: #92400e;
+}
+
+.program-tier {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-left: auto;
+}
+
+.program-card-body {
+    padding: 0 1rem 1rem 1rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.criteria-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.criterion-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.criterion-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.criterion-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.criterion-detail {
+    font-size: 0.8125rem;
+    color: var(--color-text);
+}
+
+.btn-talking-points {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn-talking-points:hover {
+    border-color: var(--color-accent);
+}
+
+.btn-talking-points:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-talking-points .btn-loader {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-top-color: var(--color-accent);
+}
+
+.talking-points-content {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: var(--color-bg);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+.talking-points-content ul {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+}
+
+.talking-points-content li {
+    margin-bottom: 0.25rem;
+}
+
+.talking-points-content strong {
+    font-weight: 600;
+}
+
+.programs-loading {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.programs-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.program-chevron {
+    margin-left: 0.25rem;
+    transition: transform 0.2s;
+    color: var(--color-text-muted);
+}
+
+.program-card.expanded .program-chevron {
+    transform: rotate(90deg);
+}
+
+/* ==========================================================================
    Footer
    ========================================================================== */
 
@@ -640,6 +875,14 @@ body {
     .modal-grid {
         grid-template-columns: 1fr;
     }
+
+    .criteria-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-bar {
+        flex-wrap: wrap;
+    }
 }
 
 @media (max-width: 480px) {
@@ -654,6 +897,16 @@ body {
     
     .stats-bar {
         grid-template-columns: 1fr;
+    }
+
+    .program-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .program-tier {
+        margin-left: 0;
+        width: 100%;
     }
 }
 
