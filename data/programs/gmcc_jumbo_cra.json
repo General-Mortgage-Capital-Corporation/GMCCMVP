@@ -1,0 +1,49 @@
+{
+  "program_name": "GMCC Jumbo CRA",
+  "qm_status": "Non-QM",
+  "tiers": [
+    {
+      "tier_name": "Cronus Jumbo CRA - LMI Census Tract",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "min_loan_amount": 726200,
+      "max_loan_amount": null,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [
+        "06001", "06013", "06019", "06029", "06031", "06037", "06041",
+        "06047", "06059", "06065", "06067", "06071", "06073", "06075",
+        "06077", "06081", "06085", "06087", "06099", "06111",
+        "09001",
+        "12011", "12031", "12086", "12099",
+        "17031", "17043", "17089", "17097", "17111", "17197",
+        "24031", "24033",
+        "32003",
+        "34003", "34013", "34017", "34031",
+        "36005", "36047", "36059", "36061", "36081", "36085", "36087", "36103", "36119",
+        "46083", "46087", "46099", "46125",
+        "51013", "51059", "51510", "51600", "51610",
+        "11001"
+      ],
+      "requires_lmi_tract": true,
+      "additional_rules": {
+        "description": "CRA pricing incentive up to 2.0 better than conventional Cronus Jumbo. Property must be in an eligible Cronus Assessment Area county AND a low-to-moderate income (LMI) census tract as designated by FFIEC. All other Cronus Jumbo guidelines apply.",
+        "cra_incentive": "Up to 2.0 points better pricing than conventional Cronus Jumbo loan"
+      }
+    }
+  ],
+  "general_notes": [
+    "Cronus Jumbo CRA offers CRA pricing incentive up to 2.0 better than conventional Cronus Jumbo loan.",
+    "Eligibility requires property in an eligible county AND a FFIEC-designated low-to-moderate income (LMI) census tract.",
+    "LMI census tract can be verified at https://geomap.ffiec.gov/ffiecgeomap/",
+    "Since borrowers with <80% MSA median income typically cannot qualify for jumbo, the LMI census tract path is the primary qualifying route.",
+    "Purchase or Refinance. Any occupancy type. 1-4 units allowed.",
+    "All other Cronus Jumbo underwriting guidelines apply."
+  ]
+}

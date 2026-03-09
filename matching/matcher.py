@@ -10,6 +10,7 @@ from functools import lru_cache
 from rag.config import PROGRAMS_DIR
 from rag.schemas import EligibilityTier, ProgramRules
 
+from matching.census import get_census_data, is_lmi_tract
 from matching.geocode import get_county_from_coordinates
 from matching.models import (
     CriterionResult,
@@ -19,15 +20,12 @@ from matching.models import (
     TierResult,
     ListingInput,
 )
-from matching.property_types import PROPERTY_TYPE_UNITS, RENTCAST_TO_PROGRAM
+from matching.property_types import PROPERTY_TYPE_UNITS, PROPERTY_TYPE_UNIT_RANGES, RENTCAST_TO_PROGRAM
 
 
 @lru_cache(maxsize=1)
 def load_programs() -> tuple[ProgramRules, ...]:
-    """Load all program rule JSONs from data/programs/. Cached after first call.
-
-    Returns a tuple (hashable for lru_cache) of ProgramRules.
-    """
+    """Load all program rule JSONs from data/programs/. Cached after first call."""
     programs = []
     for filename in sorted(os.listdir(PROGRAMS_DIR)):
         if filename.endswith(".json"):
@@ -40,11 +38,7 @@ def load_programs() -> tuple[ProgramRules, ...]:
 def check_property_type(
     listing_type: str | None, tier: EligibilityTier
 ) -> CriterionResult:
-    """Check if listing property type matches tier's allowed property types.
-
-    None or unmapped type -> UNVERIFIED. Mapped value in tier.property_types -> PASS.
-    Otherwise FAIL.
-    """
+    """Check if listing property type matches tier's allowed property types."""
     if listing_type is None:
         return CriterionResult(
             criterion="property_type",
@@ -64,7 +58,7 @@ def check_property_type(
         return CriterionResult(
             criterion="property_type",
             status=CriterionStatus.PASS,
-            detail=f"{listing_type} matches {mapped}",
+            detail=f"{listing_type} maps to {mapped}",
         )
 
     return CriterionResult(
@@ -77,13 +71,7 @@ def check_property_type(
 def check_loan_amount(
     price: float | None, tier: EligibilityTier
 ) -> CriterionResult:
-    """Check if listing price is compatible with tier's loan amount range.
-
-    Price is the upper bound for loan amount (buyer makes a down payment).
-    - None price -> UNVERIFIED
-    - price < min_loan_amount -> FAIL (impossible to reach min loan with this price)
-    - Otherwise -> PASS (with down payment, loan could be within tier range)
-    """
+    """Check if listing price is compatible with tier's loan amount range."""
     if price is None:
         return CriterionResult(
             criterion="loan_amount",
@@ -91,8 +79,6 @@ def check_loan_amount(
             detail="Listing price not available",
         )
 
-    # If price is below the tier's minimum loan amount, it's impossible
-    # for the loan to reach that minimum (price is the ceiling for loan amount)
     if tier.min_loan_amount is not None and price < tier.min_loan_amount:
         return CriterionResult(
             criterion="loan_amount",
@@ -103,20 +89,36 @@ def check_loan_amount(
             ),
         )
 
-    # Price >= min means a loan in range is possible.
-    # Price > max is OK because with down payment the loan can be <= max.
-    if tier.max_loan_amount is not None and tier.min_loan_amount is not None:
-        detail = (
-            f"Price ${price:,.0f} allows loan in range "
-            f"${tier.min_loan_amount:,.0f}-${tier.max_loan_amount:,.0f}"
+    # For conforming-only programs: price above max could still work with
+    # a larger down payment, so mark as UNVERIFIED rather than FAIL.
+    if tier.max_loan_amount is not None and price > tier.max_loan_amount:
+        return CriterionResult(
+            criterion="loan_amount",
+            status=CriterionStatus.UNVERIFIED,
+            detail=(
+                f"Price ${price:,.0f} exceeds conforming limit "
+                f"${tier.max_loan_amount:,.0f} — may still qualify with sufficient down payment"
+            ),
         )
+
+    # For jumbo programs: price >= min doesn't guarantee loan >= min.
+    # With 20% down, loan = price * 0.80. Only PASS if that still exceeds min.
+    if tier.min_loan_amount is not None and price * 0.80 < tier.min_loan_amount:
+        return CriterionResult(
+            criterion="loan_amount",
+            status=CriterionStatus.UNVERIFIED,
+            detail=(
+                f"Price ${price:,.0f} could be conforming or jumbo depending on down payment "
+                f"(20% down = ${price * 0.80:,.0f} loan vs ${tier.min_loan_amount:,.0f} jumbo floor)"
+            ),
+        )
+
+    if tier.min_loan_amount is not None:
+        detail = f"Price ${price:,.0f} supports jumbo loan (even at 80% LTV, loan ${price * 0.80:,.0f} exceeds ${tier.min_loan_amount:,.0f} floor)"
     elif tier.max_loan_amount is not None:
-        detail = (
-            f"Price ${price:,.0f} allows loan up to "
-            f"${tier.max_loan_amount:,.0f}"
-        )
+        detail = f"Price ${price:,.0f} within conforming limit ${tier.max_loan_amount:,.0f}"
     else:
-        detail = f"Price ${price:,.0f} -- no loan amount constraints on this tier"
+        detail = f"Price ${price:,.0f} — no loan amount constraints"
 
     return CriterionResult(
         criterion="loan_amount",
@@ -125,97 +127,199 @@ def check_loan_amount(
     )
 
 
-def check_location(
-    county: str | None,
-    state: str | None,
+def check_eligible_county(
+    county_fips: str | None,
     lat: float | None,
     lon: float | None,
     tier: EligibilityTier,
 ) -> CriterionResult:
-    """Check if listing location satisfies tier's location restrictions.
-
-    Empty location_restrictions -> PASS (no restrictions = any location).
-    If county/state available, check against restrictions.
-    If no location data and no lat/lon -> UNVERIFIED.
-    If lat/lon available but no county, use FCC geocode fallback.
-    """
-    # No restrictions means any location is fine
-    if not tier.location_restrictions:
+    """Check if listing county FIPS is in the tier's eligible county list."""
+    if not tier.eligible_county_fips:
         return CriterionResult(
-            criterion="location",
+            criterion="eligible_county",
             status=CriterionStatus.PASS,
-            detail="No location restrictions for this tier",
+            detail="No county restrictions for this tier",
         )
 
-    # Try to resolve county if missing but lat/lon available
-    resolved_county = county
-    resolved_state = state
-    if not county and lat is not None and lon is not None:
-        geo_result = get_county_from_coordinates(lat, lon)
-        if geo_result:
-            resolved_county = geo_result.get("county_name")
-            resolved_state = resolved_state or geo_result.get("state_code")
+    resolved_fips = county_fips
+    if not resolved_fips and lat is not None and lon is not None:
+        geo = get_county_from_coordinates(lat, lon)
+        if geo:
+            resolved_fips = geo.get("county_fips")
 
-    # If still no location data -> UNVERIFIED
-    if not resolved_county and not resolved_state:
+    if not resolved_fips:
         return CriterionResult(
-            criterion="location",
+            criterion="eligible_county",
             status=CriterionStatus.UNVERIFIED,
-            detail="No location data available to check restrictions",
+            detail="County FIPS not available to check eligibility",
         )
 
-    # Check against restrictions (substring match for county, exact for state)
-    for restriction in tier.location_restrictions:
-        restriction_lower = restriction.lower().strip()
-        # Check state code match
-        if resolved_state and resolved_state.lower().strip() == restriction_lower:
-            return CriterionResult(
-                criterion="location",
-                status=CriterionStatus.PASS,
-                detail=f"State {resolved_state} matches restriction '{restriction}'",
-            )
-        # Check county name substring match
-        if resolved_county and restriction_lower in resolved_county.lower():
-            return CriterionResult(
-                criterion="location",
-                status=CriterionStatus.PASS,
-                detail=(
-                    f"County '{resolved_county}' matches "
-                    f"restriction '{restriction}'"
-                ),
-            )
-        # Check if county name is in the restriction text
-        if resolved_county and resolved_county.lower() in restriction_lower:
-            return CriterionResult(
-                criterion="location",
-                status=CriterionStatus.PASS,
-                detail=(
-                    f"County '{resolved_county}' matches "
-                    f"restriction '{restriction}'"
-                ),
-            )
+    resolved_fips = resolved_fips.strip().zfill(5)
 
-    # Location data available but doesn't match any restriction
-    location_desc = f"{resolved_county or ''}, {resolved_state or ''}".strip(", ")
+    if resolved_fips in tier.eligible_county_fips:
+        return CriterionResult(
+            criterion="eligible_county",
+            status=CriterionStatus.PASS,
+            detail=f"County FIPS {resolved_fips} is in Cronus Assessment Area",
+        )
+
     return CriterionResult(
-        criterion="location",
+        criterion="eligible_county",
         status=CriterionStatus.FAIL,
-        detail=(
-            f"Location '{location_desc}' does not match "
-            f"restrictions {tier.location_restrictions}"
-        ),
+        detail=f"County FIPS {resolved_fips} is not in the eligible county list",
+    )
+
+
+def check_lmi_tract(
+    tract_income_level: str | None, tier: EligibilityTier
+) -> CriterionResult:
+    """Check if census tract is LMI per FFIEC designation."""
+    if not tier.requires_lmi_tract:
+        return CriterionResult(
+            criterion="lmi_census_tract",
+            status=CriterionStatus.PASS,
+            detail="LMI census tract not required for this tier",
+        )
+
+    if not tract_income_level:
+        return CriterionResult(
+            criterion="lmi_census_tract",
+            status=CriterionStatus.UNVERIFIED,
+            detail="Census tract income level unavailable — verify at geomap.ffiec.gov",
+        )
+
+    if is_lmi_tract(tract_income_level):
+        return CriterionResult(
+            criterion="lmi_census_tract",
+            status=CriterionStatus.PASS,
+            detail=f"Tract income level is '{tract_income_level}' (LMI) — CRA eligible",
+        )
+
+    return CriterionResult(
+        criterion="lmi_census_tract",
+        status=CriterionStatus.FAIL,
+        detail=f"Tract income level is '{tract_income_level}' — not LMI (must be Low or Moderate)",
+    )
+
+
+def check_eligible_msa(
+    msa_code: str | None, tier: EligibilityTier
+) -> CriterionResult:
+    """Check if listing's MSA code is in the tier's eligible MSA list."""
+    if not tier.eligible_msa_codes:
+        return CriterionResult(
+            criterion="eligible_msa",
+            status=CriterionStatus.PASS,
+            detail="No MSA restrictions for this tier",
+        )
+
+    if not msa_code:
+        return CriterionResult(
+            criterion="eligible_msa",
+            status=CriterionStatus.UNVERIFIED,
+            detail="MSA code not available to check eligibility",
+        )
+
+    if msa_code.strip() in tier.eligible_msa_codes:
+        return CriterionResult(
+            criterion="eligible_msa",
+            status=CriterionStatus.PASS,
+            detail=f"MSA {msa_code} is in the eligible MSA list",
+        )
+
+    return CriterionResult(
+        criterion="eligible_msa",
+        status=CriterionStatus.FAIL,
+        detail=f"MSA {msa_code} is not in the eligible MSA list",
+    )
+
+
+def check_dmmct(
+    majority_aa_hp: bool | None, tier: EligibilityTier
+) -> CriterionResult:
+    """Check if census tract is a Designated Majority-Minority Census Tract.
+
+    DMMCT = Black+Hispanic population > 50% of total tract population.
+    """
+    if not tier.requires_dmmct:
+        return CriterionResult(
+            criterion="dmmct",
+            status=CriterionStatus.PASS,
+            detail="DMMCT not required for this tier",
+        )
+
+    if majority_aa_hp is None:
+        return CriterionResult(
+            criterion="dmmct",
+            status=CriterionStatus.UNVERIFIED,
+            detail="Census demographics unavailable — cannot verify DMMCT status",
+        )
+
+    if majority_aa_hp:
+        return CriterionResult(
+            criterion="dmmct",
+            status=CriterionStatus.PASS,
+            detail="Tract is a Designated Majority-Minority Census Tract (Black+Hispanic > 50%)",
+        )
+
+    return CriterionResult(
+        criterion="dmmct",
+        status=CriterionStatus.FAIL,
+        detail="Tract is not a DMMCT (Black+Hispanic ≤ 50% of tract population)",
+    )
+
+
+def check_mmct_or_lmi(
+    tract_minority_pct: float | None,
+    tract_income_level: str | None,
+    tier: EligibilityTier,
+) -> CriterionResult:
+    """Check if tract is a Majority-Minority Census Tract OR LMI tract.
+
+    MMCT = total minority population > 50% of tract (broader than DMMCT).
+    LMI = Low or Moderate income tract per FFIEC.
+    """
+    if not tier.requires_mmct_or_lmi:
+        return CriterionResult(
+            criterion="mmct_or_lmi",
+            status=CriterionStatus.PASS,
+            detail="MMCT/LMI tract not required for this tier",
+        )
+
+    # Check LMI first
+    if tract_income_level and is_lmi_tract(tract_income_level):
+        return CriterionResult(
+            criterion="mmct_or_lmi",
+            status=CriterionStatus.PASS,
+            detail=f"Tract is LMI (income level: {tract_income_level})",
+        )
+
+    # Check MMCT (minority % > 50)
+    if tract_minority_pct is not None and tract_minority_pct > 50.0:
+        return CriterionResult(
+            criterion="mmct_or_lmi",
+            status=CriterionStatus.PASS,
+            detail=f"Tract is MMCT (minority {tract_minority_pct:.1f}% > 50%)",
+        )
+
+    if tract_minority_pct is not None and tract_income_level:
+        return CriterionResult(
+            criterion="mmct_or_lmi",
+            status=CriterionStatus.FAIL,
+            detail=f"Tract is not MMCT (minority {tract_minority_pct:.1f}%) and not LMI ({tract_income_level})",
+        )
+
+    return CriterionResult(
+        criterion="mmct_or_lmi",
+        status=CriterionStatus.UNVERIFIED,
+        detail="Census demographics unavailable — cannot verify MMCT/LMI status",
     )
 
 
 def check_unit_count(
     listing_type: str | None, tier: EligibilityTier
 ) -> CriterionResult:
-    """Check if listing's inferred unit count matches tier's unit_count_limits.
-
-    Empty unit_count_limits -> PASS (no restriction).
-    Infer units from PROPERTY_TYPE_UNITS. None inference -> UNVERIFIED.
-    Inferred units in limits -> PASS. Otherwise FAIL.
-    """
+    """Check if listing's inferred unit count matches tier's unit_count_limits."""
     if not tier.unit_count_limits:
         return CriterionResult(
             criterion="unit_count",
@@ -232,44 +336,44 @@ def check_unit_count(
 
     inferred_units = PROPERTY_TYPE_UNITS.get(listing_type)
     if inferred_units is None:
+        # Check if a known range exists (e.g. Multi-Family = 2-4 units)
+        unit_range = PROPERTY_TYPE_UNIT_RANGES.get(listing_type)
+        if unit_range and all(u in tier.unit_count_limits for u in unit_range):
+            return CriterionResult(
+                criterion="unit_count",
+                status=CriterionStatus.PASS,
+                detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), all within limits {tier.unit_count_limits}",
+            )
         return CriterionResult(
             criterion="unit_count",
             status=CriterionStatus.UNVERIFIED,
-            detail=(
-                f"Cannot determine unit count from property type '{listing_type}'"
-            ),
+            detail=f"Cannot determine unit count from property type '{listing_type}'",
         )
 
     if inferred_units in tier.unit_count_limits:
         return CriterionResult(
             criterion="unit_count",
             status=CriterionStatus.PASS,
-            detail=(
-                f"{listing_type} has {inferred_units} unit(s), "
-                f"within limits {tier.unit_count_limits}"
-            ),
+            detail=f"{listing_type} has {inferred_units} unit(s), within limits {tier.unit_count_limits}",
         )
 
     return CriterionResult(
         criterion="unit_count",
         status=CriterionStatus.FAIL,
-        detail=(
-            f"{listing_type} has {inferred_units} unit(s), "
-            f"not in limits {tier.unit_count_limits}"
-        ),
+        detail=f"{listing_type} has {inferred_units} unit(s), not in limits {tier.unit_count_limits}",
     )
 
 
 def match_tier(listing: ListingInput, tier: EligibilityTier) -> TierResult:
-    """Match a listing against a single tier, checking all criteria.
-
-    Returns TierResult with: any FAIL -> INELIGIBLE, any UNVERIFIED (no FAIL) ->
-    POTENTIALLY_ELIGIBLE, all PASS -> ELIGIBLE.
-    """
+    """Match a listing against a single tier, checking all criteria."""
     criteria = [
         check_property_type(listing.property_type, tier),
         check_loan_amount(listing.price, tier),
-        check_location(listing.county, listing.state, listing.latitude, listing.longitude, tier),
+        check_eligible_county(listing.county_fips, listing.latitude, listing.longitude, tier),
+        check_eligible_msa(listing.census_msa_code, tier),
+        check_lmi_tract(listing.tract_income_level, tier),
+        check_dmmct(listing.census_majority_aa_hp, tier),
+        check_mmct_or_lmi(listing.census_tract_minority_pct, listing.tract_income_level, tier),
         check_unit_count(listing.property_type, tier),
     ]
 
@@ -285,53 +389,41 @@ def match_tier(listing: ListingInput, tier: EligibilityTier) -> TierResult:
 
 
 def match_listing(listing: ListingInput) -> list[ProgramResult]:
-    """Match a listing against all loaded GMCC programs.
-
-    - Loads all programs via load_programs()
-    - Filters tiers to Purchase-only (locked decision: all active listings are purchases)
-    - Skips occupancy filtering (locked decision: show all occupancy tiers)
-    - Returns one ProgramResult per program
-    """
+    """Match a listing against all loaded GMCC programs."""
     programs = load_programs()
     results = []
 
     for program in programs:
-        # Filter to Purchase tiers only
         purchase_tiers = [
             tier
             for tier in program.tiers
             if "Purchase" in tier.transaction_types
         ]
 
-        # Match listing against each purchase tier
         tier_results = [match_tier(listing, tier) for tier in purchase_tiers]
 
-        # Collect non-ineligible tiers
-        matching_tiers = [
-            tr for tr in tier_results if tr.status != OverallStatus.INELIGIBLE
+        eligible_tiers = [
+            tr for tr in tier_results if tr.status == OverallStatus.ELIGIBLE
+        ]
+        potential_tiers = [
+            tr for tr in tier_results if tr.status == OverallStatus.POTENTIALLY_ELIGIBLE
         ]
 
-        # Determine program-level status
-        if not matching_tiers:
-            program_status = OverallStatus.INELIGIBLE
-            best_tier = None
+        if eligible_tiers:
+            program_status = OverallStatus.ELIGIBLE
+            best_tier = eligible_tiers[0].tier_name
+        elif potential_tiers:
+            program_status = OverallStatus.POTENTIALLY_ELIGIBLE
+            best_tier = potential_tiers[0].tier_name
         else:
-            # Check if any tier is fully eligible
-            eligible_tiers = [
-                tr for tr in matching_tiers if tr.status == OverallStatus.ELIGIBLE
-            ]
-            if eligible_tiers:
-                program_status = OverallStatus.ELIGIBLE
-                best_tier = eligible_tiers[0].tier_name
-            else:
-                program_status = OverallStatus.POTENTIALLY_ELIGIBLE
-                best_tier = matching_tiers[0].tier_name
+            program_status = OverallStatus.INELIGIBLE
+            best_tier = tier_results[0].tier_name if tier_results else None
 
         results.append(
             ProgramResult(
                 program_name=program.program_name,
                 status=program_status,
-                matching_tiers=matching_tiers,
+                matching_tiers=tier_results,  # include all tiers for UI detail
                 best_tier=best_tier,
             )
         )

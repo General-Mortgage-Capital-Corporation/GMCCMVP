@@ -1,0 +1,158 @@
+{
+  "program_name": "GMCC Special Conforming",
+  "qm_status": "QM",
+  "tiers": [
+    {
+      "tier_name": "30-Year Fixed SPCP",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 806500,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "eligible_msa_codes": [
+        "31084", "36084", "41740", "41884", "41940",
+        "19740", "47764",
+        "33124", "48424",
+        "29404",
+        "35084", "35004", "35614",
+        "12420", "19124", "26420"
+      ],
+      "requires_lmi_tract": false,
+      "requires_dmmct": true,
+      "additional_rules": {
+        "description": "Cronus SPCP 30-year fixed conforming with up to 2.5 better in pricing. $1,500 closing cost assistance. Fannie/Freddie guidelines (DU/LP).",
+        "pricing_incentive": "Up to 2.5 better in pricing",
+        "closing_cost_assistance": "$1,500 CCA for Section B and C costs",
+        "income_limit": "Borrower income ≤120% of MSA MFI (not verifiable from property data)",
+        "underwriting": "Inhouse underwriting, AUS with Overlays, Fannie/Freddie DU/LP guidelines"
+      }
+    },
+    {
+      "tier_name": "HomeRun SPCP",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 806500,
+      "max_ltv": 97.0,
+      "max_cltv": 105.0,
+      "min_fico": 640,
+      "min_reserves_months": 1,
+      "max_dti": 43.0,
+      "unit_count_limits": [1, 2],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "eligible_msa_codes": [
+        "31084", "36084", "41740", "41884", "41940",
+        "19740", "47764",
+        "33124", "48424",
+        "29404",
+        "35084", "35004", "35614",
+        "12420", "19124", "26420"
+      ],
+      "requires_lmi_tract": false,
+      "requires_dmmct": true,
+      "additional_rules": {
+        "description": "Cronus HomeRun SPCP with up to 2.5 + 2.75 better in pricing. Same HomeRun overlays apply. $1,500 closing cost assistance.",
+        "pricing_incentive": "Up to 2.5 + 2.75 better in pricing",
+        "closing_cost_assistance": "$1,500 CCA for Section B and C costs",
+        "income_limit": "Borrower income ≤120% of MSA MFI, BUT no income limit if property is in LMI tract",
+        "wage_earner_only": true,
+        "no_self_employed": true,
+        "no_mi": true,
+        "fixed_rate_only": true,
+        "no_current_property": "Borrower and non-borrowing spouse cannot own any residential property at closing",
+        "full_appraisal_required": true,
+        "impound_required": true,
+        "full_condo_review": true,
+        "no_non_occupant_coborrower": true
+      }
+    },
+    {
+      "tier_name": "HomeReady SPCP",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 806500,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "eligible_msa_codes": [
+        "31084", "36084", "41740", "41884", "41940",
+        "19740", "47764",
+        "33124", "48424",
+        "29404",
+        "35084", "35004", "35614",
+        "12420", "19124", "26420"
+      ],
+      "requires_lmi_tract": false,
+      "requires_dmmct": true,
+      "additional_rules": {
+        "description": "Cronus HomeReady SPCP with Home Ready pricing + up to 2.5 better. Must qualify as HomeReady per DU findings. $1,500 closing cost assistance.",
+        "pricing_incentive": "Home Ready pricing + up to 2.5 better",
+        "closing_cost_assistance": "$1,500 CCA for Section B and C costs",
+        "income_limit": "Borrower income ≤80% of AMI (Fannie Mae AMI lookup, not verifiable from property data)",
+        "underwriting": "Must qualify as HomeReady per DU findings, Fannie Mae guidelines"
+      }
+    },
+    {
+      "tier_name": "Home Possible SPCP",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 806500,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "eligible_msa_codes": [
+        "31084", "36084", "41740", "41884", "41940",
+        "19740", "47764",
+        "33124", "48424",
+        "29404",
+        "35084", "35004", "35614",
+        "12420", "19124", "26420"
+      ],
+      "requires_lmi_tract": false,
+      "requires_dmmct": true,
+      "additional_rules": {
+        "description": "Cronus Home Possible SPCP with Home Possible pricing + up to 2.5 better. Must qualify as Home Possible per LP findings. $1,500 closing cost assistance.",
+        "pricing_incentive": "Home Possible pricing + up to 2.5 better",
+        "closing_cost_assistance": "$1,500 CCA for Section B and C costs",
+        "income_limit": "Borrower income ≤80% of AMI (not verifiable from property data)",
+        "underwriting": "Must qualify as Home Possible per LP findings, Freddie Mac guidelines"
+      }
+    }
+  ],
+  "general_notes": [
+    "GMCC Special Conforming (Cronus SPCP) offers special pricing for properties in Designated Majority-Minority Census Tracts (DMMCT) within eligible MSAs.",
+    "DMMCT = Black Population or Hispanic Population > 50% of tract, OR Black + Hispanic combined > 50%.",
+    "All 4 sub-programs share the same 16 eligible MSA areas across CA, CO, DC, FL, IL, NJ-PA, NY, NY-NJ, TX.",
+    "$1,500 Closing Cost Assistance (CCA) available for Section B and C costs on all SPCP programs.",
+    "Inhouse underwriting — investor approval required BEFORE doc. AUS with Overlays. No exceptions.",
+    "Doc date must be AFTER the investor CTC date. No exception.",
+    "Income limits vary by sub-program: 30yr Fixed and HomeRun use 120% MFI; HomeReady and Home Possible use 80% AMI. These are borrower-level criteria not verifiable from property data.",
+    "HomeRun SPCP: if property is in LMI tract, there is no income limit requirement.",
+    "Conforming loan amounts only — no high-balance or jumbo.",
+    "Purchase only. Primary residence only."
+  ]
+}

@@ -59,22 +59,48 @@ class ListingInput(BaseModel):
     bedrooms: int | None = None
     bathrooms: float | None = None
     square_footage: int | None = None
+    # Census / FFIEC data (populated server-side before matching)
+    tract_income_level: str | None = None
+    census_msa_code: str | None = None
+    census_majority_aa_hp: bool | None = None
+    census_tract_minority_pct: float | None = None
 
     @classmethod
-    def from_rentcast(cls, listing: dict) -> "ListingInput":
-        """Create from raw RentCast API response dict."""
-        return cls(
+    def from_rentcast(cls, listing: dict, census_data: dict | None = None) -> "ListingInput":
+        """Create from raw RentCast API response dict with optional FFIEC census data."""
+        # RentCast splits FIPS: stateFips="06", countyFips="085"
+        # Combine into 5-digit code for program matching (e.g. "06085")
+        state_fips = (listing.get("stateFips") or "").strip()
+        county_fips_raw = (listing.get("countyFips") or "").strip()
+        if state_fips and county_fips_raw:
+            combined_fips = state_fips.zfill(2) + county_fips_raw.zfill(3)
+        else:
+            combined_fips = None
+
+        obj = cls(
             price=listing.get("price"),
             property_type=listing.get("propertyType"),
             state=listing.get("state"),
             county=listing.get("county"),
-            county_fips=listing.get("countyFips"),
+            county_fips=combined_fips,
             latitude=listing.get("latitude"),
             longitude=listing.get("longitude"),
             bedrooms=listing.get("bedrooms"),
             bathrooms=listing.get("bathrooms"),
             square_footage=listing.get("squareFootage"),
         )
+        if census_data:
+            obj.tract_income_level = census_data.get("tract_income_level")
+            obj.census_msa_code = census_data.get("msa_code")
+            obj.census_majority_aa_hp = census_data.get("majority_aa_hp")
+            obj.census_tract_minority_pct = census_data.get("tract_minority_pct")
+            # Use census FIPS if RentCast didn't provide it
+            if not obj.county_fips:
+                state_c = census_data.get("state_code", "") or ""
+                county_c = census_data.get("county_code", "") or ""
+                if state_c and county_c:
+                    obj.county_fips = state_c.zfill(2) + county_c.zfill(3)
+        return obj
 
 
 class MatchResponse(BaseModel):

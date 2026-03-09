@@ -17,8 +17,13 @@ PROPERTY_TYPE_UNITS: dict[str, int | None] = {
     "Single Family": 1,
     "Condo": 1,
     "Townhouse": 1,
-    "Multi-Family": None,  # Unknown: could be 2, 3, or 4
+    "Multi-Family": None,  # Range: 2-4, checked via PROPERTY_TYPE_UNIT_RANGES
     "Manufactured": 1,
     "Apartment": None,  # Unknown
     "Land": None,  # N/A
+}
+
+# For types where exact unit count is unknown but the range is bounded
+PROPERTY_TYPE_UNIT_RANGES: dict[str, list[int]] = {
+    "Multi-Family": [2, 3, 4],
 }

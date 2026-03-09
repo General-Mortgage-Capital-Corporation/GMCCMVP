@@ -1,0 +1,57 @@
+{
+  "program_name": "GMCC Grandslam",
+  "qm_status": "QM",
+  "tiers": [
+    {
+      "tier_name": "Grandslam",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 806500,
+      "max_ltv": 97.0,
+      "max_cltv": 105.0,
+      "min_fico": 640,
+      "min_reserves_months": 1,
+      "max_dti": 43.0,
+      "unit_count_limits": [1, 2],
+      "location_restrictions": [],
+      "eligible_county_fips": [
+        "06001", "06013", "06019", "06029", "06031", "06037", "06041",
+        "06047", "06059", "06065", "06067", "06071", "06073", "06075",
+        "06077", "06081", "06085", "06087", "06099", "06111",
+        "09001",
+        "12011", "12031", "12086", "12099",
+        "17031", "17043", "17089", "17097", "17111", "17197",
+        "24031", "24033",
+        "32003",
+        "34003", "34013", "34017", "34031",
+        "36005", "36047", "36059", "36061", "36081", "36085", "36087", "36103", "36119",
+        "46083", "46087", "46099", "46125",
+        "51013", "51059", "51510", "51600", "51610",
+        "11001"
+      ],
+      "requires_lmi_tract": true,
+      "additional_rules": {
+        "description": "Cronus Home Run agency program with CRA overlays. Property must be in FFIEC-designated LMI census tract. Conforming loan amounts only, no high-balance or jumbo. Fixed rate only, no MI, no temporary buydown.",
+        "alternative_income_path": "Borrower income ≤80% of area MFI can also qualify (not verifiable from property data)",
+        "wage_earner_only": true,
+        "no_self_employed": true,
+        "counseling_required": "Required unless homeowner in past 3 years",
+        "no_current_property": "Borrower and non-borrowing spouse cannot own any residential property at closing"
+      }
+    }
+  ],
+  "general_notes": [
+    "Cronus Home Run (GMCC Grandslam) is a conforming agency program with CRA pricing overlays.",
+    "Two qualifying paths: (a) Borrower income ≤80% of MSA MFI, OR (b) Property in FFIEC-designated LMI census tract. Only path (b) is verifiable from property data.",
+    "Conforming loan amounts only — no high-balance or jumbo. Fixed rate only. No MI.",
+    "Purchase only. Primary residence only. 1-2 units. Max LTV 97%.",
+    "Wage earner only — self-employed borrowers do not qualify.",
+    "Borrower AND non-borrowing spouse cannot own any residential property at time of closing.",
+    "Counseling program required unless homeowner in past 3 years.",
+    "VA residual income test required. No non-occupant co-borrower.",
+    "Texas 50(a)(6) and 50(f)(2) not eligible.",
+    "Impound and full appraisal required."
+  ]
+}

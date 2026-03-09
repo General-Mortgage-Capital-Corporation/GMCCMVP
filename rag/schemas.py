@@ -58,6 +58,26 @@ class EligibilityTier(BaseModel):
         default_factory=list,
         description="Allowed unit counts, e.g., [1, 2, 3, 4]",
     )
+    eligible_county_fips: list[str] = Field(
+        default_factory=list,
+        description="Allowed 5-digit county FIPS codes, e.g., ['06085', '06001']. Empty = no restriction.",
+    )
+    requires_lmi_tract: bool = Field(
+        default=False,
+        description="If True, property must be in a FFIEC-designated low-to-moderate income census tract.",
+    )
+    eligible_msa_codes: list[str] = Field(
+        default_factory=list,
+        description="Allowed MSA/MD codes, e.g., ['31084', '36084']. Empty = no restriction.",
+    )
+    requires_dmmct: bool = Field(
+        default=False,
+        description="If True, property must be in a Designated Majority-Minority Census Tract (Black+Hispanic > 50% of tract population).",
+    )
+    requires_mmct_or_lmi: bool = Field(
+        default=False,
+        description="If True, property must be in a Majority-Minority Census Tract (total minority > 50%) OR an LMI tract.",
+    )
     additional_rules: dict = Field(
         default_factory=dict,
         description="Catch-all for other matchable criteria not covered by explicit fields",

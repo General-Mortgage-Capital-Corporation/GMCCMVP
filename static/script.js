@@ -1,22 +1,23 @@
 /**
- * Property Search Dashboard - Frontend JavaScript
+ * GMCC Property Search Dashboard
  */
 
 // =============================================================================
-// State & Configuration
+// State
 // =============================================================================
 
 let currentListings = [];
-let matchPending = 0;
+let currentPage = 1;
+let perPage = 10;
 
 const STATUS_ICONS = {
-    pass: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    fail: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    unverified: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#94a3b8" stroke-width="2"/><path d="M6.5 6a1.5 1.5 0 013 0c0 1-1.5 1-1.5 2M8 11h.01" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>'
+    pass: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    fail: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    unverified: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#94a3b8" stroke-width="2"/><path d="M6.5 6a1.5 1.5 0 013 0c0 1-1.5 1-1.5 2M8 11h.01" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>'
 };
 
 // =============================================================================
-// Utility Functions
+// Utility
 // =============================================================================
 
 function formatPrice(price) {
@@ -24,93 +25,186 @@ function formatPrice(price) {
     return '$' + price.toLocaleString();
 }
 
-function formatSqft(sqft) {
-    if (!sqft) return 'N/A';
-    return sqft.toLocaleString() + ' sq ft';
-}
-
 function formatPhone(phone) {
     if (!phone) return 'N/A';
     const digits = phone.replace(/\D/g, '');
-    if (digits.length === 10) {
-        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    }
+    if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
     return phone;
 }
 
 function formatDistance(distance) {
     if (!distance || distance === 999) return '';
-    return distance < 1 
+    return distance < 1
         ? `${(distance * 5280).toFixed(0)} ft away`
         : `${distance.toFixed(1)} mi away`;
 }
 
+function formatNumber(n) {
+    if (n == null) return 'N/A';
+    return Number(n).toLocaleString();
+}
+
+function formatCurrency(n) {
+    if (n == null) return 'N/A';
+    return '$' + Number(n).toLocaleString();
+}
+
+function formatPct(n) {
+    if (n == null) return 'N/A';
+    return parseFloat(n).toFixed(1) + '%';
+}
+
 function renderSimpleMarkdown(text) {
-    // Escape HTML entities to prevent XSS
     let escaped = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-
-    // Bold: **text** -> <strong>text</strong>
     escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // Process lines for bullet lists
     const lines = escaped.split('\n');
     let html = '';
     let inList = false;
-
     lines.forEach(line => {
         const trimmed = line.trimStart();
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-            if (!inList) {
-                html += '<ul>';
-                inList = true;
-            }
+            if (!inList) { html += '<ul>'; inList = true; }
             html += '<li>' + trimmed.slice(2) + '</li>';
         } else {
-            if (inList) {
-                html += '</ul>';
-                inList = false;
-            }
-            if (html.length > 0) {
-                html += '<br>';
-            }
+            if (inList) { html += '</ul>'; inList = false; }
+            if (html.length > 0) html += '<br>';
             html += line;
         }
     });
-
-    if (inList) {
-        html += '</ul>';
-    }
-
+    if (inList) html += '</ul>';
     return html;
 }
 
 // =============================================================================
-// API Functions
+// Address Autocomplete (via server-side Places API proxy)
 // =============================================================================
 
-async function searchListings(query, radius, limit, searchType) {
-    const params = new URLSearchParams({
-        query: query,
-        radius: radius,
-        limit: limit,
-        search_type: searchType
+let autocompleteTimer = null;
+let autocompleteDropdown = null;
+
+function initAutocomplete() {
+    const input = document.getElementById('searchQuery');
+    if (!input) return;
+
+    // Create dropdown container
+    const wrapper = input.parentNode;
+    wrapper.style.position = 'relative';
+
+    autocompleteDropdown = document.createElement('div');
+    autocompleteDropdown.className = 'autocomplete-dropdown';
+    wrapper.appendChild(autocompleteDropdown);
+
+    // Debounced fetch on input
+    input.addEventListener('input', () => {
+        clearTimeout(autocompleteTimer);
+        const val = input.value.trim();
+        if (val.length < 3) {
+            autocompleteDropdown.innerHTML = '';
+            autocompleteDropdown.style.display = 'none';
+            return;
+        }
+        autocompleteTimer = setTimeout(() => fetchSuggestions(val), 250);
     });
 
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) {
+            autocompleteDropdown.style.display = 'none';
+        }
+    });
+
+    // Keyboard navigation
+    input.addEventListener('keydown', (e) => {
+        const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+        if (!items.length) return;
+
+        const active = autocompleteDropdown.querySelector('.autocomplete-item.active');
+        let idx = Array.from(items).indexOf(active);
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (active) active.classList.remove('active');
+            idx = (idx + 1) % items.length;
+            items[idx].classList.add('active');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (active) active.classList.remove('active');
+            idx = idx <= 0 ? items.length - 1 : idx - 1;
+            items[idx].classList.add('active');
+        } else if (e.key === 'Enter' && active) {
+            e.preventDefault();
+            selectSuggestion(active.dataset.text);
+        }
+    });
+}
+
+async function fetchSuggestions(query) {
+    try {
+        const resp = await fetch(`/api/autocomplete?input=${encodeURIComponent(query)}`);
+        const data = await resp.json();
+        renderSuggestions(data.suggestions || []);
+    } catch {
+        autocompleteDropdown.style.display = 'none';
+    }
+}
+
+function renderSuggestions(suggestions) {
+    if (!suggestions.length) {
+        autocompleteDropdown.style.display = 'none';
+        return;
+    }
+
+    autocompleteDropdown.innerHTML = suggestions.map(s =>
+        `<div class="autocomplete-item" data-text="${s.text.replace(/"/g, '&quot;')}">${s.text}</div>`
+    ).join('');
+    autocompleteDropdown.style.display = 'block';
+
+    autocompleteDropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => selectSuggestion(item.dataset.text));
+        item.addEventListener('mouseenter', () => {
+            autocompleteDropdown.querySelector('.active')?.classList.remove('active');
+            item.classList.add('active');
+        });
+    });
+}
+
+function selectSuggestion(text) {
+    const input = document.getElementById('searchQuery');
+    // Strip country suffix — RentCast doesn't use it
+    input.value = text.replace(/,\s*USA$/, '');
+    autocompleteDropdown.style.display = 'none';
+
+    // Update map marker if map is initialized
+    if (window._searchMap) {
+        geocodeAndMoveMap(input.value);
+    }
+}
+
+// =============================================================================
+// API
+// =============================================================================
+
+async function searchListings(query, radius, searchType) {
+    const params = new URLSearchParams({ query, radius, search_type: searchType });
     const response = await fetch(`/api/search?${params}`);
     return await response.json();
 }
 
 // =============================================================================
-// Program Matching Functions
+// Program Matching
 // =============================================================================
 
-function startMatching(listings) {
-    matchPending = listings.length;
+function matchPageListings() {
+    const cards = document.querySelectorAll('#resultsGrid .property-card');
 
-    listings.forEach((listing, index) => {
+    cards.forEach(card => {
+        const index = parseInt(card.getAttribute('data-index'));
+        const listing = currentListings[index];
+        if (!listing || listing.matchData || listing.matchLoading) return;
+
         listing.matchLoading = true;
 
         fetch('/api/match', {
@@ -118,43 +212,38 @@ function startMatching(listings) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(listing)
         })
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
             if (data.success) {
                 listing.matchData = data;
-                updateCardBadge(index, data.eligible_count);
+                listing.censusData = data.census_data || null;
+                updateCardPrograms(index, data.programs);
+                populateFilterDropdown();
             }
         })
-        .catch(() => {
-            // Silent failure -- no badge shown
-        })
+        .catch(() => {})
         .finally(() => {
             listing.matchLoading = false;
-            matchPending--;
-            if (matchPending <= 0) {
-                onAllMatchesComplete();
-            }
         });
     });
 }
 
-function updateCardBadge(index, eligibleCount) {
-    const card = document.querySelector('[data-index="' + index + '"]');
+function updateCardPrograms(index, programs) {
+    const card = document.querySelector(`[data-index="${index}"]`);
     if (!card) return;
 
-    const badges = card.querySelector('.property-badges');
-    if (!badges) return;
+    const programsArea = card.querySelector('.card-programs');
+    if (!programsArea) return;
 
-    // Remove skeleton loading badge
-    const skeleton = badges.querySelector('.badge-programs-loading');
-    if (skeleton) skeleton.remove();
+    const eligible = programs.filter(p => p.status !== 'Ineligible');
 
-    // Add program count badge if eligible
-    if (eligibleCount > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'badge badge-programs';
-        badge.textContent = eligibleCount + ' Program' + (eligibleCount !== 1 ? 's' : '');
-        badges.appendChild(badge);
+    if (eligible.length === 0) {
+        programsArea.innerHTML = '<span class="prog-none">No matching programs</span>';
+    } else {
+        programsArea.innerHTML = eligible.map(p => {
+            const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
+            return `<span class="prog-badge ${cls}">${p.program_name}</span>`;
+        }).join('');
     }
 }
 
@@ -183,7 +272,7 @@ function createProgramCard(program, listing) {
 
     const statusClass = program.status === 'Eligible' ? 'status-eligible' : 'status-potentially';
     const tierText = program.best_tier
-        ? (program.best_tier.length > 40 ? program.best_tier.slice(0, 40) + '...' : program.best_tier)
+        ? (program.best_tier.length > 50 ? program.best_tier.slice(0, 50) + '...' : program.best_tier)
         : '';
 
     const header = document.createElement('div');
@@ -204,29 +293,22 @@ function createProgramCard(program, listing) {
         <div class="talking-points-content"></div>
     `;
 
-    // Toggle expand/collapse
     header.addEventListener('click', () => {
         const isExpanded = card.classList.toggle('expanded');
         body.style.display = isExpanded ? 'block' : 'none';
     });
 
-    // Get Talking Points button handler
     const tpBtn = body.querySelector('.btn-talking-points');
     const tpContent = body.querySelector('.talking-points-content');
 
     tpBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-
-        // Check cache first
         if (listing._explanationCache && listing._explanationCache[program.program_name]) {
             tpContent.innerHTML = renderSimpleMarkdown(listing._explanationCache[program.program_name]);
             return;
         }
-
-        // Disable button and show loading
         tpBtn.disabled = true;
         tpBtn.innerHTML = 'Loading... <span class="btn-loader"></span>';
-
         try {
             const response = await fetch('/api/explain', {
                 method: 'POST',
@@ -238,7 +320,6 @@ function createProgramCard(program, listing) {
                 })
             });
             const data = await response.json();
-
             if (data.success) {
                 listing._explanationCache = listing._explanationCache || {};
                 listing._explanationCache[program.program_name] = data.explanation;
@@ -259,35 +340,28 @@ function createProgramCard(program, listing) {
     return card;
 }
 
-function onAllMatchesComplete() {
-    populateFilterDropdown();
-    showFilterBar();
-}
-
 function populateFilterDropdown() {
     const select = document.getElementById('programFilter');
+    const currentValue = select.value;
     const programNames = new Set();
-
     currentListings.forEach(listing => {
         if (listing.matchData && listing.matchData.programs) {
             listing.matchData.programs.forEach(p => {
-                if (p.status !== 'Ineligible') {
-                    programNames.add(p.program_name);
-                }
+                if (p.status !== 'Ineligible') programNames.add(p.program_name);
             });
         }
     });
-
-    // Clear existing options
     select.innerHTML = '<option value="">All Programs</option>';
-
-    // Add sorted program names
     Array.from(programNames).sort().forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
         select.appendChild(option);
     });
+    // Preserve current filter selection
+    if (currentValue && programNames.has(currentValue)) {
+        select.value = currentValue;
+    }
 }
 
 function showFilterBar() {
@@ -295,87 +369,164 @@ function showFilterBar() {
     if (filterBar) filterBar.classList.remove('hidden');
 }
 
-function filterByProgram(programName) {
-    const cards = document.querySelectorAll('.property-card');
-    let visibleCount = 0;
+function getFilteredListings() {
+    const programName = document.getElementById('programFilter').value;
+    if (!programName) return currentListings;
+    return currentListings.filter(listing =>
+        listing.matchData && listing.matchData.programs &&
+        listing.matchData.programs.some(p => p.program_name === programName && p.status !== 'Ineligible')
+    );
+}
 
-    cards.forEach(card => {
-        const index = parseInt(card.getAttribute('data-index'), 10);
-        const listing = currentListings[index];
+function filterByProgram() {
+    currentPage = 1;
+    renderFilteredPage();
+}
 
-        if (!programName) {
-            // All Programs -- show everything
-            card.classList.remove('hidden');
-            visibleCount++;
-        } else if (listing && listing.matchData && listing.matchData.programs) {
-            const hasProgram = listing.matchData.programs.some(
-                p => p.program_name === programName && p.status !== 'Ineligible'
-            );
-            if (hasProgram) {
-                card.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                card.classList.add('hidden');
-            }
-        } else {
-            card.classList.add('hidden');
-        }
+function renderFilteredPage() {
+    const filtered = getFilteredListings();
+    const programName = document.getElementById('programFilter').value;
+    const grid = document.getElementById('resultsGrid');
+    grid.innerHTML = '';
+
+    const totalPages = Math.ceil(filtered.length / perPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+
+    const start = (currentPage - 1) * perPage;
+    const end = Math.min(start + perPage, filtered.length);
+    const pageListings = filtered.slice(start, end);
+
+    pageListings.forEach(listing => {
+        const index = currentListings.indexOf(listing);
+        grid.appendChild(createPropertyCard(listing, index));
     });
 
+    renderPagination(totalPages);
+
     const summary = document.getElementById('filterSummary');
-    if (programName) {
-        summary.textContent = `Showing ${visibleCount} of ${currentListings.length} properties`;
-    } else {
-        summary.textContent = '';
-    }
+    summary.textContent = programName
+        ? `Showing ${filtered.length} of ${currentListings.length} properties`
+        : '';
+
+    // Lazy-match only the listings visible on this page
+    matchPageListings();
 }
 
 function resetMatching() {
-    matchPending = 0;
-
-    // Hide filter bar on new search
     const filterBar = document.getElementById('filterBar');
     if (filterBar) filterBar.classList.add('hidden');
-
-    // Reset filter dropdown to "All Programs"
     const select = document.getElementById('programFilter');
     if (select) select.innerHTML = '<option value="">All Programs</option>';
-
-    // Clear filter summary
     const summary = document.getElementById('filterSummary');
     if (summary) summary.textContent = '';
-
-    // Re-show any hidden cards
-    document.querySelectorAll('.property-card.hidden').forEach(card => {
-        card.classList.remove('hidden');
-    });
+    document.querySelectorAll('.property-card.hidden').forEach(c => c.classList.remove('hidden'));
 }
 
 // =============================================================================
-// UI Functions
+// MSA / Census Panel
+// =============================================================================
+
+function demoPct(count, total) {
+    if (count == null || !total) return '';
+    return ` (${(count / total * 100).toFixed(0)}%)`;
+}
+
+function renderMsaPanel(censusData) {
+    if (!censusData) {
+        return `<div class="msa-panel msa-loading">
+            <div class="msa-panel-title">MSA / Census Data</div>
+            <p class="msa-unavailable">Census data unavailable for this property.</p>
+        </div>`;
+    }
+
+    const incomeLevel = censusData.tract_income_level || 'N/A';
+    const incomeLevelLower = incomeLevel.toLowerCase();
+    const isLmi = ['low', 'moderate'].includes(incomeLevelLower);
+    const incomeBadgeClass = isLmi ? 'msa-badge-lmi' : 'msa-badge-non-lmi';
+
+    const minorityPct = censusData.tract_minority_pct;
+    const isMMCT = minorityPct != null && minorityPct > 50;
+    const mmctBadgeClass = isMMCT ? 'msa-badge-lmi' : 'msa-badge-non-lmi';
+
+    const majorityAaHp = censusData.majority_aa_hp;
+    const majorityText = majorityAaHp === true ? 'Yes' : majorityAaHp === false ? 'No' : 'N/A';
+
+    const total = censusData.total_population;
+
+    return `<div class="msa-panel">
+        <div class="msa-panel-title">MSA / Census Tract Data
+            <span class="msa-badge ${incomeBadgeClass}">${incomeLevel} Income</span>
+            <span class="msa-badge ${mmctBadgeClass}">${isMMCT ? 'In-MMCT' : 'Not MMCT'}</span>
+        </div>
+        <div class="msa-grid">
+            <div class="msa-item">
+                <span class="msa-label">MSA/MD Code</span>
+                <span class="msa-value">${censusData.msa_code || 'N/A'}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">MSA Name</span>
+                <span class="msa-value">${censusData.msa_name || 'N/A'}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Tract Income Level</span>
+                <span class="msa-value">${incomeLevel}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Tract Minority %</span>
+                <span class="msa-value">${formatPct(minorityPct)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Majority AA/HP</span>
+                <span class="msa-value">${majorityText}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Total Population</span>
+                <span class="msa-value">${formatNumber(total)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Hispanic Population</span>
+                <span class="msa-value">${formatNumber(censusData.hispanic_population)}${demoPct(censusData.hispanic_population, total)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Black Population</span>
+                <span class="msa-value">${formatNumber(censusData.black_population)}${demoPct(censusData.black_population, total)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Asian Population</span>
+                <span class="msa-value">${formatNumber(censusData.asian_population)}${demoPct(censusData.asian_population, total)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">FFIEC MSA Median Income</span>
+                <span class="msa-value">${formatCurrency(censusData.ffiec_mfi)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Tract Median Income</span>
+                <span class="msa-value">${formatCurrency(censusData.tract_mfi)}</span>
+            </div>
+            <div class="msa-item">
+                <span class="msa-label">Tract / MSA Ratio</span>
+                <span class="msa-value">${censusData.tract_to_msa_ratio != null ? censusData.tract_to_msa_ratio.toFixed(1) + '%' : 'N/A'}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+// =============================================================================
+// UI
 // =============================================================================
 
 function showLoading(show) {
     const btn = document.getElementById('searchBtn');
-    const btnText = btn.querySelector('.btn-text');
-    const btnLoader = btn.querySelector('.btn-loader');
-    
     btn.disabled = show;
-    btnText.textContent = show ? 'Searching...' : 'Search';
-    btnLoader.style.display = show ? 'block' : 'none';
+    btn.querySelector('.btn-text').textContent = show ? 'Searching...' : 'Search';
+    btn.querySelector('.btn-loader').style.display = show ? 'block' : 'none';
 }
 
 function showError(message) {
-    const errorBanner = document.getElementById('errorBanner');
-    const errorText = document.getElementById('errorText');
-    
-    errorText.textContent = message;
-    errorBanner.style.display = 'block';
-    
-    // Hide after 5 seconds
-    setTimeout(() => {
-        errorBanner.style.display = 'none';
-    }, 5000);
+    const banner = document.getElementById('errorBanner');
+    document.getElementById('errorText').textContent = message;
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 5000);
 }
 
 function hideError() {
@@ -385,38 +536,29 @@ function hideError() {
 function showMessage(message) {
     const banner = document.getElementById('messageBanner');
     const text = document.getElementById('messageText');
-    
-    if (message) {
-        text.textContent = message;
-        banner.style.display = 'block';
-    } else {
-        banner.style.display = 'none';
-    }
+    if (message) { text.textContent = message; banner.style.display = 'block'; }
+    else banner.style.display = 'none';
 }
 
 function updateStats(listings) {
-    const count = listings.length;
     const prices = listings.map(l => l.price).filter(p => p);
-    const days = listings.map(l => l.daysOnMarket).filter(d => d !== undefined && d !== null);
-    
-    document.getElementById('statCount').textContent = count;
-    
+    const days = listings.map(l => l.daysOnMarket).filter(d => d != null);
+
+    document.getElementById('statCount').textContent = listings.length;
+
     if (prices.length > 0) {
-        const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-        document.getElementById('statAvgPrice').textContent = formatPrice(avgPrice);
-        
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        document.getElementById('statPriceRange').textContent = 
-            `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+        const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+        document.getElementById('statAvgPrice').textContent = formatPrice(avg);
+        document.getElementById('statPriceRange').textContent =
+            `${formatPrice(Math.min(...prices))} – ${formatPrice(Math.max(...prices))}`;
     } else {
         document.getElementById('statAvgPrice').textContent = '-';
         document.getElementById('statPriceRange').textContent = '-';
     }
-    
+
     if (days.length > 0) {
-        const avgDays = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
-        document.getElementById('statAvgDays').textContent = `${avgDays} days`;
+        const avg = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
+        document.getElementById('statAvgDays').textContent = `${avg} days`;
     } else {
         document.getElementById('statAvgDays').textContent = '-';
     }
@@ -426,16 +568,29 @@ function createPropertyCard(listing, index) {
     const card = document.createElement('div');
     card.className = 'property-card';
     card.setAttribute('data-index', index);
-    
+
     const price = formatPrice(listing.price);
     const address = listing.formattedAddress || 'Address not available';
-    const days = listing.daysOnMarket !== undefined ? listing.daysOnMarket : 'N/A';
+    const days = listing.daysOnMarket != null ? listing.daysOnMarket : 'N/A';
     const propertyType = listing.propertyType || 'Unknown';
-    const beds = listing.bedrooms || 'N/A';
-    const baths = listing.bathrooms || 'N/A';
-    const sqft = listing.squareFootage ? listing.squareFootage.toLocaleString() : 'N/A';
     const distance = formatDistance(listing.distance);
-    
+
+    // Render match badges if data already loaded, otherwise show loading skeleton
+    let programsHtml;
+    if (listing.matchData) {
+        const eligible = listing.matchData.programs.filter(p => p.status !== 'Ineligible');
+        if (eligible.length === 0) {
+            programsHtml = '<span class="prog-none">No matching programs</span>';
+        } else {
+            programsHtml = eligible.map(p => {
+                const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
+                return `<span class="prog-badge ${cls}">${p.program_name}</span>`;
+            }).join('');
+        }
+    } else {
+        programsHtml = '<span class="prog-badge prog-badge-loading">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>';
+    }
+
     card.innerHTML = `
         <div class="property-card-content">
             <div class="property-price">${price}</div>
@@ -443,28 +598,16 @@ function createPropertyCard(listing, index) {
             <div class="property-badges">
                 <span class="badge badge-days">${days} days on market</span>
                 <span class="badge badge-type">${propertyType}</span>
-                <span class="badge badge-programs-loading">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
             </div>
-            <div class="property-stats">
-                <div class="property-stat">
-                    <span class="property-stat-value">${beds}</span>
-                    <span class="property-stat-label">Beds</span>
-                </div>
-                <div class="property-stat">
-                    <span class="property-stat-value">${baths}</span>
-                    <span class="property-stat-label">Baths</span>
-                </div>
-                <div class="property-stat">
-                    <span class="property-stat-value">${sqft}</span>
-                    <span class="property-stat-label">Sq Ft</span>
-                </div>
+            <div class="card-programs-section">
+                <div class="card-programs-label">Matched Programs</div>
+                <div class="card-programs">${programsHtml}</div>
             </div>
         </div>
         ${distance ? `<div class="property-distance">${distance}</div>` : ''}
     `;
-    
+
     card.addEventListener('click', () => openPropertyModal(listing));
-    
     return card;
 }
 
@@ -472,75 +615,140 @@ function renderListings(listings) {
     const grid = document.getElementById('resultsGrid');
     const noResults = document.getElementById('noResults');
     const resultsSection = document.getElementById('resultsSection');
-    
+    const pagination = document.getElementById('pagination');
+
     grid.innerHTML = '';
-    
+
     if (listings.length === 0) {
         noResults.style.display = 'block';
         grid.style.display = 'none';
         document.getElementById('statsBar').style.display = 'none';
+        pagination.style.display = 'none';
     } else {
         noResults.style.display = 'none';
         grid.style.display = 'grid';
         document.getElementById('statsBar').style.display = 'grid';
-        
-        listings.forEach((listing, index) => {
-            grid.appendChild(createPropertyCard(listing, index));
-        });
-        
         updateStats(listings);
+        renderPage();
     }
-    
+
     resultsSection.style.display = 'block';
 }
 
+function renderPage() {
+    renderFilteredPage();
+    window.scrollTo({ top: document.getElementById('resultsSection').offsetTop - 80, behavior: 'smooth' });
+}
+
+function renderPagination(totalPages) {
+    const pagination = document.getElementById('pagination');
+    const pagesContainer = document.getElementById('paginationPages');
+    const prevBtn = document.getElementById('prevPage');
+    const nextBtn = document.getElementById('nextPage');
+
+    if (totalPages <= 1) {
+        pagination.style.display = 'none';
+        return;
+    }
+
+    pagination.style.display = 'flex';
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+
+    // Build page numbers with ellipsis for large sets
+    pagesContainer.innerHTML = '';
+    const pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            pages.push(i);
+        }
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    pages.forEach(p => {
+        if (p === '...') {
+            const span = document.createElement('span');
+            span.className = 'pagination-ellipsis';
+            span.textContent = '...';
+            pagesContainer.appendChild(span);
+        } else {
+            const btn = document.createElement('button');
+            btn.className = 'pagination-page' + (p === currentPage ? ' active' : '');
+            btn.textContent = p;
+            btn.addEventListener('click', () => { currentPage = p; renderPage(); });
+            pagesContainer.appendChild(btn);
+        }
+    });
+}
+
 // =============================================================================
-// Modal Functions
+// Modal
 // =============================================================================
 
 function openPropertyModal(listing) {
     const modal = document.getElementById('modalOverlay');
     const content = document.getElementById('modalContent');
-    
+
     const agent = listing.listingAgent || {};
     const builder = listing.builder || {};
     const office = listing.listingOffice || {};
     const hoa = listing.hoa || {};
-    
-    // Determine contact info
+
     let contactHtml = '';
     if (agent.name || agent.phone || agent.email) {
-        contactHtml = `
-            <div class="modal-contact">
-                <div class="modal-contact-name">${agent.name || 'Agent name not available'}</div>
-                <div class="modal-contact-info">
-                    ${agent.phone ? `Phone: ${formatPhone(agent.phone)}<br>` : ''}
-                    ${agent.email ? `Email: ${agent.email}<br>` : ''}
-                    ${agent.website ? `Website: <a href="${agent.website}" target="_blank">${agent.website}</a>` : ''}
-                </div>
+        contactHtml = `<div class="modal-contact">
+            <div class="modal-contact-name">${agent.name || 'Agent name not available'}</div>
+            <div class="modal-contact-info">
+                ${agent.phone ? `Phone: ${formatPhone(agent.phone)}<br>` : ''}
+                ${agent.email ? `Email: ${agent.email}<br>` : ''}
+                ${agent.website ? `Website: <a href="${agent.website}" target="_blank">${agent.website}</a>` : ''}
             </div>
-        `;
+        </div>`;
     } else if (builder.name) {
-        contactHtml = `
-            <div class="modal-contact">
-                <div class="modal-contact-name">${builder.name} (Builder)</div>
-                <div class="modal-contact-info">
-                    ${builder.phone ? `Phone: ${formatPhone(builder.phone)}<br>` : ''}
-                    ${builder.development ? `Development: ${builder.development}<br>` : ''}
-                    ${builder.website ? `Website: <a href="${builder.website}" target="_blank">${builder.website}</a>` : ''}
-                </div>
+        contactHtml = `<div class="modal-contact">
+            <div class="modal-contact-name">${builder.name} (Builder)</div>
+            <div class="modal-contact-info">
+                ${builder.phone ? `Phone: ${formatPhone(builder.phone)}<br>` : ''}
+                ${builder.development ? `Development: ${builder.development}<br>` : ''}
+                ${builder.website ? `Website: <a href="${builder.website}" target="_blank">${builder.website}</a>` : ''}
             </div>
-        `;
+        </div>`;
     } else {
         contactHtml = `<div class="modal-contact"><div class="modal-contact-info">No contact information available</div></div>`;
     }
-    
+
+    // MSA panel — use census data if already loaded, else show loading state
+    const censusData = listing.censusData || (listing.matchData ? listing.matchData.census_data : null);
+
     content.innerHTML = `
         <div class="modal-header">
             <div class="modal-price">${formatPrice(listing.price)}</div>
             <div class="modal-address">${listing.formattedAddress || 'Address not available'}</div>
         </div>
-        
+
+        <!-- MSA / Census Section -->
+        <div class="modal-section">
+            ${listing.matchLoading
+                ? '<div class="msa-panel"><div class="msa-panel-title">MSA / Census Data</div><p class="msa-unavailable">Loading census data...</p></div>'
+                : renderMsaPanel(censusData)
+            }
+        </div>
+
+        <!-- Matching Programs Section -->
+        <div class="modal-section" id="modalProgramsSection">
+            <div class="modal-section-title">Matching Programs</div>
+            <div id="programCardsContainer">
+                ${listing.matchLoading ? '<div class="programs-loading">Loading program matches...</div>' : ''}
+                ${!listing.matchData && !listing.matchLoading ? '<div class="programs-empty">Match data not yet available.</div>' : ''}
+                ${listing.matchData && listing.matchData.programs.filter(p => p.status !== 'Ineligible').length === 0 && !listing.matchLoading ? '<div class="programs-empty">No matching GMCC programs found for this property.</div>' : ''}
+            </div>
+        </div>
+
         <div class="modal-section">
             <div class="modal-section-title">Property Details</div>
             <div class="modal-grid">
@@ -558,7 +766,7 @@ function openPropertyModal(listing) {
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Square Footage</span>
-                    <span class="modal-item-value">${formatSqft(listing.squareFootage)}</span>
+                    <span class="modal-item-value">${listing.squareFootage ? listing.squareFootage.toLocaleString() + ' sq ft' : 'N/A'}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Lot Size</span>
@@ -579,16 +787,6 @@ function openPropertyModal(listing) {
             </div>
         </div>
 
-        <!-- Matching Programs Section -->
-        <div class="modal-section" id="modalProgramsSection">
-            <div class="modal-section-title">Matching Programs</div>
-            <div id="programCardsContainer">
-                ${listing.matchLoading ? '<div class="programs-loading">Loading program matches...</div>' : ''}
-                ${!listing.matchData && !listing.matchLoading ? '' : ''}
-                ${listing.matchData && listing.matchData.programs.filter(p => p.status !== 'Ineligible').length === 0 && !listing.matchLoading ? '<div class="programs-empty">No matching GMCC programs found for this property</div>' : ''}
-            </div>
-        </div>
-
         <div class="modal-section">
             <div class="modal-section-title">Listing Information</div>
             <div class="modal-grid">
@@ -598,11 +796,7 @@ function openPropertyModal(listing) {
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Days on Market</span>
-                    <span class="modal-item-value">${listing.daysOnMarket !== undefined ? listing.daysOnMarket + ' days' : 'N/A'}</span>
-                </div>
-                <div class="modal-item">
-                    <span class="modal-item-label">Listing Type</span>
-                    <span class="modal-item-value">${listing.listingType || 'N/A'}</span>
+                    <span class="modal-item-value">${listing.daysOnMarket != null ? listing.daysOnMarket + ' days' : 'N/A'}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">MLS Number</span>
@@ -614,7 +808,7 @@ function openPropertyModal(listing) {
                 </div>
             </div>
         </div>
-        
+
         <div class="modal-section">
             <div class="modal-section-title">Location</div>
             <div class="modal-grid">
@@ -636,29 +830,25 @@ function openPropertyModal(listing) {
                 </div>
             </div>
         </div>
-        
+
         <div class="modal-section">
             <div class="modal-section-title">Contact Information</div>
             ${contactHtml}
-            ${office.name ? `
-                <div class="modal-contact" style="margin-top: 0.75rem;">
-                    <div class="modal-contact-name">${office.name} (Office)</div>
-                    <div class="modal-contact-info">
-                        ${office.phone ? `Phone: ${formatPhone(office.phone)}<br>` : ''}
-                        ${office.email ? `Email: ${office.email}` : ''}
-                    </div>
+            ${office.name ? `<div class="modal-contact" style="margin-top:0.75rem;">
+                <div class="modal-contact-name">${office.name} (Office)</div>
+                <div class="modal-contact-info">
+                    ${office.phone ? `Phone: ${formatPhone(office.phone)}<br>` : ''}
+                    ${office.email ? `Email: ${office.email}` : ''}
                 </div>
-            ` : ''}
+            </div>` : ''}
         </div>
     `;
-    
-    // Append program cards with event listeners
+
+    // Append program cards
     if (listing.matchData) {
         const container = document.getElementById('programCardsContainer');
-        const matchedPrograms = listing.matchData.programs.filter(p => p.status !== 'Ineligible');
-        matchedPrograms.forEach(program => {
-            container.appendChild(createProgramCard(program, listing));
-        });
+        const matched = listing.matchData.programs.filter(p => p.status !== 'Ineligible');
+        matched.forEach(program => container.appendChild(createProgramCard(program, listing)));
     }
 
     modal.style.display = 'flex';
@@ -676,35 +866,27 @@ function closeModal() {
 
 async function handleSearch(e) {
     e.preventDefault();
-    
-    const query = document.getElementById('searchQuery').value.trim();
+
+    let query = document.getElementById('searchQuery').value.trim();
     const radius = document.getElementById('radius').value;
-    const limit = document.getElementById('limit').value;
     const searchType = document.getElementById('searchType').value;
-    
-    if (!query) {
-        showError('Please enter a search location.');
-        return;
-    }
-    
+
+    if (!query) { showError('Please enter a search location.'); return; }
+
     hideError();
     showMessage(null);
     resetMatching();
+    currentPage = 1;
+    perPage = parseInt(document.getElementById('perPage').value, 10) || 10;
     showLoading(true);
-    
+
     try {
-        const result = await searchListings(query, radius, limit, searchType);
-        
+        const result = await searchListings(query, radius, searchType);
         if (result.success) {
             currentListings = result.listings;
             renderListings(result.listings);
-
-            // Fire async program matching for each listing
-            startMatching(currentListings);
-
-            if (result.message) {
-                showMessage(result.message);
-            }
+            showFilterBar();
+            if (result.message) showMessage(result.message);
         } else {
             showError(result.error || 'An error occurred while searching.');
             document.getElementById('resultsSection').style.display = 'none';
@@ -720,55 +902,191 @@ async function handleSearch(e) {
 function handleSearchTypeChange() {
     const searchType = document.getElementById('searchType').value;
     const radiusGroup = document.getElementById('radiusGroup');
-    
-    if (searchType === 'specific') {
-        radiusGroup.style.opacity = '0.5';
-        radiusGroup.style.pointerEvents = 'none';
-    } else {
-        radiusGroup.style.opacity = '1';
-        radiusGroup.style.pointerEvents = 'auto';
+    radiusGroup.style.opacity = searchType === 'specific' ? '0.5' : '1';
+    radiusGroup.style.pointerEvents = searchType === 'specific' ? 'none' : 'auto';
+
+    // Toggle map radius circle based on search type
+    if (window._searchMapCircle) {
+        window._searchMapCircle.setMap(null);
+        window._searchMapCircle = null;
+    }
+    if (searchType === 'area') {
+        updateMapCircle();
     }
 }
 
 function handleRadiusChange() {
-    const radius = document.getElementById('radius').value;
-    document.getElementById('radiusValue').textContent = radius;
+    document.getElementById('radiusValue').textContent = document.getElementById('radius').value;
 }
+
+// =============================================================================
+// Map Widget (Google Maps)
+// =============================================================================
+
+window._searchMap = null;
+window._searchMapMarker = null;
+window._searchMapCircle = null;
+
+async function initMap() {
+    try {
+        const resp = await fetch('/api/config');
+        const config = await resp.json();
+        const apiKey = config.places_api_key;
+        if (!apiKey) return;
+
+        // Load Google Maps JS SDK (async loading pattern)
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&loading=async&callback=onMapsReady`;
+        script.async = true;
+        document.head.appendChild(script);
+    } catch {
+        // Maps not available — silently degrade
+    }
+}
+
+function onMapsReady() {
+    const mapContainer = document.getElementById('mapContainer');
+    mapContainer.style.display = 'block';
+
+    // Default center: continental US
+    const defaultCenter = { lat: 39.8283, lng: -98.5795 };
+
+    const map = new google.maps.Map(document.getElementById('searchMap'), {
+        center: defaultCenter,
+        zoom: 4,
+        mapId: 'gmcc_search_map',
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true,
+    });
+
+    window._searchMap = map;
+
+    // Click on map to set search location
+    map.addListener('click', (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        placeMapMarker(lat, lng);
+        reverseGeocode(lat, lng);
+    });
+
+    // Sync radius slider with map circle
+    document.getElementById('radius').addEventListener('input', () => {
+        updateMapCircle();
+    });
+}
+
+function placeMapMarker(lat, lng) {
+    const map = window._searchMap;
+    if (!map) return;
+
+    // Remove existing marker
+    if (window._searchMapMarker) {
+        window._searchMapMarker.map = null;
+    }
+
+    window._searchMapMarker = new google.maps.marker.AdvancedMarkerElement({
+        position: { lat, lng },
+        map: map,
+        gmpDraggable: true,
+    });
+
+    // Drag end → update search query
+    window._searchMapMarker.addListener('dragend', () => {
+        const pos = window._searchMapMarker.position;
+        reverseGeocode(pos.lat, pos.lng);
+        updateMapCircle();
+    });
+
+    map.panTo({ lat, lng });
+    if (map.getZoom() < 10) map.setZoom(12);
+
+    updateMapCircle();
+}
+
+function updateMapCircle() {
+    const marker = window._searchMapMarker;
+    const map = window._searchMap;
+    if (!marker || !map) return;
+
+    const radiusMiles = parseFloat(document.getElementById('radius').value);
+    const radiusMeters = radiusMiles * 1609.34;
+
+    if (window._searchMapCircle) {
+        window._searchMapCircle.setMap(null);
+    }
+
+    const searchType = document.getElementById('searchType').value;
+    if (searchType === 'specific') return; // No circle for exact address
+
+    window._searchMapCircle = new google.maps.Circle({
+        map: map,
+        center: marker.position,
+        radius: radiusMeters,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+        strokeColor: '#3b82f6',
+        strokeOpacity: 0.3,
+        strokeWeight: 1,
+        clickable: false
+    });
+}
+
+function reverseGeocode(lat, lng) {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+            const input = document.getElementById('searchQuery');
+            const addr = results[0].formatted_address.replace(/,\s*USA$/, '');
+            input.value = addr;
+        }
+    });
+}
+
+function geocodeAndMoveMap(address) {
+    if (!window._searchMap) return;
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+            const loc = results[0].geometry.location;
+            placeMapMarker(loc.lat(), loc.lng());
+        }
+    });
+}
+
+// Make callback globally accessible for Google Maps SDK
+window.onMapsReady = onMapsReady;
 
 // =============================================================================
 // Initialization
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Form submission
+document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('searchForm').addEventListener('submit', handleSearch);
-    
-    // Search type change
     document.getElementById('searchType').addEventListener('change', handleSearchTypeChange);
-    
-    // Radius slider
     document.getElementById('radius').addEventListener('input', handleRadiusChange);
-    
-    // Modal close
     document.getElementById('modalClose').addEventListener('click', closeModal);
-    document.getElementById('modalOverlay').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('modalOverlay')) {
-            closeModal();
-        }
+    document.getElementById('modalOverlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('modalOverlay')) closeModal();
     });
-    
-    // Escape key to close modal
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeModal();
-        }
-    });
-    
-    // Program filter
-    document.getElementById('programFilter').addEventListener('change', (e) => {
-        filterByProgram(e.target.value);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    document.getElementById('programFilter').addEventListener('change', () => filterByProgram());
+
+    // Pagination controls
+    document.getElementById('prevPage').addEventListener('click', () => { currentPage--; renderPage(); });
+    document.getElementById('nextPage').addEventListener('click', () => { currentPage++; renderPage(); });
+    document.getElementById('perPage').addEventListener('change', (e) => {
+        perPage = parseInt(e.target.value, 10) || 10;
+        currentPage = 1;
+        if (currentListings.length > 0) renderPage();
     });
 
-    // Initialize search type state
     handleSearchTypeChange();
+
+    // Initialize address autocomplete (uses server-side proxy)
+    initAutocomplete();
+
+    // Initialize Google Maps widget
+    initMap();
 });

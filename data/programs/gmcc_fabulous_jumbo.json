@@ -1,0 +1,56 @@
+{
+  "program_name": "GMCC Fabulous Jumbo",
+  "qm_status": "QM",
+  "tiers": [
+    {
+      "tier_name": "Fabulous AUS Jumbo",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD"],
+      "occupancy_types": ["Primary Residence", "Second Home"],
+      "min_loan_amount": 300000,
+      "max_loan_amount": 1000000,
+      "max_ltv": 80.0,
+      "max_cltv": null,
+      "min_fico": 700,
+      "min_reserves_months": null,
+      "max_dti": 45.0,
+      "unit_count_limits": [1],
+      "location_restrictions": ["FL only"],
+      "eligible_county_fips": [
+        "12015", "12027", "12057", "12069", "12081",
+        "12095", "12101", "12103", "12105", "12115"
+      ],
+      "eligible_msa_codes": [],
+      "requires_lmi_tract": false,
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "additional_rules": {
+        "description": "Fabulous AUS Jumbo — in-house underwriting, AUS with overlays. Available in selected FL counties only.",
+        "loan_terms": "30-year fixed and ARM (5/6, 7/6, 10/6) available",
+        "arm_rate": "5% at par for 5/6 ARM if no LLPA (as of 01-28-2026)",
+        "cash_out_max": "$200,000 max cash-out amount",
+        "cash_out_ltv": "75% max LTV for cash-out (primary only)",
+        "cash_out_fico": "720 min FICO for cash-out",
+        "detached_condo_only": "Attached condos not eligible — detached condo only",
+        "no_investment": true,
+        "citizen_or_green_card_only": true,
+        "rsu_income_allowed": true,
+        "self_employed_allowed": "Yes, 25%+ ownership, follow AUS docs",
+        "no_subordination": "No subordination allowed on subject property",
+        "small_balance_llpa": "Price adj applies for loan amounts < $766,550",
+        "epo": "12 months after loan is sold"
+      }
+    }
+  ],
+  "general_notes": [
+    "GMCC Fabulous Jumbo is an AUS-based jumbo program available in selected Florida counties.",
+    "Eligible counties: Charlotte, DeSoto, Hillsborough, Lake, Manatee, Orange, Pasco, Pinellas, Polk, Sarasota.",
+    "Loan amount: $300K min, $1M max. Small balance LLPA applies below $766,550.",
+    "SFR, PUD, and detached condo only. Primary and 2nd home (no investment).",
+    "Purchase/R-T: max 80% LTV, min FICO 700. Cash-out: max 75% LTV, min FICO 720, primary only, max $200K.",
+    "In-house underwriting, AUS with overlays. Reserve based on DU/LP findings.",
+    "30-year fixed and ARM available. RSU income and self-employed borrowers OK.",
+    "Citizen and green card holders only. No subordination on subject.",
+    "Max DTI 45%. Non-occupant co-borrower allowed with blended ratio."
+  ]
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Search</title>
+    <title>GMCC Property Search</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1 class="logo">Property Search</h1>
+                <h1 class="logo">GMCC Property Search</h1>
                 <span class="header-badge">Sale Listings</span>
             </div>
         </header>
@@ -64,13 +64,12 @@
                             </div>
                             
                             <div class="form-group">
-                                <label for="limit">Results</label>
-                                <select id="limit" name="limit">
-                                    <option value="5">5 properties</option>
-                                    <option value="10" selected>10 properties</option>
-                                    <option value="20">20 properties</option>
-                                    <option value="30">30 properties</option>
-                                    <option value="50">50 properties</option>
+                                <label for="perPage">Per Page</label>
+                                <select id="perPage" name="perPage">
+                                    <option value="10" selected>10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
                                 </select>
                             </div>
                             
@@ -82,6 +81,12 @@
                             </div>
                         </div>
                     </form>
+
+                    <!-- Map Widget -->
+                    <div class="map-container" id="mapContainer" style="display: none;">
+                        <div id="searchMap" class="search-map"></div>
+                        <div class="map-hint">Click on the map to set search location, or drag to explore</div>
+                    </div>
                 </div>
             </section>
 
@@ -126,6 +131,13 @@
                     <!-- Property cards will be inserted here -->
                 </div>
 
+                <!-- Pagination -->
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button class="pagination-btn" id="prevPage" disabled>&laquo; Prev</button>
+                    <div class="pagination-pages" id="paginationPages"></div>
+                    <button class="pagination-btn" id="nextPage">Next &raquo;</button>
+                </div>
+
                 <!-- No Results -->
                 <div class="no-results" id="noResults" style="display: none;">
                     <div class="no-results-icon">
@@ -147,7 +159,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Powered by RentCast API &bull; Each search uses 1 API call &bull; Results cached for efficiency</p>
+            <p>Powered by RentCast API &bull; FFIEC Census Data &bull; GMCC Program Matching</p>
         </footer>
     </div>
 
@@ -162,5 +174,6 @@
     </div>
 
     <script src="/static/script.js"></script>
+    <!-- Google Places API loaded dynamically after fetching key from /api/config -->
 </body>
 </html>
