@@ -5,15 +5,17 @@ from functools import lru_cache
 import requests
 
 
-@lru_cache(maxsize=1024)
 def get_county_from_coordinates(lat: float, lon: float) -> dict | None:
     """Reverse geocode coordinates to county using FCC Area API.
 
     Returns dict with county_name, county_fips, state_code, state_name,
-    or None on failure. Results are cached by (lat, lon) rounded to 3 decimals.
+    or None on failure. Rounds to 3 decimals before lookup for cache efficiency.
     """
-    lat_r = round(lat, 3)
-    lon_r = round(lon, 3)
+    return _get_county_cached(round(lat, 3), round(lon, 3))
+
+
+@lru_cache(maxsize=1024)
+def _get_county_cached(lat_r: float, lon_r: float) -> dict | None:
     try:
         resp = requests.get(
             "https://geo.fcc.gov/api/census/area",

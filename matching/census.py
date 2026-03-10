@@ -313,6 +313,10 @@ def _parse_formatted_address(addr: str) -> tuple | None:
 
 def _to_int(val) -> int | None:
     try:
-        return int(str(val).replace(",", "").replace("$", "").strip())
+        n = int(str(val).replace(",", "").replace("$", "").strip())
+        # Census ACS uses -666666666 as sentinel for "data not available"
+        if n < 0:
+            return None
+        return n
     except (TypeError, ValueError):
         return None

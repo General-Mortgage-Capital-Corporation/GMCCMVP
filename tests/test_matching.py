@@ -139,7 +139,7 @@ class TestGetCountyFromCoordinates:
         import matching.geocode as geocode_mod
 
         # Clear lru_cache before mocking
-        geocode_mod.get_county_from_coordinates.cache_clear()
+        geocode_mod._get_county_cached.cache_clear()
 
         monkeypatch.setattr("requests.get", lambda *args, **kwargs: MockResponse())
         result = get_county_from_coordinates(34.052, -118.244)
@@ -149,14 +149,14 @@ class TestGetCountyFromCoordinates:
         assert result["state_code"] == "CA"
 
         # Clean up cache
-        geocode_mod.get_county_from_coordinates.cache_clear()
+        geocode_mod._get_county_cached.cache_clear()
 
     def test_returns_none_on_api_failure(self, monkeypatch):
         """Mock API timeout/error to verify graceful failure."""
         import requests as req_mod
         import matching.geocode as geocode_mod
 
-        geocode_mod.get_county_from_coordinates.cache_clear()
+        geocode_mod._get_county_cached.cache_clear()
 
         def mock_get(*args, **kwargs):
             raise req_mod.RequestException("Connection timeout")
@@ -165,7 +165,7 @@ class TestGetCountyFromCoordinates:
         result = get_county_from_coordinates(34.052, -118.244)
         assert result is None
 
-        geocode_mod.get_county_from_coordinates.cache_clear()
+        geocode_mod._get_county_cached.cache_clear()
 
 
 # --- Enum and model structure tests ---

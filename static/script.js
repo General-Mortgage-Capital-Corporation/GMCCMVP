@@ -14,6 +14,7 @@ let selectedPrograms = [];
 let activeTab = 'find'; // 'find' or 'program'
 let programLocations = []; // from /api/program-locations
 let currentSearchController = null; // AbortController for in-flight search
+let currentMatchController = null; // AbortController for in-flight batch match
 let currentModalListing = null; // track which listing the modal is showing
 
 // Marketing tab state
@@ -43,8 +44,8 @@ function escapeHtml(str) {
 }
 
 function formatPrice(price) {
-    if (!price) return 'Price N/A';
-    return '$' + price.toLocaleString();
+    if (price == null) return 'Price N/A';
+    return '$' + Number(price).toLocaleString();
 }
 
 function formatPhone(phone) {
@@ -238,6 +239,7 @@ function initAutocomplete() {
 async function fetchSuggestions(query) {
     try {
         const resp = await fetch(`/api/autocomplete?input=${encodeURIComponent(query)}`);
+        if (!resp.ok) throw new Error('autocomplete failed');
         const data = await resp.json();
         renderSuggestions(data.suggestions || []);
     } catch {
@@ -252,7 +254,7 @@ function renderSuggestions(suggestions) {
     }
 
     autocompleteDropdown.innerHTML = suggestions.map(s =>
-        `<div class="autocomplete-item" data-text="${s.text.replace(/"/g, '&quot;')}">${s.text}</div>`
+        `<div class="autocomplete-item" data-text="${escapeHtml(s.text)}">${escapeHtml(s.text)}</div>`
     ).join('');
     autocompleteDropdown.style.display = 'block';
 
@@ -284,6 +286,7 @@ function selectSuggestion(text) {
 async function searchListings(query, radius, searchType) {
     // Cancel any in-flight search
     if (currentSearchController) currentSearchController.abort();
+    if (currentMatchController) currentMatchController.abort();
     currentSearchController = new AbortController();
 
     const params = new URLSearchParams({ query, radius, search_type: searchType });
@@ -298,6 +301,7 @@ async function searchListings(query, radius, searchType) {
     }
 
     const response = await fetch(`/api/search?${params}`, { signal: currentSearchController.signal });
+    if (!response.ok) throw new Error(`Search failed (${response.status})`);
     return await response.json();
 }
 
@@ -320,16 +324,28 @@ function matchPageListings() {
 
     if (toMatch.length === 0) return;
 
+    // Cancel any in-flight batch match request
+    if (currentMatchController) currentMatchController.abort();
+    currentMatchController = new AbortController();
+
+    // Capture reference to verify listings haven't been replaced by a new search
+    const expectedListings = currentListings;
+
     // Batch match all visible listings in one request
     fetch('/api/match-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toMatch.map(item => item.listing))
+        body: JSON.stringify(toMatch.map(item => item.listing)),
+        signal: currentMatchController.signal,
     })
-    .then(r => r.json())
+    .then(r => { if (!r.ok) throw new Error(`Batch match failed (${r.status})`); return r.json(); })
     .then(data => {
+        // Discard results if a new search has replaced currentListings
+        if (currentListings !== expectedListings) return;
+
         if (data.success && data.results) {
             data.results.forEach((result, i) => {
+                if (!result) return;
                 const { index, listing } = toMatch[i];
                 listing.matchData = { programs: result.programs };
                 listing.censusData = result.census_data || null;
@@ -337,17 +353,18 @@ function matchPageListings() {
                 updateCardPrograms(index, result.programs);
                 refreshModalIfOpen(listing);
             });
-            // Chip filters are already active; re-render with latest match data
-            renderFilteredPage();
 
             // Clear pre-screen message once real match data arrives
             if (selectedPrograms.length > 0) {
                 showMessage(null);
-                renderFilteredPage();
             }
+
+            // Re-render once with latest match data
+            renderFilteredPage();
         }
     })
-    .catch(() => {
+    .catch(err => {
+        if (err.name === 'AbortError') return;
         toMatch.forEach(({ index, listing }) => {
             listing.matchLoading = false;
             updateCardPrograms(index, []);
@@ -453,6 +470,7 @@ function createProgramCard(program, listing) {
                     tier_name: program.best_tier || ''
                 })
             });
+            if (!response.ok) throw new Error(`Explain failed (${response.status})`);
             const data = await response.json();
             if (data.success) {
                 listing._explanationCache = listing._explanationCache || {};
@@ -625,6 +643,7 @@ function renderFilteredPage() {
     grid.innerHTML = '';
 
     const totalPages = Math.ceil(filtered.length / perPage);
+    if (currentPage < 1) currentPage = 1;
     if (currentPage > totalPages) currentPage = totalPages || 1;
 
     const start = (currentPage - 1) * perPage;
@@ -709,21 +728,21 @@ function renderMsaPanel(censusData) {
 
     return `<div class="msa-panel">
         <div class="msa-panel-title">MSA / Census Tract Data
-            <span class="msa-badge ${incomeBadgeClass}">${incomeLevel} Income</span>
+            <span class="msa-badge ${incomeBadgeClass}">${escapeHtml(incomeLevel)} Income</span>
             <span class="msa-badge ${mmctBadgeClass}">${isMMCT ? 'In-MMCT' : 'Not MMCT'}</span>
         </div>
         <div class="msa-grid">
             <div class="msa-item">
                 <span class="msa-label">MSA/MD Code</span>
-                <span class="msa-value">${censusData.msa_code || 'N/A'}</span>
+                <span class="msa-value">${escapeHtml(censusData.msa_code || 'N/A')}</span>
             </div>
             <div class="msa-item">
                 <span class="msa-label">MSA Name</span>
-                <span class="msa-value">${censusData.msa_name || 'N/A'}</span>
+                <span class="msa-value">${escapeHtml(censusData.msa_name || 'N/A')}</span>
             </div>
             <div class="msa-item">
                 <span class="msa-label">Tract Income Level</span>
-                <span class="msa-value">${incomeLevel}</span>
+                <span class="msa-value">${escapeHtml(incomeLevel)}</span>
             </div>
             <div class="msa-item">
                 <span class="msa-label">Tract Minority %</span>
@@ -849,10 +868,10 @@ function createPropertyCard(listing, index) {
     card.innerHTML = `
         <div class="property-card-content">
             <div class="property-price">${price}</div>
-            <div class="property-address">${address}</div>
+            <div class="property-address">${escapeHtml(address)}</div>
             <div class="property-badges">
-                <span class="badge badge-days">${days} days on market</span>
-                <span class="badge badge-type">${propertyType}</span>
+                <span class="badge badge-days">${escapeHtml(String(days))} days on market</span>
+                <span class="badge badge-type">${escapeHtml(propertyType)}</span>
             </div>
             <div class="card-programs-section">
                 <div class="card-programs-label">Matched Programs</div>
@@ -984,7 +1003,7 @@ function openPropertyModal(listing) {
     content.innerHTML = `
         <div class="modal-header">
             <div class="modal-price">${formatPrice(listing.price)}</div>
-            <div class="modal-address">${listing.formattedAddress || 'Address not available'}</div>
+            <div class="modal-address">${escapeHtml(listing.formattedAddress || 'Address not available')}</div>
         </div>
 
         <!-- MSA / Census Section -->
@@ -1010,15 +1029,15 @@ function openPropertyModal(listing) {
             <div class="modal-grid">
                 <div class="modal-item">
                     <span class="modal-item-label">Type</span>
-                    <span class="modal-item-value">${listing.propertyType || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.propertyType || 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Bedrooms</span>
-                    <span class="modal-item-value">${listing.bedrooms || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(String(listing.bedrooms || 'N/A'))}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Bathrooms</span>
-                    <span class="modal-item-value">${listing.bathrooms || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(String(listing.bathrooms || 'N/A'))}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Square Footage</span>
@@ -1038,7 +1057,7 @@ function openPropertyModal(listing) {
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Status</span>
-                    <span class="modal-item-value">${listing.status || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.status || 'N/A')}</span>
                 </div>
             </div>
         </div>
@@ -1048,19 +1067,19 @@ function openPropertyModal(listing) {
             <div class="modal-grid">
                 <div class="modal-item">
                     <span class="modal-item-label">Listed Date</span>
-                    <span class="modal-item-value">${listing.listedDate ? listing.listedDate.slice(0, 10) : 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.listedDate ? listing.listedDate.slice(0, 10) : 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Days on Market</span>
-                    <span class="modal-item-value">${listing.daysOnMarket != null ? listing.daysOnMarket + ' days' : 'N/A'}</span>
+                    <span class="modal-item-value">${listing.daysOnMarket != null ? escapeHtml(String(listing.daysOnMarket)) + ' days' : 'N/A'}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">MLS Number</span>
-                    <span class="modal-item-value">${listing.mlsNumber || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.mlsNumber || 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Last Updated</span>
-                    <span class="modal-item-value">${listing.lastSeenDate ? listing.lastSeenDate.slice(0, 10) : 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.lastSeenDate ? listing.lastSeenDate.slice(0, 10) : 'N/A')}</span>
                 </div>
             </div>
         </div>
@@ -1070,19 +1089,19 @@ function openPropertyModal(listing) {
             <div class="modal-grid">
                 <div class="modal-item">
                     <span class="modal-item-label">City</span>
-                    <span class="modal-item-value">${listing.city || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.city || 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">State</span>
-                    <span class="modal-item-value">${listing.state || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.state || 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">Zip Code</span>
-                    <span class="modal-item-value">${listing.zipCode || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.zipCode || 'N/A')}</span>
                 </div>
                 <div class="modal-item">
                     <span class="modal-item-label">County</span>
-                    <span class="modal-item-value">${listing.county || 'N/A'}</span>
+                    <span class="modal-item-value">${escapeHtml(listing.county || 'N/A')}</span>
                 </div>
             </div>
         </div>
@@ -1191,6 +1210,7 @@ function handleRadiusChange() {
 async function initProgramSelector() {
     try {
         const resp = await fetch('/api/programs');
+        if (!resp.ok) throw new Error('programs fetch failed');
         const data = await resp.json();
         availablePrograms = data.programs || [];
     } catch {
@@ -1202,8 +1222,8 @@ async function initProgramSelector() {
 
     dropdown.innerHTML = availablePrograms.map((name, i) =>
         `<div class="program-select-item">
-            <input type="checkbox" id="progCheck${i}" value="${name.replace(/"/g, '&quot;')}">
-            <label for="progCheck${i}">${name}</label>
+            <input type="checkbox" id="progCheck${i}" value="${escapeHtml(name)}">
+            <label for="progCheck${i}">${escapeHtml(name)}</label>
         </div>`
     ).join('') + '<button class="program-select-clear" id="programSelectClear">Clear All</button>';
 
@@ -1265,9 +1285,10 @@ window._searchMapCircle = null;
 
 async function initMap() {
     try {
-        const resp = await fetch('/api/config');
+        const resp = await fetch('/api/maps-key');
+        if (!resp.ok) return;
         const config = await resp.json();
-        const apiKey = config.places_api_key;
+        const apiKey = config.key;
         if (!apiKey) return;
 
         // Load Google Maps JS SDK (async loading pattern)
@@ -1433,6 +1454,7 @@ function switchTab(tab) {
 async function initProgramSearch() {
     try {
         const resp = await fetch('/api/program-locations');
+        if (!resp.ok) throw new Error('program-locations fetch failed');
         const data = await resp.json();
         programLocations = data.programs || [];
     } catch {
@@ -1559,6 +1581,7 @@ async function handleProgramSearch(e) {
         if (city) params.set('city', city);
 
         const resp = await fetch(`/api/program-search?${params}`);
+        if (!resp.ok) throw new Error(`Program search failed (${resp.status})`);
         const data = await resp.json();
 
         if (data.success) {
@@ -1704,6 +1727,7 @@ async function handleMarketingSearch(e) {
         if (city) params.set('city', city);
 
         const resp = await fetch(`/api/marketing-search?${params}`);
+        if (!resp.ok) throw new Error(`Marketing search failed (${resp.status})`);
         const data = await resp.json();
 
         if (data.success) {
@@ -1975,7 +1999,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mkTypeFilter').addEventListener('change', () => { currentPage = 1; renderMarketingPage(); });
 
     // Pagination controls
-    document.getElementById('prevPage').addEventListener('click', () => { currentPage--; renderPage(); });
+    document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPage(); } });
     document.getElementById('nextPage').addEventListener('click', () => { currentPage++; renderPage(); });
     document.getElementById('perPage').addEventListener('change', (e) => {
         perPage = parseInt(e.target.value, 10) || 10;

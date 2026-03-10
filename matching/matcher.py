@@ -38,8 +38,12 @@ def load_programs() -> tuple[ProgramRules, ...]:
 @lru_cache(maxsize=8)
 def _load_tract_set(filename: str) -> frozenset[str]:
     """Load a JSON array of 11-digit tract FIPS codes from data/. Cached."""
+    # Sanitize: only allow plain filenames, no path traversal
+    basename = os.path.basename(filename)
+    if basename != filename or '..' in filename:
+        raise ValueError(f"Invalid tract file name: {filename}")
     data_dir = os.path.dirname(PROGRAMS_DIR)  # data/ is parent of data/programs/
-    path = os.path.join(data_dir, filename)
+    path = os.path.join(data_dir, basename)
     with open(path) as f:
         return frozenset(json.load(f))
 

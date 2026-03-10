@@ -72,7 +72,11 @@ def _get_tract_counties(tract_file: str) -> set[str]:
     """Derive unique 5-digit county FIPS from an 11-digit tract FIPS file. Cached."""
     if tract_file in _TRACT_COUNTIES_CACHE:
         return _TRACT_COUNTIES_CACHE[tract_file]
-    path = os.path.join(os.path.dirname(__file__), "data", tract_file)
+    basename = os.path.basename(tract_file)
+    if basename != tract_file or '..' in tract_file:
+        _TRACT_COUNTIES_CACHE[tract_file] = set()
+        return set()
+    path = os.path.join(os.path.dirname(__file__), "data", basename)
     counties = set()
     if os.path.exists(path):
         with open(path) as f:
@@ -129,20 +133,22 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 
+@app.route('/api/maps-key', methods=['GET'])
+def maps_key():
+    """Return the Google Maps JS API key for the map widget.
+
+    Google Maps JS SDK requires a client-side key. This is a separate
+    endpoint from the autocomplete proxy so the key is only used for maps.
+    """
+    return jsonify({'key': GOOGLE_PLACES_API_KEY or ''})
+
+
 @app.route('/api/programs', methods=['GET'])
 def list_programs():
     """Return the list of available GMCC program names."""
     programs = load_programs()
     return jsonify({
         'programs': [p.program_name for p in programs]
-    })
-
-
-@app.route('/api/config', methods=['GET'])
-def get_config():
-    """Return public configuration."""
-    return jsonify({
-        'places_api_key': GOOGLE_PLACES_API_KEY,
     })
 
 
@@ -277,8 +283,8 @@ def search_listings():
                 'message': f'No properties found at or near "{search_query}".'
             })
 
-        except requests.exceptions.RequestException as e:
-            return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+        except requests.exceptions.RequestException:
+            return jsonify({'success': False, 'error': 'Connection error. Please try again.'}), 500
 
     else:
         if is_zip:
@@ -321,12 +327,12 @@ def search_listings():
             elif response.status_code == 429:
                 return jsonify({'success': False, 'error': 'API rate limit exceeded.'}), 429
             else:
-                return jsonify({'success': False, 'error': f'API error: {response.status_code}'}), response.status_code
+                return jsonify({'success': False, 'error': 'Search service error. Please try again.'}), 502
 
         except requests.exceptions.Timeout:
             return jsonify({'success': False, 'error': 'Request timed out.'}), 504
-        except requests.exceptions.RequestException as e:
-            return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+        except requests.exceptions.RequestException:
+            return jsonify({'success': False, 'error': 'Connection error. Please try again.'}), 500
 
     return jsonify({
         'success': True, 'listings': [], 'total': 0,
@@ -361,8 +367,8 @@ def match_listing_endpoint():
             'eligible_count': eligible_count,
             'census_data': census_data,
         })
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Matching error: {str(e)}'}), 500
+    except Exception:
+        return jsonify({'success': False, 'error': 'Matching error. Please try again.'}), 500
 
 
 @app.route('/api/match-batch', methods=['POST'])
@@ -376,6 +382,10 @@ def match_batch_endpoint():
         listings = request.get_json(silent=True)
         if not listings or not isinstance(listings, list):
             return jsonify({'success': False, 'error': 'Expected JSON array of listings'}), 400
+
+        MAX_BATCH_SIZE = 50
+        if len(listings) > MAX_BATCH_SIZE:
+            return jsonify({'success': False, 'error': f'Batch size exceeds limit of {MAX_BATCH_SIZE}'}), 400
 
         def _process_one(listing_data):
             census_data = get_census_data(listing_data)
@@ -391,11 +401,15 @@ def match_batch_endpoint():
             futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(listings)}
             results = [None] * len(listings)
             for future in as_completed(futures):
-                results[futures[future]] = future.result()
+                idx = futures[future]
+                try:
+                    results[idx] = future.result()
+                except Exception:
+                    results[idx] = None
 
         return jsonify({'success': True, 'results': results})
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Batch matching error: {str(e)}'}), 500
+    except Exception:
+        return jsonify({'success': False, 'error': 'Batch matching error. Please try again.'}), 500
 
 
 @app.route('/api/explain', methods=['POST'])
@@ -526,12 +540,12 @@ def program_search():
     try:
         response = requests.get(API_BASE_URL, headers=headers, params=params, timeout=30)
         if response.status_code != 200:
-            return jsonify({'success': False, 'error': f'RentCast API error: {response.status_code}'}), response.status_code
+            return jsonify({'success': False, 'error': 'Search service error. Please try again.'}), 502
         data = response.json()
         if not isinstance(data, list):
             data = []
-    except requests.exceptions.RequestException as e:
-        return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+    except requests.exceptions.RequestException:
+        return jsonify({'success': False, 'error': 'Connection error. Please try again.'}), 500
 
     # Filter to target county FIPS
     filtered = []
@@ -642,12 +656,12 @@ def marketing_search():
     try:
         response = requests.get(API_BASE_URL, headers=headers, params=params, timeout=30)
         if response.status_code != 200:
-            return jsonify({'success': False, 'error': f'RentCast API error: {response.status_code}'}), response.status_code
+            return jsonify({'success': False, 'error': 'Search service error. Please try again.'}), 502
         data = response.json()
         if not isinstance(data, list):
             data = []
-    except requests.exceptions.RequestException as e:
-        return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+    except requests.exceptions.RequestException:
+        return jsonify({'success': False, 'error': 'Connection error. Please try again.'}), 500
 
     # Filter to target county FIPS
     filtered = []
@@ -712,4 +726,4 @@ if __name__ == '__main__':
     print(f"RentCast API Key: {'Yes' if API_KEY and API_KEY != 'API_KEY_HERE' else 'No'}")
     print(f"Google Places Key: {'Yes' if GOOGLE_PLACES_API_KEY else 'No'}")
     print("="*50 + "\n")
-    app.run(debug=True, port=5000)
+    app.run(debug=os.getenv('FLASK_DEBUG', '').lower() == '1', port=5000)
