@@ -1,13 +1,15 @@
-# Property Search Dashboard
+# GMCC Property Search Dashboard
 
-Property search dashboard using Flask and the RentCast API.
+Property search tool that matches real estate listings against GMCC loan programs using RentCast data, FFIEC census data, and deterministic eligibility rules.
 
 ## Features
 
-- Search by address or zip code
-- Area search (radius) or exact address lookup
-- Property cards with extensive details and contact information
-- Click cards for full details
+- **Find Properties** — Area or exact address search via RentCast API with interactive Google Maps
+- **Search by Program** — Browse eligible counties by program with cascading state/county/city filters
+- **Program Matching** — Deterministic rule-based matching with three-value logic (Eligible / Potentially Eligible / Ineligible)
+- **Census Data** — Automatic FFIEC geocoding + Census ACS demographics for LMI tract and MMCT verification
+- **Talking Points** — AI-generated talking points for matched programs (Gemini Flash)
+- **Sort & Filter** — Sort by price, distance, days on market, best match; filter by program
 
 ## Setup
 
@@ -16,23 +18,32 @@ Property search dashboard using Flask and the RentCast API.
    pip install -r requirements.txt
    ```
 
-2. Create a `.env` file with your API key:
+2. Create a `.env` file:
    ```
-   RENTCAST_API_KEY=your_api_key_here
+   RENTCAST_API_KEY=your_key
+   GEMINI_API_KEY=your_key
+   GOOGLE_PLACES_API_KEY=your_key
    ```
-   Get a key from [RentCast](https://app.rentcast.io/app/api).
 
 3. Run:
    ```bash
    python server.py
    ```
 
-4. Open `http://localhost:5000`
+4. Open http://localhost:5000
 
-## API Notes
+## API Keys
 
-- Each search uses 1 API call
-- Only active listings are returned
-- Results limited to max 50 per search
+- **RentCast** — property listings ([rentcast.io](https://app.rentcast.io/app/api))
+- **Google Places** — address autocomplete + map widget
+- **Gemini** — talking points generation
 
-For full API documentation, see [RentCast API Docs](https://developers.rentcast.io/reference/sale-listings).
+## Architecture
+
+- `server.py` — Flask backend, proxies RentCast API, orchestrates matching
+- `matching/matcher.py` — Rule-based matching engine (no LLM)
+- `matching/census.py` — Census Bureau geocoder + FFIEC tract lookup + ACS demographics
+- `matching/explain.py` — Gemini Flash talking points
+- `data/programs/` — Program rule JSONs (one per program)
+- `data/county_fips.json` — County FIPS → name, state, centroid, cities lookup
+- `static/` — Vanilla JS + CSS frontend

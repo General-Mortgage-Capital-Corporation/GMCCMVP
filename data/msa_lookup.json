@@ -1,0 +1,146 @@
+{
+  "12420": {
+    "name": "AUSTIN-ROUND ROCK-SAN MARCOS, TX",
+    "counties": [
+      "48021",
+      "48055",
+      "48209",
+      "48453",
+      "48491"
+    ]
+  },
+  "19124": {
+    "name": "DALLAS-PLANO-IRVING, TX",
+    "counties": [
+      "48085",
+      "48113",
+      "48121",
+      "48139",
+      "48231",
+      "48257",
+      "48397"
+    ]
+  },
+  "19740": {
+    "name": "DENVER-AURORA-CENTENNIAL, CO",
+    "counties": [
+      "08001",
+      "08005",
+      "08014",
+      "08019",
+      "08031",
+      "08035",
+      "08039",
+      "08047",
+      "08059",
+      "08093"
+    ]
+  },
+  "26420": {
+    "name": "HOUSTON-PASADENA-THE WOODLANDS, TX",
+    "counties": [
+      "48015",
+      "48039",
+      "48071",
+      "48157",
+      "48167",
+      "48201",
+      "48291",
+      "48339",
+      "48407",
+      "48473"
+    ]
+  },
+  "29404": {
+    "name": "LAKE COUNTY, IL",
+    "counties": [
+      "17097"
+    ]
+  },
+  "31084": {
+    "name": "LOS ANGELES-LONG BEACH-GLENDALE, CA",
+    "counties": [
+      "06037"
+    ]
+  },
+  "33124": {
+    "name": "MIAMI-MIAMI BEACH-KENDALL, FL",
+    "counties": [
+      "12086"
+    ]
+  },
+  "35004": {
+    "name": "NASSAU COUNTY-SUFFOLK COUNTY, NY",
+    "counties": [
+      "36059",
+      "36103"
+    ]
+  },
+  "35084": {
+    "name": "NEWARK, NJ",
+    "counties": [
+      "34013",
+      "34019",
+      "34027",
+      "34037",
+      "34039"
+    ]
+  },
+  "35614": {
+    "name": "NEW YORK-JERSEY CITY-WHITE PLAINS, NY-NJ",
+    "counties": [
+      "34003",
+      "34017",
+      "34031",
+      "36005",
+      "36047",
+      "36061",
+      "36079",
+      "36081",
+      "36085",
+      "36087",
+      "36119"
+    ]
+  },
+  "36084": {
+    "name": "OAKLAND-FREMONT-BERKELEY, CA",
+    "counties": [
+      "06001",
+      "06013"
+    ]
+  },
+  "41740": {
+    "name": "SAN DIEGO-CHULA VISTA-CARLSBAD, CA",
+    "counties": [
+      "06073"
+    ]
+  },
+  "41884": {
+    "name": "SAN FRANCISCO-SAN MATEO-REDWOOD CITY, CA",
+    "counties": [
+      "06075",
+      "06081"
+    ]
+  },
+  "41940": {
+    "name": "SAN JOSE-SUNNYVALE-SANTA CLARA, CA",
+    "counties": [
+      "06069",
+      "06085"
+    ]
+  },
+  "47764": {
+    "name": "WASHINGTON, DC-MD",
+    "counties": [
+      "11001",
+      "24017",
+      "24033"
+    ]
+  },
+  "48424": {
+    "name": "WEST PALM BEACH-BOCA RATON-DELRAY BEACH, FL",
+    "counties": [
+      "12099"
+    ]
+  }
+}

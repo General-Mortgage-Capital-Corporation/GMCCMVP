@@ -32,6 +32,37 @@ API_BASE_URL = "https://api.rentcast.io/v1/listings/sale"
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
+# County FIPS lookup (loaded once)
+_COUNTY_FIPS_DATA: dict | None = None
+_MSA_LOOKUP: dict | None = None
+
+
+def _load_county_fips() -> dict:
+    global _COUNTY_FIPS_DATA
+    if _COUNTY_FIPS_DATA is not None:
+        return _COUNTY_FIPS_DATA
+    path = os.path.join(os.path.dirname(__file__), "data", "county_fips.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            _COUNTY_FIPS_DATA = json.load(f)
+    else:
+        _COUNTY_FIPS_DATA = {}
+    return _COUNTY_FIPS_DATA
+
+
+def _load_msa_lookup() -> dict:
+    """Load MSA code → county FIPS mapping. Used for programs with MSA restrictions."""
+    global _MSA_LOOKUP
+    if _MSA_LOOKUP is not None:
+        return _MSA_LOOKUP
+    path = os.path.join(os.path.dirname(__file__), "data", "msa_lookup.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            _MSA_LOOKUP = json.load(f)
+    else:
+        _MSA_LOOKUP = {}
+    return _MSA_LOOKUP
+
 
 _STREET_SUFFIXES = {
     'avenue': 'ave', 'street': 'st', 'drive': 'dr', 'boulevard': 'blvd',
@@ -379,6 +410,177 @@ def explain_endpoint():
 
     except Exception as e:
         return jsonify({'success': False, 'error': 'Failed to generate explanation'}), 500
+
+
+@app.route('/api/program-locations', methods=['GET'])
+def program_locations():
+    """Return program → state → county hierarchy for the program search tab.
+
+    Aggregates eligible_county_fips across all tiers of each program and
+    enriches with county names, cities, and state grouping from county_fips.json.
+    """
+    county_data = _load_county_fips()
+    msa_lookup = _load_msa_lookup()
+    programs = load_programs()
+
+    result = []
+    for program in programs:
+        # Collect all eligible county FIPS across tiers
+        all_fips = set()
+        for tier in program.tiers:
+            all_fips.update(tier.eligible_county_fips)
+            # Also resolve MSA codes to their constituent counties
+            for msa_code in (tier.eligible_msa_codes or []):
+                msa_info = msa_lookup.get(msa_code)
+                if msa_info:
+                    all_fips.update(msa_info["counties"])
+
+        # Group by state
+        states_map: dict[str, list] = {}
+        for fips in sorted(all_fips):
+            info = county_data.get(fips)
+            if not info:
+                continue
+            state = info["state"]
+            if state not in states_map:
+                states_map[state] = []
+            states_map[state].append({
+                "fips": fips,
+                "county": info["county"],
+                "cities": info.get("cities", []),
+            })
+
+        states_list = [
+            {"state": st, "counties": counties}
+            for st, counties in sorted(states_map.items())
+        ]
+
+        result.append({
+            "program_name": program.program_name,
+            "states": states_list,
+        })
+
+    return jsonify({"programs": result})
+
+
+@app.route('/api/program-search', methods=['GET'])
+def program_search():
+    """Search listings in a county and match against a specific program.
+
+    1. Query RentCast by city+state or county centroid+radius
+    2. Filter results to the selected county FIPS
+    3. Pre-screen against program (fast, no Census)
+    4. Full match survivors in parallel (Census + rules)
+    5. Return only Eligible + Potentially Eligible, sorted by status
+    """
+    program_name = request.args.get('program', '').strip()
+    county_fips_param = request.args.get('county_fips', '').strip()
+    city = request.args.get('city', '').strip()
+
+    if not program_name or not county_fips_param:
+        return jsonify({'success': False, 'error': 'program and county_fips are required'}), 400
+
+    county_data = _load_county_fips()
+    county_info = county_data.get(county_fips_param)
+    if not county_info:
+        return jsonify({'success': False, 'error': f'Unknown county FIPS: {county_fips_param}'}), 400
+
+    if not API_KEY or API_KEY == 'API_KEY_HERE':
+        return jsonify({'success': False, 'error': 'RentCast API key not configured.'}), 400
+
+    headers = {"accept": "application/json", "X-Api-Key": API_KEY}
+    state = county_info["state"]
+
+    # Build RentCast query
+    params = {"status": "Active", "limit": MAX_LIMIT}
+    if city:
+        params["city"] = city
+        params["state"] = state
+    else:
+        params["latitude"] = county_info["lat"]
+        params["longitude"] = county_info["lng"]
+        params["radius"] = county_info.get("radius", 25)
+
+    try:
+        response = requests.get(API_BASE_URL, headers=headers, params=params, timeout=30)
+        if response.status_code != 200:
+            return jsonify({'success': False, 'error': f'RentCast API error: {response.status_code}'}), response.status_code
+        data = response.json()
+        if not isinstance(data, list):
+            data = []
+    except requests.exceptions.RequestException as e:
+        return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+
+    # Filter to target county FIPS
+    filtered = []
+    for listing in data:
+        sf = (listing.get("stateFips") or "").strip()
+        cf = (listing.get("countyFips") or "").strip()
+        listing_fips = sf.zfill(2) + cf.zfill(3) if sf and cf else ""
+        if listing_fips == county_fips_param:
+            filtered.append(listing)
+
+    # Pre-screen against the selected program
+    prescreened = [l for l in filtered if quick_prescreen(l, [program_name])]
+
+    if not prescreened:
+        return jsonify({
+            'success': True,
+            'listings': [],
+            'total_searched': len(filtered),
+            'total_matched': 0,
+        })
+
+    # Full match in parallel
+    def _process_one(listing_data):
+        census_data = get_census_data(listing_data)
+        listing_input = ListingInput.from_rentcast(listing_data, census_data)
+        match_results = match_listing(listing_input)
+        prog_result = next((r for r in match_results if r.program_name == program_name), None)
+        return {
+            'listing': listing_data,
+            'program': prog_result.model_dump() if prog_result else None,
+            'census_data': census_data,
+        }
+
+    with ThreadPoolExecutor(max_workers=min(len(prescreened), 20)) as pool:
+        futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(prescreened)}
+        results = [None] * len(prescreened)
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                results[idx] = future.result()
+            except Exception:
+                results[idx] = None
+
+    # Filter to eligible / potentially eligible only
+    matched = []
+    for r in results:
+        if not r or not r['program']:
+            continue
+        status = r['program']['status']
+        if status in ('Eligible', 'Potentially Eligible'):
+            # Attach match data and census to the listing dict for frontend reuse
+            listing = r['listing']
+            listing['matchData'] = {'programs': [r['program']]}
+            listing['censusData'] = r['census_data']
+            listing['_matchStatus'] = status
+            matched.append(listing)
+
+    # Sort: Eligible first, then Potentially Eligible
+    status_order = {'Eligible': 0, 'Potentially Eligible': 1}
+    matched.sort(key=lambda l: status_order.get(l.get('_matchStatus', ''), 2))
+
+    # Clean up internal field
+    for l in matched:
+        l.pop('_matchStatus', None)
+
+    return jsonify({
+        'success': True,
+        'listings': matched,
+        'total_searched': len(filtered),
+        'total_matched': len(matched),
+    })
 
 
 @app.route('/api/health', methods=['GET'])

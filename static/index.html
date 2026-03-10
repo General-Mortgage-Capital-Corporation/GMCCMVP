@@ -24,9 +24,16 @@
             <!-- Search Section -->
             <section class="search-section">
                 <div class="search-card">
-                    <h2 class="search-title">Find Properties</h2>
+                    <!-- Tab Bar -->
+                    <div class="tab-bar">
+                        <button class="tab active" data-tab="find" id="tabBtnFind">Find Properties</button>
+                        <button class="tab" data-tab="program" id="tabBtnProgram">Search by Program</button>
+                    </div>
+
+                    <!-- Tab: Find Properties -->
+                    <div class="tab-content active" id="tabFind">
                     <p class="search-subtitle">Search for active sale listings by address or zip code</p>
-                    
+
                     <form id="searchForm" class="search-form">
                         <div class="form-row">
                             <div class="form-group form-group-large">
@@ -98,6 +105,49 @@
                         <div id="searchMap" class="search-map"></div>
                         <div class="map-hint">Click on the map to set search location, or drag to explore</div>
                     </div>
+                    </div><!-- end tabFind -->
+
+                    <!-- Tab: Search by Program -->
+                    <div class="tab-content" id="tabProgram" style="display:none;">
+                    <p class="search-subtitle">Find eligible properties by selecting a program and location</p>
+
+                    <form id="programSearchForm" class="search-form">
+                        <div class="form-row">
+                            <div class="form-group form-group-large">
+                                <label for="psProgram">Program</label>
+                                <select id="psProgram" required>
+                                    <option value="">Select a program...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="psState">State</label>
+                                <select id="psState" disabled>
+                                    <option value="">Select state...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="psCounty">County</label>
+                                <select id="psCounty" disabled>
+                                    <option value="">Select county...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="psCity">City (optional)</label>
+                                <select id="psCity" disabled>
+                                    <option value="">Entire county</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-group-button">
+                                <button type="submit" class="btn btn-primary" id="psSearchBtn">
+                                    <span class="btn-text">Search</span>
+                                    <span class="btn-loader" style="display: none;"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    </div><!-- end tabProgram -->
                 </div>
             </section>
 
@@ -132,11 +182,13 @@
                     <label for="sortBy">Sort:</label>
                     <select id="sortBy">
                         <option value="distance">Distance</option>
+                        <option value="best-match">Best Match</option>
                         <option value="price-asc">Price: Low to High</option>
                         <option value="price-desc">Price: High to Low</option>
                         <option value="days-asc">Days on Market: Fewest</option>
                         <option value="days-desc">Days on Market: Most</option>
-                        <option value="best-match">Best Match</option>
+                        <option value="zipcode">Zip Code</option>
+                        <option value="address">Address</option>
                     </select>
                     <span class="filter-summary" id="filterSummary"></span>
                 </div>

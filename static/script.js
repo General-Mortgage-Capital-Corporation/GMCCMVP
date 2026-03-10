@@ -11,6 +11,8 @@ let currentPage = 1;
 let perPage = 10;
 let availablePrograms = [];
 let selectedPrograms = [];
+let activeTab = 'find'; // 'find' or 'program'
+let programLocations = []; // from /api/program-locations
 
 const STATUS_ICONS = {
     pass: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -451,6 +453,12 @@ function getFilteredListings() {
             const postFilter = document.getElementById('programFilter').value;
             const activePrograms = postFilter ? [postFilter] : (selectedPrograms.length > 0 ? selectedPrograms : null);
             listings.sort((a, b) => getMatchScore(b, activePrograms) - getMatchScore(a, activePrograms));
+            break;
+        case 'zipcode':
+            listings.sort((a, b) => (a.zipCode || '').localeCompare(b.zipCode || ''));
+            break;
+        case 'address':
+            listings.sort((a, b) => (a.formattedAddress || '').localeCompare(b.formattedAddress || ''));
             break;
         case 'distance':
         default:
@@ -1230,6 +1238,194 @@ function geocodeAndMoveMap(address) {
 window.onMapsReady = onMapsReady;
 
 // =============================================================================
+// Tab Switching
+// =============================================================================
+
+function switchTab(tab) {
+    activeTab = tab;
+
+    // Update tab buttons
+    document.querySelectorAll('.tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+
+    // Update tab content
+    document.getElementById('tabFind').style.display = tab === 'find' ? 'block' : 'none';
+    document.getElementById('tabFind').classList.toggle('active', tab === 'find');
+    document.getElementById('tabProgram').style.display = tab === 'program' ? 'block' : 'none';
+    document.getElementById('tabProgram').classList.toggle('active', tab === 'program');
+
+    // Reset results when switching tabs
+    document.getElementById('resultsSection').style.display = 'none';
+    currentListings = [];
+    currentPage = 1;
+    resetMatching();
+    showMessage(null);
+    hideError();
+}
+
+// =============================================================================
+// Program Search Tab
+// =============================================================================
+
+async function initProgramSearch() {
+    try {
+        const resp = await fetch('/api/program-locations');
+        const data = await resp.json();
+        programLocations = data.programs || [];
+    } catch {
+        programLocations = [];
+    }
+
+    const select = document.getElementById('psProgram');
+    select.innerHTML = '<option value="">Select a program...</option>';
+    programLocations.forEach(p => {
+        if (!p.states || p.states.length === 0) return;
+        const opt = document.createElement('option');
+        opt.value = p.program_name;
+        opt.textContent = p.program_name;
+        select.appendChild(opt);
+    });
+}
+
+function onPsProgramChange() {
+    const programName = document.getElementById('psProgram').value;
+    const stateSelect = document.getElementById('psState');
+    const countySelect = document.getElementById('psCounty');
+    const citySelect = document.getElementById('psCity');
+
+    // Reset downstream
+    stateSelect.innerHTML = '<option value="">Select state...</option>';
+    countySelect.innerHTML = '<option value="">Select county...</option>';
+    citySelect.innerHTML = '<option value="">Entire county</option>';
+    stateSelect.disabled = true;
+    countySelect.disabled = true;
+    citySelect.disabled = true;
+
+    if (!programName) return;
+
+    const program = programLocations.find(p => p.program_name === programName);
+    if (!program) return;
+
+    program.states.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.state;
+        opt.textContent = s.state;
+        stateSelect.appendChild(opt);
+    });
+    stateSelect.disabled = false;
+}
+
+function onPsStateChange() {
+    const programName = document.getElementById('psProgram').value;
+    const stateName = document.getElementById('psState').value;
+    const countySelect = document.getElementById('psCounty');
+    const citySelect = document.getElementById('psCity');
+
+    countySelect.innerHTML = '<option value="">Select county...</option>';
+    citySelect.innerHTML = '<option value="">Entire county</option>';
+    countySelect.disabled = true;
+    citySelect.disabled = true;
+
+    if (!programName || !stateName) return;
+
+    const program = programLocations.find(p => p.program_name === programName);
+    if (!program) return;
+
+    const stateData = program.states.find(s => s.state === stateName);
+    if (!stateData) return;
+
+    stateData.counties.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.fips;
+        opt.textContent = c.county;
+        countySelect.appendChild(opt);
+    });
+    countySelect.disabled = false;
+}
+
+function onPsCountyChange() {
+    const programName = document.getElementById('psProgram').value;
+    const stateName = document.getElementById('psState').value;
+    const countyFips = document.getElementById('psCounty').value;
+    const citySelect = document.getElementById('psCity');
+
+    citySelect.innerHTML = '<option value="">Entire county</option>';
+    citySelect.disabled = true;
+
+    if (!programName || !stateName || !countyFips) return;
+
+    const program = programLocations.find(p => p.program_name === programName);
+    if (!program) return;
+    const stateData = program.states.find(s => s.state === stateName);
+    if (!stateData) return;
+    const county = stateData.counties.find(c => c.fips === countyFips);
+    if (!county || !county.cities || county.cities.length === 0) return;
+
+    county.cities.forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = false;
+}
+
+async function handleProgramSearch(e) {
+    e.preventDefault();
+
+    const programName = document.getElementById('psProgram').value;
+    const countyFips = document.getElementById('psCounty').value;
+    const city = document.getElementById('psCity').value;
+
+    if (!programName) { showError('Please select a program.'); return; }
+    if (!countyFips) { showError('Please select a county.'); return; }
+
+    hideError();
+    showMessage(null);
+    resetMatching();
+    currentPage = 1;
+    perPage = 10;
+
+    const btn = document.getElementById('psSearchBtn');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = 'Searching...';
+    btn.querySelector('.btn-loader').style.display = 'block';
+
+    try {
+        const params = new URLSearchParams({ program: programName, county_fips: countyFips });
+        if (city) params.set('city', city);
+
+        const resp = await fetch(`/api/program-search?${params}`);
+        const data = await resp.json();
+
+        if (data.success) {
+            currentListings = data.listings || [];
+
+            if (currentListings.length === 0) {
+                showMessage(`No matching properties found. Searched ${data.total_searched} listings in this area.`);
+            }
+
+            // Set default sort to best-match for program search
+            document.getElementById('sortBy').value = 'best-match';
+            renderListings(currentListings);
+            showFilterBar();
+            populateFilterDropdown();
+        } else {
+            showError(data.error || 'Search failed.');
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+    } catch (error) {
+        showError('Failed to connect to the server. Please try again.');
+        document.getElementById('resultsSection').style.display = 'none';
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('.btn-text').textContent = 'Search';
+        btn.querySelector('.btn-loader').style.display = 'none';
+    }
+}
+
+// =============================================================================
 // Initialization
 // =============================================================================
 
@@ -1264,4 +1460,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize Google Maps widget
     initMap();
+
+    // Tab switching
+    document.getElementById('tabBtnFind').addEventListener('click', () => switchTab('find'));
+    document.getElementById('tabBtnProgram').addEventListener('click', () => switchTab('program'));
+
+    // Program search tab
+    initProgramSearch();
+    document.getElementById('psProgram').addEventListener('change', onPsProgramChange);
+    document.getElementById('psState').addEventListener('change', onPsStateChange);
+    document.getElementById('psCounty').addEventListener('change', onPsCountyChange);
+    document.getElementById('programSearchForm').addEventListener('submit', handleProgramSearch);
 });
