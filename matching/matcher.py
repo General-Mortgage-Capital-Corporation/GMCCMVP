@@ -388,6 +388,77 @@ def match_tier(listing: ListingInput, tier: EligibilityTier) -> TierResult:
     return TierResult(tier_name=tier.tier_name, status=status, criteria=criteria)
 
 
+def quick_prescreen(listing_data: dict, program_names: list[str]) -> bool:
+    """Quick pre-screen using only RentCast data. No Census API calls.
+
+    Returns True if the listing could potentially match at least one tier
+    of at least one selected program. Only checks property_type, price,
+    county FIPS, and unit count — all available from RentCast directly.
+    """
+    programs = load_programs()
+    selected = [p for p in programs if p.program_name in program_names]
+    if not selected:
+        return True
+
+    property_type = listing_data.get("propertyType")
+    price = listing_data.get("price")
+
+    # Build county FIPS from RentCast data
+    state_fips = (listing_data.get("stateFips") or "").strip()
+    county_fips_raw = (listing_data.get("countyFips") or "").strip()
+    if state_fips and county_fips_raw:
+        county_fips = state_fips.zfill(2) + county_fips_raw.zfill(3)
+    else:
+        county_fips = None
+        lat = listing_data.get("latitude")
+        lng = listing_data.get("longitude")
+        if lat and lng:
+            geo = get_county_from_coordinates(lat, lng)
+            if geo:
+                county_fips = geo.get("county_fips")
+
+    mapped_type = RENTCAST_TO_PROGRAM.get(property_type) if property_type else None
+    inferred_units = PROPERTY_TYPE_UNITS.get(property_type) if property_type else None
+    unit_range = PROPERTY_TYPE_UNIT_RANGES.get(property_type) if property_type else None
+
+    for program in selected:
+        purchase_tiers = [t for t in program.tiers if "Purchase" in t.transaction_types]
+        for tier in purchase_tiers:
+            if _tier_quick_passes(tier, mapped_type, price, county_fips, inferred_units, unit_range):
+                return True
+
+    return False
+
+
+def _tier_quick_passes(tier, mapped_type, price, county_fips, inferred_units, unit_range) -> bool:
+    """Return True if the listing doesn't definitively FAIL this tier."""
+    # Property type
+    if mapped_type is not None and tier.property_types:
+        if mapped_type not in tier.property_types:
+            return False
+
+    # Price — only FAIL if below min (above max is UNVERIFIED, not FAIL)
+    if price is not None and tier.min_loan_amount is not None:
+        if price < tier.min_loan_amount:
+            return False
+
+    # County
+    if county_fips and tier.eligible_county_fips:
+        if county_fips.strip().zfill(5) not in tier.eligible_county_fips:
+            return False
+
+    # Unit count
+    if tier.unit_count_limits:
+        if inferred_units is not None:
+            if inferred_units not in tier.unit_count_limits:
+                return False
+        elif unit_range is not None:
+            if not any(u in tier.unit_count_limits for u in unit_range):
+                return False
+
+    return True
+
+
 def match_listing(listing: ListingInput) -> list[ProgramResult]:
     """Match a listing against all loaded GMCC programs."""
     programs = load_programs()

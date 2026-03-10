@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 import requests
 
 from matching.models import ListingInput
-from matching.matcher import match_listing, load_programs
+from matching.matcher import match_listing, load_programs, quick_prescreen
 from matching.census import get_census_data
 from matching.explain import explain_match
 
@@ -85,6 +85,15 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 
+@app.route('/api/programs', methods=['GET'])
+def list_programs():
+    """Return the list of available GMCC program names."""
+    programs = load_programs()
+    return jsonify({
+        'programs': [p.program_name for p in programs]
+    })
+
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """Return public configuration."""
@@ -144,6 +153,8 @@ def search_listings():
     search_query = request.args.get('query', '').strip()
     radius = float(request.args.get('radius', 5))
     search_type = request.args.get('search_type', 'area')
+    program_filter = request.args.get('programs', '').strip()
+    selected_programs = [p for p in program_filter.split(',') if p] if program_filter else []
 
     if not search_query:
         return jsonify({'success': False, 'error': 'Please enter a search location.'}), 400
@@ -152,6 +163,15 @@ def search_listings():
         "accept": "application/json",
         "X-Api-Key": API_KEY
     }
+
+    def _apply_program_filter(listings):
+        """Pre-screen listings against selected programs using only RentCast data."""
+        if not selected_programs:
+            return listings
+        total_before = len(listings)
+        filtered = [l for l in listings if quick_prescreen(l, selected_programs)]
+        count = len(filtered)
+        return filtered
 
     is_zip = search_query.isdigit() and len(search_query) == 5
     params = {"status": "Active", "limit": MAX_LIMIT}
@@ -167,10 +187,11 @@ def search_listings():
                     for listing in data:
                         addr_norm = _normalize_address(listing.get('formattedAddress', ''))
                         if search_norm in addr_norm or addr_norm in search_norm:
+                            result = _apply_program_filter([listing])
                             return jsonify({
                                 'success': True,
-                                'listings': [listing],
-                                'total': 1,
+                                'listings': result,
+                                'total': len(result),
                                 'exact_match': True,
                                 'message': None
                             })
@@ -192,6 +213,7 @@ def search_listings():
                             else:
                                 listing['distance'] = 999
                         data.sort(key=lambda x: x.get('distance', 999))
+                    data = _apply_program_filter(data)
                     return jsonify({
                         'success': True,
                         'listings': data,
@@ -233,12 +255,16 @@ def search_listings():
                                 else:
                                     listing['distance'] = 999
                             data.sort(key=lambda x: x.get('distance', 999))
+                    data = _apply_program_filter(data)
+                    msg = None
+                    if selected_programs:
+                        msg = f'Showing {len(data)} properties matching selected programs.'
                     return jsonify({
                         'success': True,
                         'listings': data,
                         'total': len(data),
                         'exact_match': False,
-                        'message': None
+                        'message': msg
                     })
             elif response.status_code == 401:
                 return jsonify({'success': False, 'error': 'Invalid API key.'}), 401
@@ -287,6 +313,33 @@ def match_listing_endpoint():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': f'Matching error: {str(e)}'}), 500
+
+
+@app.route('/api/match-batch', methods=['POST'])
+def match_batch_endpoint():
+    """Match multiple listings in a single request to reduce HTTP round-trips.
+
+    Expects JSON array of RentCast listing objects. Processes sequentially
+    to avoid hammering the Census Bureau API.
+    """
+    try:
+        listings = request.get_json(silent=True)
+        if not listings or not isinstance(listings, list):
+            return jsonify({'success': False, 'error': 'Expected JSON array of listings'}), 400
+
+        results = []
+        for listing_data in listings:
+            census_data = get_census_data(listing_data)
+            listing = ListingInput.from_rentcast(listing_data, census_data)
+            match_results = match_listing(listing)
+            results.append({
+                'programs': [r.model_dump() for r in match_results],
+                'census_data': census_data,
+            })
+
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Batch matching error: {str(e)}'}), 500
 
 
 @app.route('/api/explain', methods=['POST'])

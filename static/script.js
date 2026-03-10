@@ -9,6 +9,8 @@
 let currentListings = [];
 let currentPage = 1;
 let perPage = 10;
+let availablePrograms = [];
+let selectedPrograms = [];
 
 const STATUS_ICONS = {
     pass: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -189,6 +191,8 @@ function selectSuggestion(text) {
 
 async function searchListings(query, radius, searchType) {
     const params = new URLSearchParams({ query, radius, search_type: searchType });
+    const programs = getSelectedProgramsParam();
+    if (programs) params.set('programs', programs);
     const response = await fetch(`/api/search?${params}`);
     return await response.json();
 }
@@ -200,31 +204,44 @@ async function searchListings(query, radius, searchType) {
 function matchPageListings() {
     const cards = document.querySelectorAll('#resultsGrid .property-card');
 
+    // Collect listings that need matching
+    const toMatch = [];
     cards.forEach(card => {
         const index = parseInt(card.getAttribute('data-index'));
         const listing = currentListings[index];
         if (!listing || listing.matchData || listing.matchLoading) return;
-
         listing.matchLoading = true;
+        toMatch.push({ index, listing });
+    });
 
-        fetch('/api/match', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(listing)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                listing.matchData = data;
-                listing.censusData = data.census_data || null;
-                updateCardPrograms(index, data.programs);
-                populateFilterDropdown();
+    if (toMatch.length === 0) return;
+
+    // Batch match all visible listings in one request
+    fetch('/api/match-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toMatch.map(item => item.listing))
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.results) {
+            data.results.forEach((result, i) => {
+                const { index, listing } = toMatch[i];
+                listing.matchData = { programs: result.programs };
+                listing.censusData = result.census_data || null;
+                listing.matchLoading = false;
+                updateCardPrograms(index, result.programs);
+            });
+            populateFilterDropdown();
+
+            // Re-render page to apply program pre-filter now that match data is available
+            if (selectedPrograms.length > 0) {
+                renderFilteredPage();
             }
-        })
-        .catch(() => {})
-        .finally(() => {
-            listing.matchLoading = false;
-        });
+        }
+    })
+    .catch(() => {
+        toMatch.forEach(({ listing }) => { listing.matchLoading = false; });
     });
 }
 
@@ -370,12 +387,29 @@ function showFilterBar() {
 }
 
 function getFilteredListings() {
+    let listings = currentListings;
+
+    // Apply pre-search program filter (selectedPrograms from the Programs dropdown)
+    if (selectedPrograms.length > 0) {
+        listings = listings.filter(listing => {
+            // If match data hasn't loaded yet, keep the listing (will re-filter later)
+            if (!listing.matchData) return true;
+            return listing.matchData.programs.some(p =>
+                selectedPrograms.includes(p.program_name) && p.status !== 'Ineligible'
+            );
+        });
+    }
+
+    // Apply post-search program filter (single-select dropdown)
     const programName = document.getElementById('programFilter').value;
-    if (!programName) return currentListings;
-    return currentListings.filter(listing =>
-        listing.matchData && listing.matchData.programs &&
-        listing.matchData.programs.some(p => p.program_name === programName && p.status !== 'Ineligible')
-    );
+    if (programName) {
+        listings = listings.filter(listing =>
+            listing.matchData && listing.matchData.programs &&
+            listing.matchData.programs.some(p => p.program_name === programName && p.status !== 'Ineligible')
+        );
+    }
+
+    return listings;
 }
 
 function filterByProgram() {
@@ -404,9 +438,11 @@ function renderFilteredPage() {
     renderPagination(totalPages);
 
     const summary = document.getElementById('filterSummary');
-    summary.textContent = programName
-        ? `Showing ${filtered.length} of ${currentListings.length} properties`
-        : '';
+    if (programName || selectedPrograms.length > 0) {
+        summary.textContent = `Showing ${filtered.length} of ${currentListings.length} properties`;
+    } else {
+        summary.textContent = '';
+    }
 
     // Lazy-match only the listings visible on this page
     matchPageListings();
@@ -920,6 +956,77 @@ function handleRadiusChange() {
 }
 
 // =============================================================================
+// Program Pre-Filter Selector
+// =============================================================================
+
+async function initProgramSelector() {
+    try {
+        const resp = await fetch('/api/programs');
+        const data = await resp.json();
+        availablePrograms = data.programs || [];
+    } catch {
+        availablePrograms = [];
+    }
+
+    const dropdown = document.getElementById('programSelectDropdown');
+    if (!dropdown || !availablePrograms.length) return;
+
+    dropdown.innerHTML = availablePrograms.map((name, i) =>
+        `<div class="program-select-item">
+            <input type="checkbox" id="progCheck${i}" value="${name.replace(/"/g, '&quot;')}">
+            <label for="progCheck${i}">${name}</label>
+        </div>`
+    ).join('') + '<button class="program-select-clear" id="programSelectClear">Clear All</button>';
+
+    // Toggle dropdown
+    const toggle = document.getElementById('programSelectToggle');
+    const container = document.getElementById('programSelect');
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        container.classList.toggle('open');
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            container.classList.remove('open');
+        }
+    });
+
+    // Checkbox changes
+    dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', updateSelectedPrograms);
+    });
+
+    // Clear button
+    document.getElementById('programSelectClear').addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        updateSelectedPrograms();
+    });
+}
+
+function updateSelectedPrograms() {
+    const dropdown = document.getElementById('programSelectDropdown');
+    const checked = dropdown.querySelectorAll('input[type="checkbox"]:checked');
+    selectedPrograms = Array.from(checked).map(cb => cb.value);
+
+    const label = document.getElementById('programSelectLabel');
+    if (selectedPrograms.length === 0) {
+        label.textContent = 'All Programs';
+    } else if (selectedPrograms.length === 1) {
+        label.textContent = selectedPrograms[0];
+    } else {
+        label.textContent = `${selectedPrograms.length} programs selected`;
+    }
+}
+
+function getSelectedProgramsParam() {
+    return selectedPrograms.length > 0 ? selectedPrograms.join(',') : '';
+}
+
+// =============================================================================
 // Map Widget (Google Maps)
 // =============================================================================
 
@@ -1086,6 +1193,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize address autocomplete (uses server-side proxy)
     initAutocomplete();
+
+    // Initialize program pre-filter selector
+    initProgramSelector();
 
     // Initialize Google Maps widget
     initMap();
