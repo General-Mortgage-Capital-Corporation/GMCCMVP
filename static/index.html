@@ -28,6 +28,7 @@
                     <div class="tab-bar">
                         <button class="tab active" data-tab="find" id="tabBtnFind">Find Properties</button>
                         <button class="tab" data-tab="program" id="tabBtnProgram">Search by Program</button>
+                        <button class="tab" data-tab="marketing" id="tabBtnMarketing">Massive Marketing City Check</button>
                     </div>
 
                     <!-- Tab: Find Properties -->
@@ -148,6 +149,41 @@
                         </div>
                     </form>
                     </div><!-- end tabProgram -->
+
+                    <!-- Tab: Massive Marketing City Check -->
+                    <div class="tab-content" id="tabMarketing" style="display:none;">
+                    <p class="search-subtitle">Search all properties in a county/city and check eligibility across all programs</p>
+
+                    <form id="marketingSearchForm" class="search-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="mkState">State</label>
+                                <select id="mkState" required>
+                                    <option value="">Select state...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="mkCounty">County</label>
+                                <select id="mkCounty" disabled>
+                                    <option value="">Select county...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="mkCity">City (optional)</label>
+                                <select id="mkCity" disabled>
+                                    <option value="">Entire county</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-group-button">
+                                <button type="submit" class="btn btn-primary" id="mkSearchBtn">
+                                    <span class="btn-text">Search</span>
+                                    <span class="btn-loader" style="display: none;"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    </div><!-- end tabMarketing -->
+
                 </div>
             </section>
 
@@ -175,10 +211,44 @@
 
                 <!-- Filter & Sort Bar -->
                 <div class="filter-bar hidden" id="filterBar">
-                    <label for="programFilter">Filter:</label>
-                    <select id="programFilter">
-                        <option value="">All Programs</option>
-                    </select>
+                    <!-- Tract filter (Find Properties tab) -->
+                    <div class="filter-group" id="tractFilterGroup" style="display:none;">
+                        <label>Filter by Tract:</label>
+                        <div class="chip-filters" id="tractFilters">
+                            <button type="button" class="chip-filter" data-filter="mmct">MMCT</button>
+                            <button type="button" class="chip-filter" data-filter="aahp">AA/HP</button>
+                            <button type="button" class="chip-filter" data-filter="lmi">Low-to-Moderate</button>
+                        </div>
+                    </div>
+
+                    <!-- Advanced filters (Program Search & Marketing tabs) -->
+                    <div class="filter-group" id="advancedFilterGroup" style="display:none;">
+                        <label>Filters:</label>
+                        <div class="chip-filters" id="advancedFilters">
+                            <button type="button" class="chip-filter" data-filter="mmct">MMCT</button>
+                            <button type="button" class="chip-filter" data-filter="lmi">Low-to-Moderate</button>
+                            <button type="button" class="chip-filter" data-filter="aahp">Majority AA/HP</button>
+                            <button type="button" class="chip-filter" data-filter="under500k">Under $500k</button>
+                            <button type="button" class="chip-filter" data-filter="500kto1m">$500k - $1M</button>
+                            <button type="button" class="chip-filter" data-filter="1mto3m">$1M - $3M</button>
+                            <button type="button" class="chip-filter" data-filter="over3m">Over $3M</button>
+                        </div>
+                    </div>
+
+                    <!-- Marketing-only: program & property type filters -->
+                    <div class="filter-group" id="mkProgramFilterGroup" style="display:none;">
+                        <label for="mkProgramFilter">Program:</label>
+                        <select id="mkProgramFilter">
+                            <option value="">All Programs</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" id="mkTypeFilterGroup" style="display:none;">
+                        <label for="mkTypeFilter">Type:</label>
+                        <select id="mkTypeFilter">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+
                     <label for="sortBy">Sort:</label>
                     <select id="sortBy">
                         <option value="distance">Distance</option>

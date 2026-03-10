@@ -234,40 +234,11 @@ class TestExplainEndpoint:
 
 
 class TestExplainMatch:
-    """Tests for the explain_match function."""
+    """Tests for the explain_match function (no ChromaDB -- uses program rules JSON directly)."""
 
     @patch("matching.explain.genai")
-    @patch("matching.explain.query_program_info")
-    def test_explain_match_calls_chromadb(self, mock_query, mock_genai):
-        """explain_match calls query_program_info for ChromaDB context."""
-        mock_query.return_value = {
-            "documents": [["Program guideline text here"]],
-            "metadatas": [[{"program_name": "Thunder"}]],
-        }
-        mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = MagicMock(
-            text="Explanation text"
-        )
-        mock_genai.Client.return_value = mock_client
-
-        from matching.explain import explain_match
-
-        explain_match("Thunder", {"price": 500000}, "Tier 1")
-
-        mock_query.assert_called_once()
-        call_args = mock_query.call_args
-        assert "Thunder" in call_args[1].get("program_name", "") or "Thunder" in str(
-            call_args
-        )
-
-    @patch("matching.explain.genai")
-    @patch("matching.explain.query_program_info")
-    def test_explain_match_calls_gemini(self, mock_query, mock_genai):
+    def test_explain_match_calls_gemini(self, mock_genai):
         """explain_match calls Gemini Flash generate_content."""
-        mock_query.return_value = {
-            "documents": [["Program guideline text here"]],
-            "metadatas": [[{"program_name": "Thunder"}]],
-        }
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = MagicMock(
             text="Explanation text"
@@ -276,19 +247,14 @@ class TestExplainMatch:
 
         from matching.explain import explain_match
 
-        explain_match("Thunder", {"price": 500000}, "Tier 1")
+        explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1")
 
         mock_genai.Client.assert_called_once()
         mock_client.models.generate_content.assert_called_once()
 
     @patch("matching.explain.genai")
-    @patch("matching.explain.query_program_info")
-    def test_explain_match_returns_string(self, mock_query, mock_genai):
+    def test_explain_match_returns_string(self, mock_genai):
         """explain_match returns string explanation text."""
-        mock_query.return_value = {
-            "documents": [["Program guideline text here"]],
-            "metadatas": [[{"program_name": "Thunder"}]],
-        }
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = MagicMock(
             text="This property qualifies because..."
@@ -297,7 +263,29 @@ class TestExplainMatch:
 
         from matching.explain import explain_match
 
-        result = explain_match("Thunder", {"price": 500000}, "Tier 1")
+        result = explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1")
 
         assert isinstance(result, str)
         assert len(result) > 0
+
+    @patch("matching.explain.genai")
+    def test_explain_match_uses_program_rules_context(self, mock_genai):
+        """explain_match passes program_rules as context to the prompt."""
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = MagicMock(
+            text="Eligible due to CRA benefits"
+        )
+        mock_genai.Client.return_value = mock_client
+
+        from matching.explain import explain_match
+
+        rules = {
+            "general_notes": ["CRA program for LMI tracts"],
+            "tiers": [{"tier_name": "Tier 1", "additional_rules": {"description": "LMI tract"}}],
+        }
+        explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1", program_rules=rules)
+
+        call_args = mock_client.models.generate_content.call_args
+        prompt = call_args[1]["contents"]
+        assert "CRA program for LMI tracts" in prompt
+        assert "LMI tract" in prompt

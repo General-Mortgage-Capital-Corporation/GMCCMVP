@@ -18,6 +18,7 @@ from matching.models import ListingInput
 from matching.matcher import match_listing, load_programs, quick_prescreen
 from matching.census import get_census_data
 from matching.explain import explain_match
+from rag.config import PROGRAMS_DIR
 
 # Load environment variables
 load_dotenv()
@@ -176,7 +177,10 @@ def search_listings():
         }), 400
 
     search_query = request.args.get('query', '').strip()
-    radius = float(request.args.get('radius', 5))
+    try:
+        radius = max(1, min(50, float(request.args.get('radius', 5))))
+    except (ValueError, TypeError):
+        radius = 5
     search_type = request.args.get('search_type', 'area')
     program_filter = request.args.get('programs', '').strip()
     selected_programs = [p for p in program_filter.split(',') if p] if program_filter else []
@@ -197,10 +201,7 @@ def search_listings():
         """Pre-screen listings against selected programs using only RentCast data."""
         if not selected_programs:
             return listings
-        total_before = len(listings)
-        filtered = [l for l in listings if quick_prescreen(l, selected_programs)]
-        count = len(filtered)
-        return filtered
+        return [l for l in listings if quick_prescreen(l, selected_programs)]
 
     is_zip = search_query.isdigit() and len(search_query) == 5
     params = {"status": "Active", "limit": MAX_LIMIT}
@@ -395,7 +396,6 @@ def explain_endpoint():
             return jsonify({'success': False, 'error': 'program_name and listing are required.'}), 400
 
         # Load program rules JSON for context
-        from rag.config import PROGRAMS_DIR
         program_rules = None
         for fname in os.listdir(PROGRAMS_DIR):
             if fname.endswith('.json'):
@@ -580,6 +580,96 @@ def program_search():
         'listings': matched,
         'total_searched': len(filtered),
         'total_matched': len(matched),
+    })
+
+
+@app.route('/api/marketing-search', methods=['GET'])
+def marketing_search():
+    """Search ALL listings in a county/city and match against ALL programs.
+
+    Unlike /api/program-search, this does NOT filter by program and returns
+    every property — even those with no matching programs. Designed for MLO
+    mass-marketing workflows.
+    """
+    county_fips_param = request.args.get('county_fips', '').strip()
+    city = request.args.get('city', '').strip()
+
+    if not county_fips_param:
+        return jsonify({'success': False, 'error': 'county_fips is required'}), 400
+
+    county_data = _load_county_fips()
+    county_info = county_data.get(county_fips_param)
+    if not county_info:
+        return jsonify({'success': False, 'error': f'Unknown county FIPS: {county_fips_param}'}), 400
+
+    if not API_KEY or API_KEY == 'API_KEY_HERE':
+        return jsonify({'success': False, 'error': 'RentCast API key not configured.'}), 400
+
+    headers = {"accept": "application/json", "X-Api-Key": API_KEY}
+    state = county_info["state"]
+
+    params = {"status": "Active", "limit": MAX_LIMIT}
+    if city:
+        params["city"] = city
+        params["state"] = state
+    else:
+        params["latitude"] = county_info["lat"]
+        params["longitude"] = county_info["lng"]
+        params["radius"] = county_info.get("radius", 25)
+
+    try:
+        response = requests.get(API_BASE_URL, headers=headers, params=params, timeout=30)
+        if response.status_code != 200:
+            return jsonify({'success': False, 'error': f'RentCast API error: {response.status_code}'}), response.status_code
+        data = response.json()
+        if not isinstance(data, list):
+            data = []
+    except requests.exceptions.RequestException as e:
+        return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 500
+
+    # Filter to target county FIPS
+    filtered = []
+    for listing in data:
+        sf = (listing.get("stateFips") or "").strip()
+        cf = (listing.get("countyFips") or "").strip()
+        listing_fips = sf.zfill(2) + cf.zfill(3) if sf and cf else ""
+        if listing_fips == county_fips_param:
+            filtered.append(listing)
+
+    if not filtered:
+        return jsonify({
+            'success': True,
+            'listings': [],
+            'total_found': len(data),
+            'total_in_county': 0,
+        })
+
+    # Full match ALL listings against ALL programs in parallel
+    def _process_one(listing_data):
+        census_data = get_census_data(listing_data)
+        listing_input = ListingInput.from_rentcast(listing_data, census_data)
+        match_results = match_listing(listing_input)
+        listing_data['matchData'] = {'programs': [r.model_dump() for r in match_results]}
+        listing_data['censusData'] = census_data
+        return listing_data
+
+    with ThreadPoolExecutor(max_workers=min(len(filtered), 20)) as pool:
+        futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(filtered)}
+        results = [None] * len(filtered)
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                results[idx] = future.result()
+            except Exception:
+                results[idx] = filtered[idx]
+                results[idx]['matchData'] = {'programs': []}
+                results[idx]['censusData'] = None
+
+    return jsonify({
+        'success': True,
+        'listings': results,
+        'total_found': len(data),
+        'total_in_county': len(filtered),
     })
 
 

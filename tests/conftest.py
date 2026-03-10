@@ -82,10 +82,14 @@ def sample_listing_missing_type():
 
 @pytest.fixture
 def sample_program_rules():
-    """ProgramRules loaded from data/programs/thunder.json (skip if missing)."""
-    path = "data/programs/thunder.json"
-    if not os.path.exists(path):
-        pytest.skip(f"Thunder program rules not found: {path}")
-    with open(path) as f:
-        data = json.load(f)
-    return ProgramRules.model_validate(data)
+    """ProgramRules loaded from the first available program JSON."""
+    programs_dir = "data/programs"
+    if not os.path.isdir(programs_dir):
+        pytest.skip(f"Programs directory not found: {programs_dir}")
+    for fname in sorted(os.listdir(programs_dir)):
+        if fname.endswith(".json"):
+            path = os.path.join(programs_dir, fname)
+            with open(path) as f:
+                data = json.load(f)
+            return ProgramRules.model_validate(data)
+    pytest.skip("No program JSON files found")

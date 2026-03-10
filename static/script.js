@@ -13,6 +13,19 @@ let availablePrograms = [];
 let selectedPrograms = [];
 let activeTab = 'find'; // 'find' or 'program'
 let programLocations = []; // from /api/program-locations
+let currentSearchController = null; // AbortController for in-flight search
+let currentModalListing = null; // track which listing the modal is showing
+
+// Marketing tab state
+let mkSortColumn = 'price';
+let mkSortDirection = 'desc';
+let mkAggregated = null; // cached aggregated locations across all programs
+
+// Chip filter state (shared across tabs)
+let activeChipFilters = new Set(); // e.g. 'mmct', 'lmi', 'aahp', 'under500k', etc.
+// Marketing-only filters
+let mkProgramFilter = '';
+let mkTypeFilter = '';
 
 const STATUS_ICONS = {
     pass: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -23,6 +36,11 @@ const STATUS_ICONS = {
 // =============================================================================
 // Utility
 // =============================================================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function formatPrice(price) {
     if (!price) return 'Price N/A';
@@ -80,6 +98,78 @@ function renderSimpleMarkdown(text) {
     });
     if (inList) html += '</ul>';
     return html;
+}
+
+// =============================================================================
+// Chip Filters
+// =============================================================================
+
+/**
+ * Check whether a listing passes the active chip filters.
+ * Default: OR logic — listing passes if it matches ANY selected chip.
+ * To switch to AND logic, change `filterMode` to 'and'.
+ */
+const CHIP_FILTER_MODE = 'and'; // Change to 'or' for OR (any-match) logic
+
+function listingPassesChipFilters(listing, filters) {
+    if (!filters || filters.size === 0) return true;
+
+    const census = listing.censusData || {};
+    const price = listing.price || 0;
+    const incomeLevel = (census.tract_income_level || '').toLowerCase();
+    const minorityPct = census.tract_minority_pct;
+
+    const checks = {
+        mmct: () => minorityPct != null && minorityPct > 50,
+        lmi: () => incomeLevel === 'low' || incomeLevel === 'moderate',
+        aahp: () => {
+            // Majority AA (African American) or HP (Hispanic/Latino) — over 50% combined
+            const black = census.demographics_black || 0;
+            const hispanic = census.demographics_hispanic || 0;
+            const total = census.demographics_total || 1;
+            return ((black + hispanic) / total) > 0.5;
+        },
+        under500k: () => price > 0 && price < 500000,
+        '500kto1m': () => price >= 500000 && price <= 1000000,
+        '1mto3m': () => price > 1000000 && price <= 3000000,
+        over3m: () => price > 3000000,
+    };
+
+    const activeChecks = [...filters].filter(f => checks[f]);
+    if (activeChecks.length === 0) return true;
+
+    if (CHIP_FILTER_MODE === 'and') {
+        return activeChecks.every(f => checks[f]());
+    } else {
+        return activeChecks.some(f => checks[f]());
+    }
+}
+
+function initChipFilterListeners(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll('.chip-filter').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const filter = chip.dataset.filter;
+            chip.classList.toggle('active');
+            if (activeChipFilters.has(filter)) {
+                activeChipFilters.delete(filter);
+            } else {
+                activeChipFilters.add(filter);
+            }
+            currentPage = 1;
+            if (activeTab === 'marketing') {
+                renderMarketingPage();
+            } else {
+                renderFilteredPage();
+            }
+        });
+    });
+}
+
+function resetChipFilters() {
+    activeChipFilters.clear();
+    document.querySelectorAll('.chip-filter.active').forEach(c => c.classList.remove('active'));
 }
 
 // =============================================================================
@@ -192,6 +282,10 @@ function selectSuggestion(text) {
 // =============================================================================
 
 async function searchListings(query, radius, searchType) {
+    // Cancel any in-flight search
+    if (currentSearchController) currentSearchController.abort();
+    currentSearchController = new AbortController();
+
     const params = new URLSearchParams({ query, radius, search_type: searchType });
     const programs = getSelectedProgramsParam();
     if (programs) params.set('programs', programs);
@@ -203,7 +297,7 @@ async function searchListings(query, radius, searchType) {
         params.set('lng', marker.position.lng);
     }
 
-    const response = await fetch(`/api/search?${params}`);
+    const response = await fetch(`/api/search?${params}`, { signal: currentSearchController.signal });
     return await response.json();
 }
 
@@ -241,8 +335,10 @@ function matchPageListings() {
                 listing.censusData = result.census_data || null;
                 listing.matchLoading = false;
                 updateCardPrograms(index, result.programs);
+                refreshModalIfOpen(listing);
             });
-            populateFilterDropdown();
+            // Chip filters are already active; re-render with latest match data
+            renderFilteredPage();
 
             // Clear pre-screen message once real match data arrives
             if (selectedPrograms.length > 0) {
@@ -252,7 +348,11 @@ function matchPageListings() {
         }
     })
     .catch(() => {
-        toMatch.forEach(({ listing }) => { listing.matchLoading = false; });
+        toMatch.forEach(({ index, listing }) => {
+            listing.matchLoading = false;
+            updateCardPrograms(index, []);
+        });
+        showError('Failed to check program eligibility. Try refreshing.');
     });
 }
 
@@ -270,7 +370,7 @@ function updateCardPrograms(index, programs) {
     } else {
         programsArea.innerHTML = eligible.map(p => {
             const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-            return `<span class="prog-badge ${cls}">${p.program_name}</span>`;
+            return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}</span>`;
         }).join('');
     }
 }
@@ -285,8 +385,8 @@ function renderCriteriaGrid(program) {
         return `<div class="criterion-item">
             <span class="criterion-icon">${icon}</span>
             <div>
-                <div class="criterion-label">${label}</div>
-                <div class="criterion-detail">${criterion.detail}</div>
+                <div class="criterion-label">${escapeHtml(label)}</div>
+                <div class="criterion-detail">${escapeHtml(criterion.detail)}</div>
             </div>
         </div>`;
     }).join('');
@@ -306,9 +406,9 @@ function createProgramCard(program, listing) {
     const header = document.createElement('div');
     header.className = 'program-card-header';
     header.innerHTML = `
-        <span class="program-name">${program.program_name}</span>
-        <span class="program-status ${statusClass}">${program.status}</span>
-        <span class="program-tier">${tierText}</span>
+        <span class="program-name">${escapeHtml(program.program_name)}</span>
+        <span class="program-status ${statusClass}">${escapeHtml(program.status)}</span>
+        <span class="program-tier">${escapeHtml(tierText)}</span>
         <span class="program-chevron">&#9656;</span>
     `;
 
@@ -317,7 +417,7 @@ function createProgramCard(program, listing) {
     body.style.display = 'none';
     body.innerHTML = `
         ${renderCriteriaGrid(program)}
-        <button class="btn-talking-points" data-program="${program.program_name}" data-tier="${program.best_tier || ''}">Get Talking Points</button>
+        <button class="btn-talking-points" data-program="${escapeHtml(program.program_name)}" data-tier="${escapeHtml(program.best_tier || '')}">Get Talking Points</button>
         <div class="talking-points-content"></div>
     `;
 
@@ -359,7 +459,7 @@ function createProgramCard(program, listing) {
             tpContent.textContent = 'Unable to load talking points. Try again.';
         } finally {
             tpBtn.disabled = false;
-            tpBtn.textContent = 'Get Talking Points';
+            tpBtn.innerHTML = 'Get Talking Points';
         }
     });
 
@@ -368,40 +468,86 @@ function createProgramCard(program, listing) {
     return card;
 }
 
-function populateFilterDropdown() {
-    const select = document.getElementById('programFilter');
-    const currentValue = select.value;
-    const programNames = new Set();
-    currentListings.forEach(listing => {
-        if (listing.matchData && listing.matchData.programs) {
-            listing.matchData.programs.forEach(p => {
-                if (p.status !== 'Ineligible') programNames.add(p.program_name);
-            });
-        }
-    });
-    select.innerHTML = '<option value="">All Programs</option>';
-    Array.from(programNames).sort().forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-    });
-    // Preserve current filter selection
-    if (currentValue && programNames.has(currentValue)) {
-        select.value = currentValue;
-    }
-}
-
 function showFilterBar() {
     const filterBar = document.getElementById('filterBar');
     if (filterBar) filterBar.classList.remove('hidden');
+}
+
+function configureFilterBarForTab() {
+    // Show/hide the right filter groups based on activeTab
+    const tractGroup = document.getElementById('tractFilterGroup');
+    const advancedGroup = document.getElementById('advancedFilterGroup');
+    const mkProgGroup = document.getElementById('mkProgramFilterGroup');
+    const mkTypeGroup = document.getElementById('mkTypeFilterGroup');
+    const sortByEl = document.getElementById('sortBy');
+
+    tractGroup.style.display = 'none';
+    advancedGroup.style.display = 'none';
+    mkProgGroup.style.display = 'none';
+    mkTypeGroup.style.display = 'none';
+    sortByEl.parentElement && (sortByEl.style.display = '');
+    // Also show/hide the Sort label (previous sibling)
+    const sortLabel = sortByEl.previousElementSibling;
+
+    if (activeTab === 'find') {
+        tractGroup.style.display = '';
+        sortByEl.style.display = '';
+        if (sortLabel) sortLabel.style.display = '';
+    } else if (activeTab === 'program') {
+        advancedGroup.style.display = '';
+        sortByEl.style.display = '';
+        if (sortLabel) sortLabel.style.display = '';
+    } else if (activeTab === 'marketing') {
+        advancedGroup.style.display = '';
+        mkProgGroup.style.display = '';
+        mkTypeGroup.style.display = '';
+        // Hide sort dropdown for marketing (uses table header sorting)
+        sortByEl.style.display = 'none';
+        if (sortLabel) sortLabel.style.display = 'none';
+    }
+}
+
+function populateMkFilterDropdowns() {
+    // Populate program filter from actual matched programs in results
+    const progSelect = document.getElementById('mkProgramFilter');
+    const currentProg = progSelect.value;
+    const programNames = new Set();
+    currentListings.forEach(listing => {
+        const progs = listing.matchData?.programs || [];
+        progs.forEach(p => {
+            if (p.status !== 'Ineligible') programNames.add(p.program_name);
+        });
+    });
+    progSelect.innerHTML = '<option value="">All Programs</option>';
+    Array.from(programNames).sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        progSelect.appendChild(opt);
+    });
+    if (currentProg && programNames.has(currentProg)) progSelect.value = currentProg;
+
+    // Populate property type filter from actual listing types
+    const typeSelect = document.getElementById('mkTypeFilter');
+    const currentType = typeSelect.value;
+    const types = new Set();
+    currentListings.forEach(listing => {
+        if (listing.propertyType) types.add(listing.propertyType);
+    });
+    typeSelect.innerHTML = '<option value="">All Types</option>';
+    Array.from(types).sort().forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        typeSelect.appendChild(opt);
+    });
+    if (currentType && types.has(currentType)) typeSelect.value = currentType;
 }
 
 function getMatchScore(listing, activePrograms) {
     if (!listing.matchData) return 0;
     let score = 0;
     listing.matchData.programs.forEach(p => {
-        // Skip programs not in the active filter (if any filter is set)
         if (activePrograms && !activePrograms.includes(p.program_name)) return;
         if (p.status === 'Eligible') score += 2;
         else if (p.status === 'Potentially Eligible') score += 1;
@@ -415,7 +561,6 @@ function getFilteredListings() {
     // Apply pre-search program filter (selectedPrograms from the Programs dropdown)
     if (selectedPrograms.length > 0) {
         listings = listings.filter(listing => {
-            // If match data hasn't loaded yet, keep the listing (will re-filter later)
             if (!listing.matchData) return true;
             return listing.matchData.programs.some(p =>
                 selectedPrograms.includes(p.program_name) && p.status !== 'Ineligible'
@@ -423,18 +568,14 @@ function getFilteredListings() {
         });
     }
 
-    // Apply post-search program filter (single-select dropdown)
-    const programName = document.getElementById('programFilter').value;
-    if (programName) {
-        listings = listings.filter(listing =>
-            listing.matchData && listing.matchData.programs &&
-            listing.matchData.programs.some(p => p.program_name === programName && p.status !== 'Ineligible')
-        );
+    // Apply chip filters (tract filters for Find tab, advanced filters for Program tab)
+    if (activeChipFilters.size > 0) {
+        listings = listings.filter(l => listingPassesChipFilters(l, activeChipFilters));
     }
 
     // Sort
     const sortBy = document.getElementById('sortBy').value;
-    listings = [...listings]; // shallow copy to avoid mutating currentListings
+    listings = [...listings];
     switch (sortBy) {
         case 'price-asc':
             listings.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
@@ -448,12 +589,11 @@ function getFilteredListings() {
         case 'days-desc':
             listings.sort((a, b) => (b.daysOnMarket ?? 0) - (a.daysOnMarket ?? 0));
             break;
-        case 'best-match':
-            // Determine active program filter: post-search dropdown takes priority, then pre-search selection
-            const postFilter = document.getElementById('programFilter').value;
-            const activePrograms = postFilter ? [postFilter] : (selectedPrograms.length > 0 ? selectedPrograms : null);
+        case 'best-match': {
+            const activePrograms = selectedPrograms.length > 0 ? selectedPrograms : null;
             listings.sort((a, b) => getMatchScore(b, activePrograms) - getMatchScore(a, activePrograms));
             break;
+        }
         case 'zipcode':
             listings.sort((a, b) => (a.zipCode || '').localeCompare(b.zipCode || ''));
             break;
@@ -469,14 +609,12 @@ function getFilteredListings() {
     return listings;
 }
 
-function filterByProgram() {
-    currentPage = 1;
-    renderFilteredPage();
-}
-
 function renderFilteredPage() {
+    if (activeTab === 'marketing') {
+        renderMarketingPage();
+        return;
+    }
     const filtered = getFilteredListings();
-    const programName = document.getElementById('programFilter').value;
     const grid = document.getElementById('resultsGrid');
     grid.innerHTML = '';
 
@@ -494,39 +632,41 @@ function renderFilteredPage() {
 
     renderPagination(totalPages);
 
-    // Update stats bar with filtered listings when filtering is active
-    const isFiltering = programName || selectedPrograms.length > 0;
+    const isFiltering = selectedPrograms.length > 0 || activeChipFilters.size > 0;
     if (isFiltering) {
         updateStats(filtered);
     }
 
     const summary = document.getElementById('filterSummary');
     if (isFiltering) {
-        // Count how many listings have been fully matched vs still pending
         const matchedCount = currentListings.filter(l => l.matchData).length;
         const totalCount = currentListings.length;
         if (matchedCount < totalCount) {
             summary.textContent = `Showing ${filtered.length} verified matches (${totalCount - matchedCount} still checking...)`;
         } else {
-            summary.textContent = `${filtered.length} of ${totalCount} properties match selected programs`;
+            summary.textContent = `${filtered.length} of ${totalCount} properties match filters`;
         }
     } else {
         summary.textContent = '';
     }
 
-    // Lazy-match only the listings visible on this page
     matchPageListings();
 }
 
 function resetMatching() {
     const filterBar = document.getElementById('filterBar');
     if (filterBar) filterBar.classList.add('hidden');
-    const select = document.getElementById('programFilter');
-    if (select) select.innerHTML = '<option value="">All Programs</option>';
     const sortBy = document.getElementById('sortBy');
     if (sortBy) sortBy.value = 'distance';
     const summary = document.getElementById('filterSummary');
     if (summary) summary.textContent = '';
+    resetChipFilters();
+    mkProgramFilter = '';
+    mkTypeFilter = '';
+    const mkProgSel = document.getElementById('mkProgramFilter');
+    if (mkProgSel) mkProgSel.value = '';
+    const mkTypeSel = document.getElementById('mkTypeFilter');
+    if (mkTypeSel) mkTypeSel.value = '';
     document.querySelectorAll('.property-card.hidden').forEach(c => c.classList.remove('hidden'));
 }
 
@@ -649,7 +789,7 @@ function showMessage(message) {
 }
 
 function updateStats(listings) {
-    const prices = listings.map(l => l.price).filter(p => p);
+    const prices = listings.map(l => l.price).filter(p => p != null);
     const days = listings.map(l => l.daysOnMarket).filter(d => d != null);
 
     document.getElementById('statCount').textContent = listings.length;
@@ -692,7 +832,7 @@ function createPropertyCard(listing, index) {
         } else {
             programsHtml = eligible.map(p => {
                 const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-                return `<span class="prog-badge ${cls}">${p.program_name}</span>`;
+                return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}</span>`;
             }).join('');
         }
     } else {
@@ -799,6 +939,7 @@ function renderPagination(totalPages) {
 // =============================================================================
 
 function openPropertyModal(listing) {
+    currentModalListing = listing;
     const modal = document.getElementById('modalOverlay');
     const content = document.getElementById('modalContent');
 
@@ -810,20 +951,20 @@ function openPropertyModal(listing) {
     let contactHtml = '';
     if (agent.name || agent.phone || agent.email) {
         contactHtml = `<div class="modal-contact">
-            <div class="modal-contact-name">${agent.name || 'Agent name not available'}</div>
+            <div class="modal-contact-name">${escapeHtml(agent.name) || 'Agent name not available'}</div>
             <div class="modal-contact-info">
                 ${agent.phone ? `Phone: ${formatPhone(agent.phone)}<br>` : ''}
-                ${agent.email ? `Email: ${agent.email}<br>` : ''}
-                ${agent.website ? `Website: <a href="${agent.website}" target="_blank">${agent.website}</a>` : ''}
+                ${agent.email ? `Email: ${escapeHtml(agent.email)}<br>` : ''}
+                ${agent.website ? `Website: <a href="${escapeHtml(agent.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(agent.website)}</a>` : ''}
             </div>
         </div>`;
     } else if (builder.name) {
         contactHtml = `<div class="modal-contact">
-            <div class="modal-contact-name">${builder.name} (Builder)</div>
+            <div class="modal-contact-name">${escapeHtml(builder.name)} (Builder)</div>
             <div class="modal-contact-info">
                 ${builder.phone ? `Phone: ${formatPhone(builder.phone)}<br>` : ''}
-                ${builder.development ? `Development: ${builder.development}<br>` : ''}
-                ${builder.website ? `Website: <a href="${builder.website}" target="_blank">${builder.website}</a>` : ''}
+                ${builder.development ? `Development: ${escapeHtml(builder.development)}<br>` : ''}
+                ${builder.website ? `Website: <a href="${escapeHtml(builder.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(builder.website)}</a>` : ''}
             </div>
         </div>`;
     } else {
@@ -943,10 +1084,10 @@ function openPropertyModal(listing) {
             <div class="modal-section-title">Contact Information</div>
             ${contactHtml}
             ${office.name ? `<div class="modal-contact" style="margin-top:0.75rem;">
-                <div class="modal-contact-name">${office.name} (Office)</div>
+                <div class="modal-contact-name">${escapeHtml(office.name)} (Office)</div>
                 <div class="modal-contact-info">
                     ${office.phone ? `Phone: ${formatPhone(office.phone)}<br>` : ''}
-                    ${office.email ? `Email: ${office.email}` : ''}
+                    ${office.email ? `Email: ${escapeHtml(office.email)}` : ''}
                 </div>
             </div>` : ''}
         </div>
@@ -964,8 +1105,15 @@ function openPropertyModal(listing) {
 }
 
 function closeModal() {
+    currentModalListing = null;
     document.getElementById('modalOverlay').style.display = 'none';
     document.body.style.overflow = '';
+}
+
+function refreshModalIfOpen(listing) {
+    if (currentModalListing === listing && document.getElementById('modalOverlay').style.display === 'flex') {
+        openPropertyModal(listing);
+    }
 }
 
 // =============================================================================
@@ -994,12 +1142,14 @@ async function handleSearch(e) {
             currentListings = result.listings;
             renderListings(result.listings);
             showFilterBar();
+            configureFilterBarForTab();
             if (result.message) showMessage(result.message);
         } else {
             showError(result.error || 'An error occurred while searching.');
             document.getElementById('resultsSection').style.display = 'none';
         }
     } catch (error) {
+        if (error.name === 'AbortError') return; // stale request cancelled
         showError('Failed to connect to the server. Please try again.');
         document.getElementById('resultsSection').style.display = 'none';
     } finally {
@@ -1250,15 +1400,20 @@ function switchTab(tab) {
     });
 
     // Update tab content
-    document.getElementById('tabFind').style.display = tab === 'find' ? 'block' : 'none';
-    document.getElementById('tabFind').classList.toggle('active', tab === 'find');
-    document.getElementById('tabProgram').style.display = tab === 'program' ? 'block' : 'none';
-    document.getElementById('tabProgram').classList.toggle('active', tab === 'program');
+    const tabMap = { find: 'tabFind', program: 'tabProgram', marketing: 'tabMarketing' };
+    Object.entries(tabMap).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.display = key === tab ? 'block' : 'none';
+        el.classList.toggle('active', key === tab);
+    });
 
     // Reset results when switching tabs
     document.getElementById('resultsSection').style.display = 'none';
     currentListings = [];
     currentPage = 1;
+    mkSortColumn = 'price';
+    mkSortDirection = 'desc';
     resetMatching();
     showMessage(null);
     hideError();
@@ -1410,7 +1565,7 @@ async function handleProgramSearch(e) {
             document.getElementById('sortBy').value = 'best-match';
             renderListings(currentListings);
             showFilterBar();
-            populateFilterDropdown();
+            configureFilterBarForTab();
         } else {
             showError(data.error || 'Search failed.');
             document.getElementById('resultsSection').style.display = 'none';
@@ -1426,6 +1581,369 @@ async function handleProgramSearch(e) {
 }
 
 // =============================================================================
+// Massive Marketing City Check Tab
+// =============================================================================
+
+function getAggregatedLocations() {
+    if (mkAggregated) return mkAggregated;
+    const stateMap = {};
+    programLocations.forEach(program => {
+        (program.states || []).forEach(s => {
+            if (!stateMap[s.state]) stateMap[s.state] = {};
+            s.counties.forEach(c => {
+                if (!stateMap[s.state][c.fips]) {
+                    stateMap[s.state][c.fips] = { fips: c.fips, county: c.county, cities: new Set() };
+                }
+                (c.cities || []).forEach(city => stateMap[s.state][c.fips].cities.add(city));
+            });
+        });
+    });
+    mkAggregated = Object.keys(stateMap).sort().map(state => ({
+        state,
+        counties: Object.values(stateMap[state]).map(c => ({
+            fips: c.fips,
+            county: c.county,
+            cities: Array.from(c.cities).sort()
+        })).sort((a, b) => a.county.localeCompare(b.county))
+    }));
+    return mkAggregated;
+}
+
+function initMarketingTab() {
+    const locations = getAggregatedLocations();
+    const stateSelect = document.getElementById('mkState');
+    stateSelect.innerHTML = '<option value="">Select state...</option>';
+    locations.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.state;
+        opt.textContent = s.state;
+        stateSelect.appendChild(opt);
+    });
+}
+
+function onMkStateChange() {
+    const stateName = document.getElementById('mkState').value;
+    const countySelect = document.getElementById('mkCounty');
+    const citySelect = document.getElementById('mkCity');
+
+    countySelect.innerHTML = '<option value="">Select county...</option>';
+    citySelect.innerHTML = '<option value="">Entire county</option>';
+    countySelect.disabled = true;
+    citySelect.disabled = true;
+
+    if (!stateName) return;
+
+    const locations = getAggregatedLocations();
+    const stateData = locations.find(s => s.state === stateName);
+    if (!stateData) return;
+
+    stateData.counties.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.fips;
+        opt.textContent = c.county;
+        countySelect.appendChild(opt);
+    });
+    countySelect.disabled = false;
+}
+
+function onMkCountyChange() {
+    const stateName = document.getElementById('mkState').value;
+    const countyFips = document.getElementById('mkCounty').value;
+    const citySelect = document.getElementById('mkCity');
+
+    citySelect.innerHTML = '<option value="">Entire county</option>';
+    citySelect.disabled = true;
+
+    if (!stateName || !countyFips) return;
+
+    const locations = getAggregatedLocations();
+    const stateData = locations.find(s => s.state === stateName);
+    if (!stateData) return;
+    const county = stateData.counties.find(c => c.fips === countyFips);
+    if (!county || !county.cities || county.cities.length === 0) return;
+
+    county.cities.forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = false;
+}
+
+async function handleMarketingSearch(e) {
+    e.preventDefault();
+
+    const countyFips = document.getElementById('mkCounty').value;
+    const city = document.getElementById('mkCity').value;
+
+    if (!countyFips) { showError('Please select a county.'); return; }
+
+    hideError();
+    showMessage(null);
+    resetMatching();
+    currentPage = 1;
+    perPage = 50; // larger default for marketing table
+    mkSortColumn = 'price';
+    mkSortDirection = 'desc';
+
+    const btn = document.getElementById('mkSearchBtn');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = 'Searching...';
+    btn.querySelector('.btn-loader').style.display = 'block';
+
+    try {
+        const params = new URLSearchParams({ county_fips: countyFips });
+        if (city) params.set('city', city);
+
+        const resp = await fetch(`/api/marketing-search?${params}`);
+        const data = await resp.json();
+
+        if (data.success) {
+            currentListings = data.listings || [];
+
+            if (currentListings.length === 0) {
+                showMessage(`No properties found. ${data.total_found} listings returned from API, ${data.total_in_county} in this county.`);
+            }
+
+            renderMarketingResults();
+        } else {
+            showError(data.error || 'Search failed.');
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+    } catch (error) {
+        showError('Failed to connect to the server. Please try again.');
+        document.getElementById('resultsSection').style.display = 'none';
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('.btn-text').textContent = 'Search';
+        btn.querySelector('.btn-loader').style.display = 'none';
+    }
+}
+
+function renderMarketingResults() {
+    const resultsSection = document.getElementById('resultsSection');
+    const noResults = document.getElementById('noResults');
+    const grid = document.getElementById('resultsGrid');
+    const pagination = document.getElementById('pagination');
+
+    if (currentListings.length === 0) {
+        noResults.style.display = 'block';
+        grid.style.display = 'none';
+        document.getElementById('statsBar').style.display = 'grid';
+        updateStats(currentListings);
+        pagination.style.display = 'none';
+        resultsSection.style.display = 'block';
+        return;
+    }
+
+    noResults.style.display = 'none';
+    grid.style.display = 'block';
+    document.getElementById('statsBar').style.display = 'grid';
+    updateStats(currentListings);
+    // Show filter bar with marketing-specific filters
+    showFilterBar();
+    configureFilterBarForTab();
+    populateMkFilterDropdowns();
+
+    renderMarketingPage();
+    resultsSection.style.display = 'block';
+}
+
+function getMkSortValue(listing, key) {
+    const census = listing.censusData || {};
+    const agent = listing.listingAgent || {};
+    switch (key) {
+        case 'msa': return census.msa_code || '';
+        case 'price': return listing.price || 0;
+        case 'address': return listing.formattedAddress || '';
+        case 'programs': {
+            const progs = listing.matchData?.programs || [];
+            return progs.filter(p => p.status !== 'Ineligible').length;
+        }
+        case 'mmct': return census.tract_minority_pct != null && census.tract_minority_pct > 50 ? 1 : 0;
+        case 'lmi': {
+            const level = (census.tract_income_level || '').toLowerCase();
+            return { low: 0, moderate: 1, middle: 2, upper: 3 }[level] ?? 4;
+        }
+        case 'days': return listing.daysOnMarket ?? 9999;
+        case 'agentName': return (agent.name || '').toLowerCase();
+        case 'agentEmail': return (agent.email || '').toLowerCase();
+        case 'agentPhone': return agent.phone || '';
+        case 'state': return listing.state || '';
+        case 'county': return listing.county || '';
+        case 'city': return listing.city || '';
+        case 'zip': return listing.zipCode || '';
+        case 'type': return listing.propertyType || '';
+        default: return '';
+    }
+}
+
+function renderMarketingPage() {
+    const grid = document.getElementById('resultsGrid');
+
+    // Apply filters
+    let filtered = currentListings;
+
+    // Chip filters (MMCT, LMI, AA/HP, price ranges)
+    if (activeChipFilters.size > 0) {
+        filtered = filtered.filter(l => listingPassesChipFilters(l, activeChipFilters));
+    }
+
+    // Program filter dropdown
+    mkProgramFilter = document.getElementById('mkProgramFilter').value;
+    if (mkProgramFilter) {
+        filtered = filtered.filter(listing => {
+            const progs = listing.matchData?.programs || [];
+            return progs.some(p => p.program_name === mkProgramFilter && p.status !== 'Ineligible');
+        });
+    }
+
+    // Property type filter dropdown
+    mkTypeFilter = document.getElementById('mkTypeFilter').value;
+    if (mkTypeFilter) {
+        filtered = filtered.filter(l => l.propertyType === mkTypeFilter);
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+        const va = getMkSortValue(a, mkSortColumn);
+        const vb = getMkSortValue(b, mkSortColumn);
+        let cmp;
+        if (typeof va === 'number' && typeof vb === 'number') {
+            cmp = va - vb;
+        } else {
+            cmp = String(va).localeCompare(String(vb));
+        }
+        return mkSortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    // Pagination
+    const totalPages = Math.ceil(sorted.length / perPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    const start = (currentPage - 1) * perPage;
+    const end = Math.min(start + perPage, sorted.length);
+    const pageListings = sorted.slice(start, end);
+
+    // Column definitions
+    const columns = [
+        { key: 'msa', label: 'MSA #' },
+        { key: 'price', label: 'Price' },
+        { key: 'address', label: 'Active Listing Address' },
+        { key: 'programs', label: 'Matched Programs' },
+        { key: 'mmct', label: 'MMCT' },
+        { key: 'lmi', label: 'Income Level' },
+        { key: 'days', label: 'Days on Market' },
+        { key: 'agentName', label: 'Agent' },
+        { key: 'agentEmail', label: 'Email' },
+        { key: 'agentPhone', label: 'Phone' },
+        { key: 'state', label: 'State' },
+        { key: 'county', label: 'County' },
+        { key: 'city', label: 'City' },
+        { key: 'zip', label: 'Zip' },
+        { key: 'type', label: 'Type' },
+    ];
+
+    const headerHtml = columns.map(col => {
+        const isActive = mkSortColumn === col.key;
+        const arrow = isActive ? (mkSortDirection === 'asc' ? '&#9650;' : '&#9660;') : '&#8597;';
+        return `<th class="sortable${isActive ? ' sort-active' : ''}" data-sort-key="${col.key}">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
+    }).join('');
+
+    const rowsHtml = pageListings.map(listing => {
+        const census = listing.censusData || {};
+        const agent = listing.listingAgent || {};
+        const programs = listing.matchData?.programs || [];
+        const eligible = programs.filter(p => p.status !== 'Ineligible');
+
+        const mmctStatus = census.tract_minority_pct != null && census.tract_minority_pct > 50;
+        const incomeLevel = census.tract_income_level || 'N/A';
+        const isLmi = incomeLevel && ['low', 'moderate'].includes(incomeLevel.toLowerCase());
+
+        const programBadges = eligible.length > 0
+            ? eligible.map(p => {
+                const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
+                return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}</span>`;
+            }).join(' ')
+            : '<span class="prog-none">None</span>';
+
+        const idx = currentListings.indexOf(listing);
+
+        return `<tr data-index="${idx}">
+            <td>${escapeHtml(census.msa_code || 'N/A')}</td>
+            <td>${formatPrice(listing.price)}</td>
+            <td class="td-address" title="${escapeHtml(listing.formattedAddress || '')}">${escapeHtml(listing.formattedAddress || 'N/A')}</td>
+            <td class="td-programs">${programBadges}</td>
+            <td><span class="mk-badge ${mmctStatus ? 'mk-badge-yes' : 'mk-badge-no'}">${mmctStatus ? 'Yes' : 'No'}</span></td>
+            <td><span class="mk-badge ${isLmi ? 'mk-badge-lmi' : 'mk-badge-non-lmi'}">${escapeHtml(incomeLevel)}</span></td>
+            <td>${listing.daysOnMarket != null ? listing.daysOnMarket : 'N/A'}</td>
+            <td>${escapeHtml(agent.name || 'N/A')}</td>
+            <td>${escapeHtml(agent.email || 'N/A')}</td>
+            <td>${agent.phone ? formatPhone(agent.phone) : 'N/A'}</td>
+            <td>${escapeHtml(listing.state || 'N/A')}</td>
+            <td>${escapeHtml(listing.county || 'N/A')}</td>
+            <td>${escapeHtml(listing.city || 'N/A')}</td>
+            <td>${escapeHtml(listing.zipCode || 'N/A')}</td>
+            <td>${escapeHtml(listing.propertyType || 'N/A')}</td>
+        </tr>`;
+    }).join('');
+
+    // Marketing summary (based on filtered results)
+    const eligibleCount = filtered.filter(l => {
+        const progs = l.matchData?.programs || [];
+        return progs.some(p => p.status === 'Eligible');
+    }).length;
+    const potentialCount = filtered.filter(l => {
+        const progs = l.matchData?.programs || [];
+        return !progs.some(p => p.status === 'Eligible') && progs.some(p => p.status === 'Potentially Eligible');
+    }).length;
+    const hasFilters = activeChipFilters.size > 0 || mkProgramFilter || mkTypeFilter;
+    const countLabel = hasFilters
+        ? `<strong>${filtered.length}</strong> of ${currentListings.length} properties`
+        : `<strong>${filtered.length}</strong> properties`;
+
+    grid.innerHTML = `
+        <div class="marketing-summary">
+            <span>${countLabel}</span>
+            <span><strong>${eligibleCount}</strong> eligible</span>
+            <span><strong>${potentialCount}</strong> potentially eligible</span>
+            <span><strong>${filtered.length - eligibleCount - potentialCount}</strong> no match</span>
+        </div>
+        <div class="marketing-table-wrapper">
+            <table class="marketing-table">
+                <thead><tr>${headerHtml}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        </div>
+    `;
+
+    // Attach row click listeners
+    grid.querySelectorAll('tr[data-index]').forEach(row => {
+        row.addEventListener('click', () => {
+            const idx = parseInt(row.dataset.index);
+            openPropertyModal(currentListings[idx]);
+        });
+    });
+
+    // Attach column header sort listeners
+    grid.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const key = th.dataset.sortKey;
+            if (mkSortColumn === key) {
+                mkSortDirection = mkSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                mkSortColumn = key;
+                mkSortDirection = 'asc';
+            }
+            currentPage = 1;
+            renderMarketingPage();
+        });
+    });
+
+    renderPagination(totalPages);
+}
+
+// =============================================================================
 // Initialization
 // =============================================================================
 
@@ -1438,8 +1956,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target === document.getElementById('modalOverlay')) closeModal();
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-    document.getElementById('programFilter').addEventListener('change', () => filterByProgram());
     document.getElementById('sortBy').addEventListener('change', () => { currentPage = 1; renderFilteredPage(); });
+
+    // Chip filter listeners for both filter groups
+    initChipFilterListeners('tractFilters');
+    initChipFilterListeners('advancedFilters');
+
+    // Marketing-only dropdown filters
+    document.getElementById('mkProgramFilter').addEventListener('change', () => { currentPage = 1; renderMarketingPage(); });
+    document.getElementById('mkTypeFilter').addEventListener('change', () => { currentPage = 1; renderMarketingPage(); });
 
     // Pagination controls
     document.getElementById('prevPage').addEventListener('click', () => { currentPage--; renderPage(); });
@@ -1464,11 +1989,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Tab switching
     document.getElementById('tabBtnFind').addEventListener('click', () => switchTab('find'));
     document.getElementById('tabBtnProgram').addEventListener('click', () => switchTab('program'));
+    document.getElementById('tabBtnMarketing').addEventListener('click', () => switchTab('marketing'));
 
-    // Program search tab
-    initProgramSearch();
+    // Program search tab + marketing tab (both depend on programLocations)
+    await initProgramSearch();
+    initMarketingTab();
     document.getElementById('psProgram').addEventListener('change', onPsProgramChange);
     document.getElementById('psState').addEventListener('change', onPsStateChange);
     document.getElementById('psCounty').addEventListener('change', onPsCountyChange);
     document.getElementById('programSearchForm').addEventListener('submit', handleProgramSearch);
+    document.getElementById('mkState').addEventListener('change', onMkStateChange);
+    document.getElementById('mkCounty').addEventListener('change', onMkCountyChange);
+    document.getElementById('marketingSearchForm').addEventListener('submit', handleMarketingSearch);
 });
