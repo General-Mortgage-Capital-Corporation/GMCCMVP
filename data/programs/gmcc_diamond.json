@@ -8,7 +8,7 @@
       "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
       "occupancy_types": ["Primary Residence"],
       "min_loan_amount": null,
-      "max_loan_amount": 766550,
+      "max_loan_amount": 1149825,
       "max_ltv": 97.0,
       "max_cltv": null,
       "min_fico": null,
@@ -29,7 +29,7 @@
     }
   ],
   "general_notes": [
-    "Diamond Community Lending Program (CLP) offers CRA pricing incentive on eligible census tracts across 46 states.",
+    "Diamond Community Lending Program (CLP) offers CRA pricing incentive on eligible census tracts across all 50 states (both GMCC and LO must be licensed in the state).",
     "Agency loan amounts: Conforming and High Balance. No jumbo.",
     "No income restriction — no max income level required.",
     "Primary residence only. 2-4 units OK. Fixed rate only.",
