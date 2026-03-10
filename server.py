@@ -7,6 +7,7 @@ import json
 import math
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -66,13 +67,6 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-
-def geocode_from_listings(listings: list, search_query: str) -> tuple:
-    if listings and len(listings) > 0:
-        first = listings[0]
-        if first.get('latitude') and first.get('longitude'):
-            return first['latitude'], first['longitude']
-    return None, None
 
 
 @app.route('/')
@@ -156,6 +150,10 @@ def search_listings():
     program_filter = request.args.get('programs', '').strip()
     selected_programs = [p for p in program_filter.split(',') if p] if program_filter else []
 
+    # Use frontend-provided lat/lng (from map marker / Google Places) as distance center
+    search_lat = request.args.get('lat', type=float)
+    search_lng = request.args.get('lng', type=float)
+
     if not search_query:
         return jsonify({'success': False, 'error': 'Please enter a search location.'}), 400
 
@@ -202,7 +200,8 @@ def search_listings():
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list) and len(data) > 0:
-                    center_lat, center_lon = geocode_from_listings(data, search_query)
+                    center_lat = search_lat or data[0].get('latitude')
+                    center_lon = search_lng or data[0].get('longitude')
                     if center_lat and center_lon:
                         for listing in data:
                             if listing.get('latitude') and listing.get('longitude'):
@@ -244,7 +243,8 @@ def search_listings():
                 data = response.json()
                 if isinstance(data, list):
                     if data and not is_zip:
-                        center_lat, center_lon = geocode_from_listings(data, search_query)
+                        center_lat = search_lat or (data[0].get('latitude') if data else None)
+                        center_lon = search_lng or (data[0].get('longitude') if data else None)
                         if center_lat and center_lon:
                             for listing in data:
                                 if listing.get('latitude') and listing.get('longitude'):
@@ -258,7 +258,7 @@ def search_listings():
                     data = _apply_program_filter(data)
                     msg = None
                     if selected_programs:
-                        msg = f'Showing {len(data)} properties matching selected programs.'
+                        msg = f'Pre-screened to {len(data)} potential matches. Verifying eligibility...'
                     return jsonify({
                         'success': True,
                         'listings': data,
@@ -319,23 +319,29 @@ def match_listing_endpoint():
 def match_batch_endpoint():
     """Match multiple listings in a single request to reduce HTTP round-trips.
 
-    Expects JSON array of RentCast listing objects. Processes sequentially
-    to avoid hammering the Census Bureau API.
+    Expects JSON array of RentCast listing objects. Processes in parallel
+    (up to 8 threads) for faster Census/ACS lookups.
     """
     try:
         listings = request.get_json(silent=True)
         if not listings or not isinstance(listings, list):
             return jsonify({'success': False, 'error': 'Expected JSON array of listings'}), 400
 
-        results = []
-        for listing_data in listings:
+        def _process_one(listing_data):
             census_data = get_census_data(listing_data)
             listing = ListingInput.from_rentcast(listing_data, census_data)
             match_results = match_listing(listing)
-            results.append({
+            return {
                 'programs': [r.model_dump() for r in match_results],
                 'census_data': census_data,
-            })
+            }
+
+        # Process listings in parallel — Census/ACS APIs handle concurrent requests fine
+        with ThreadPoolExecutor(max_workers=min(len(listings), 20)) as pool:
+            futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(listings)}
+            results = [None] * len(listings)
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
 
         return jsonify({'success': True, 'results': results})
     except Exception as e:

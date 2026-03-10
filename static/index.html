@@ -123,11 +123,20 @@
                     </div>
                 </div>
 
-                <!-- Program Filter Bar -->
+                <!-- Filter & Sort Bar -->
                 <div class="filter-bar hidden" id="filterBar">
-                    <label for="programFilter">Filter by Program:</label>
+                    <label for="programFilter">Filter:</label>
                     <select id="programFilter">
                         <option value="">All Programs</option>
+                    </select>
+                    <label for="sortBy">Sort:</label>
+                    <select id="sortBy">
+                        <option value="distance">Distance</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="days-asc">Days on Market: Fewest</option>
+                        <option value="days-desc">Days on Market: Most</option>
+                        <option value="best-match">Best Match</option>
                     </select>
                     <span class="filter-summary" id="filterSummary"></span>
                 </div>

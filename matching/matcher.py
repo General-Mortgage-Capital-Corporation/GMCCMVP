@@ -338,11 +338,23 @@ def check_unit_count(
     if inferred_units is None:
         # Check if a known range exists (e.g. Multi-Family = 2-4 units)
         unit_range = PROPERTY_TYPE_UNIT_RANGES.get(listing_type)
-        if unit_range and all(u in tier.unit_count_limits for u in unit_range):
+        if unit_range:
+            if all(u in tier.unit_count_limits for u in unit_range):
+                return CriterionResult(
+                    criterion="unit_count",
+                    status=CriterionStatus.PASS,
+                    detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), all within limits {tier.unit_count_limits}",
+                )
+            if any(u in tier.unit_count_limits for u in unit_range):
+                return CriterionResult(
+                    criterion="unit_count",
+                    status=CriterionStatus.UNVERIFIED,
+                    detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), some within limits {tier.unit_count_limits}",
+                )
             return CriterionResult(
                 criterion="unit_count",
-                status=CriterionStatus.PASS,
-                detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), all within limits {tier.unit_count_limits}",
+                status=CriterionStatus.FAIL,
+                detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), none within limits {tier.unit_count_limits}",
             )
         return CriterionResult(
             criterion="unit_count",

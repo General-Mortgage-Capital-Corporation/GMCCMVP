@@ -9,6 +9,7 @@ Three-step approach:
 import json
 import os
 import re
+from functools import lru_cache
 
 import requests
 
@@ -199,6 +200,7 @@ def _geocode_address(street: str, city: str, state: str) -> dict | None:
 CENSUS_COORD_GEOCODER = "https://geocoding.geo.census.gov/geocoder/geographies/coordinates"
 
 
+@lru_cache(maxsize=256)
 def _geocode_coordinates(lat: float, lng: float) -> dict | None:
     """Geocode lat/lng via Census Bureau coordinate geocoder.
 
@@ -250,6 +252,7 @@ def _geocode_coordinates(lat: float, lng: float) -> dict | None:
 # Census ACS 5-Year API (demographics only)
 # ---------------------------------------------------------------------------
 
+@lru_cache(maxsize=256)
 def _get_acs_demographics(
     state_fips: str, county_fips: str, tract_code: str
 ) -> dict | None:

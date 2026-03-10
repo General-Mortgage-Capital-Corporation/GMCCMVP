@@ -193,6 +193,14 @@ async function searchListings(query, radius, searchType) {
     const params = new URLSearchParams({ query, radius, search_type: searchType });
     const programs = getSelectedProgramsParam();
     if (programs) params.set('programs', programs);
+
+    // Pass map marker lat/lng so server uses the actual searched address as distance center
+    const marker = window._searchMapMarker;
+    if (marker && marker.position) {
+        params.set('lat', marker.position.lat);
+        params.set('lng', marker.position.lng);
+    }
+
     const response = await fetch(`/api/search?${params}`);
     return await response.json();
 }
@@ -234,8 +242,9 @@ function matchPageListings() {
             });
             populateFilterDropdown();
 
-            // Re-render page to apply program pre-filter now that match data is available
+            // Clear pre-screen message once real match data arrives
             if (selectedPrograms.length > 0) {
+                showMessage(null);
                 renderFilteredPage();
             }
         }
@@ -386,6 +395,18 @@ function showFilterBar() {
     if (filterBar) filterBar.classList.remove('hidden');
 }
 
+function getMatchScore(listing, activePrograms) {
+    if (!listing.matchData) return 0;
+    let score = 0;
+    listing.matchData.programs.forEach(p => {
+        // Skip programs not in the active filter (if any filter is set)
+        if (activePrograms && !activePrograms.includes(p.program_name)) return;
+        if (p.status === 'Eligible') score += 2;
+        else if (p.status === 'Potentially Eligible') score += 1;
+    });
+    return score;
+}
+
 function getFilteredListings() {
     let listings = currentListings;
 
@@ -407,6 +428,34 @@ function getFilteredListings() {
             listing.matchData && listing.matchData.programs &&
             listing.matchData.programs.some(p => p.program_name === programName && p.status !== 'Ineligible')
         );
+    }
+
+    // Sort
+    const sortBy = document.getElementById('sortBy').value;
+    listings = [...listings]; // shallow copy to avoid mutating currentListings
+    switch (sortBy) {
+        case 'price-asc':
+            listings.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+            break;
+        case 'price-desc':
+            listings.sort((a, b) => (b.price || 0) - (a.price || 0));
+            break;
+        case 'days-asc':
+            listings.sort((a, b) => (a.daysOnMarket ?? Infinity) - (b.daysOnMarket ?? Infinity));
+            break;
+        case 'days-desc':
+            listings.sort((a, b) => (b.daysOnMarket ?? 0) - (a.daysOnMarket ?? 0));
+            break;
+        case 'best-match':
+            // Determine active program filter: post-search dropdown takes priority, then pre-search selection
+            const postFilter = document.getElementById('programFilter').value;
+            const activePrograms = postFilter ? [postFilter] : (selectedPrograms.length > 0 ? selectedPrograms : null);
+            listings.sort((a, b) => getMatchScore(b, activePrograms) - getMatchScore(a, activePrograms));
+            break;
+        case 'distance':
+        default:
+            listings.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+            break;
     }
 
     return listings;
@@ -437,9 +486,22 @@ function renderFilteredPage() {
 
     renderPagination(totalPages);
 
+    // Update stats bar with filtered listings when filtering is active
+    const isFiltering = programName || selectedPrograms.length > 0;
+    if (isFiltering) {
+        updateStats(filtered);
+    }
+
     const summary = document.getElementById('filterSummary');
-    if (programName || selectedPrograms.length > 0) {
-        summary.textContent = `Showing ${filtered.length} of ${currentListings.length} properties`;
+    if (isFiltering) {
+        // Count how many listings have been fully matched vs still pending
+        const matchedCount = currentListings.filter(l => l.matchData).length;
+        const totalCount = currentListings.length;
+        if (matchedCount < totalCount) {
+            summary.textContent = `Showing ${filtered.length} verified matches (${totalCount - matchedCount} still checking...)`;
+        } else {
+            summary.textContent = `${filtered.length} of ${totalCount} properties match selected programs`;
+        }
     } else {
         summary.textContent = '';
     }
@@ -453,6 +515,8 @@ function resetMatching() {
     if (filterBar) filterBar.classList.add('hidden');
     const select = document.getElementById('programFilter');
     if (select) select.innerHTML = '<option value="">All Programs</option>';
+    const sortBy = document.getElementById('sortBy');
+    if (sortBy) sortBy.value = 'distance';
     const summary = document.getElementById('filterSummary');
     if (summary) summary.textContent = '';
     document.querySelectorAll('.property-card.hidden').forEach(c => c.classList.remove('hidden'));
@@ -1179,6 +1243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
     document.getElementById('programFilter').addEventListener('change', () => filterByProgram());
+    document.getElementById('sortBy').addEventListener('change', () => { currentPage = 1; renderFilteredPage(); });
 
     // Pagination controls
     document.getElementById('prevPage').addEventListener('click', () => { currentPage--; renderPage(); });
