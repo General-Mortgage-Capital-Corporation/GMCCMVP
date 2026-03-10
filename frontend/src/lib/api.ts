@@ -1,0 +1,180 @@
+/**
+ * Typed API client for the Flask backend.
+ *
+ * All fetch calls check response.ok and support AbortSignal for cancellation.
+ * In development the Next.js rewrites proxy /api/* to the Flask server.
+ */
+
+import type {
+  SearchResponse,
+  MatchBatchResponse,
+  MatchSingleResponse,
+  ExplainResponse,
+  ProgramLocationsResponse,
+  ProgramSearchResponse,
+  MarketingSearchResponse,
+  AutocompleteResponse,
+  HealthResponse,
+  RentCastListing,
+} from "@/types";
+
+class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function fetchJson<T>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? `Request failed (${res.status})`,
+      res.status,
+    );
+  }
+  return res.json() as Promise<T>;
+}
+
+// ---------------------------------------------------------------------------
+// Endpoints
+// ---------------------------------------------------------------------------
+
+export async function searchListings(
+  params: {
+    query: string;
+    searchType?: string;
+    radius?: number;
+    programs?: string[];
+    lat?: number;
+    lng?: number;
+  },
+  signal?: AbortSignal,
+): Promise<SearchResponse> {
+  const sp = new URLSearchParams();
+  sp.set("query", params.query);
+  if (params.searchType) sp.set("search_type", params.searchType);
+  if (params.radius != null) sp.set("radius", String(params.radius));
+  if (params.programs?.length) sp.set("programs", params.programs.join(","));
+  if (params.lat != null) sp.set("lat", String(params.lat));
+  if (params.lng != null) sp.set("lng", String(params.lng));
+  return fetchJson<SearchResponse>(`/api/search?${sp}`, { signal });
+}
+
+export async function matchSingle(
+  listing: RentCastListing,
+  signal?: AbortSignal,
+): Promise<MatchSingleResponse> {
+  return fetchJson<MatchSingleResponse>("/api/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(listing),
+    signal,
+  });
+}
+
+export async function matchBatch(
+  listings: RentCastListing[],
+  signal?: AbortSignal,
+): Promise<MatchBatchResponse> {
+  return fetchJson<MatchBatchResponse>("/api/match-batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(listings),
+    signal,
+  });
+}
+
+export async function getExplanation(
+  programName: string,
+  listing: RentCastListing,
+  tierName: string,
+  signal?: AbortSignal,
+): Promise<ExplainResponse> {
+  return fetchJson<ExplainResponse>("/api/explain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      program_name: programName,
+      listing,
+      tier_name: tierName,
+    }),
+    signal,
+  });
+}
+
+export async function fetchProgramLocations(
+  signal?: AbortSignal,
+): Promise<ProgramLocationsResponse> {
+  return fetchJson<ProgramLocationsResponse>("/api/program-locations", {
+    signal,
+  });
+}
+
+export async function programSearch(
+  params: {
+    program: string;
+    countyFips: string;
+    city?: string;
+  },
+  signal?: AbortSignal,
+): Promise<ProgramSearchResponse> {
+  const sp = new URLSearchParams();
+  sp.set("program", params.program);
+  sp.set("county_fips", params.countyFips);
+  if (params.city) sp.set("city", params.city);
+  return fetchJson<ProgramSearchResponse>(`/api/program-search?${sp}`, {
+    signal,
+  });
+}
+
+export async function marketingSearch(
+  params: {
+    countyFips: string;
+    city?: string;
+  },
+  signal?: AbortSignal,
+): Promise<MarketingSearchResponse> {
+  const sp = new URLSearchParams();
+  sp.set("county_fips", params.countyFips);
+  if (params.city) sp.set("city", params.city);
+  return fetchJson<MarketingSearchResponse>(`/api/marketing-search?${sp}`, {
+    signal,
+  });
+}
+
+export async function fetchAutocomplete(
+  input: string,
+  signal?: AbortSignal,
+): Promise<AutocompleteResponse> {
+  const sp = new URLSearchParams({ input });
+  return fetchJson<AutocompleteResponse>(`/api/autocomplete?${sp}`, {
+    signal,
+  });
+}
+
+export async function fetchMapsKey(
+  signal?: AbortSignal,
+): Promise<{ key: string }> {
+  return fetchJson<{ key: string }>("/api/maps-key", { signal });
+}
+
+export async function fetchHealth(
+  signal?: AbortSignal,
+): Promise<HealthResponse> {
+  return fetchJson<HealthResponse>("/api/health", { signal });
+}
+
+export async function fetchPrograms(
+  signal?: AbortSignal,
+): Promise<{ programs: string[] }> {
+  return fetchJson<{ programs: string[] }>("/api/programs", { signal });
+}
+
+export { ApiError };
