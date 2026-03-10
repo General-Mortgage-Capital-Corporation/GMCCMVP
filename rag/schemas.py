@@ -78,6 +78,10 @@ class EligibilityTier(BaseModel):
         default=False,
         description="If True, property must be in a Majority-Minority Census Tract (total minority > 50%) OR an LMI tract.",
     )
+    eligible_tract_fips_file: str | None = Field(
+        default=None,
+        description="Filename (in data/) of a JSON array of eligible 11-digit census tract FIPS codes. Used for tract-level eligibility programs like Diamond CLP.",
+    )
     additional_rules: dict = Field(
         default_factory=dict,
         description="Catch-all for other matchable criteria not covered by explicit fields",

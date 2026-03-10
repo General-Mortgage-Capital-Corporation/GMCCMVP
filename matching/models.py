@@ -64,6 +64,7 @@ class ListingInput(BaseModel):
     census_msa_code: str | None = None
     census_majority_aa_hp: bool | None = None
     census_tract_minority_pct: float | None = None
+    census_tract_fips: str | None = None  # 11-digit FIPS: state(2)+county(3)+tract(6)
 
     @classmethod
     def from_rentcast(cls, listing: dict, census_data: dict | None = None) -> "ListingInput":
@@ -94,12 +95,15 @@ class ListingInput(BaseModel):
             obj.census_msa_code = census_data.get("msa_code")
             obj.census_majority_aa_hp = census_data.get("majority_aa_hp")
             obj.census_tract_minority_pct = census_data.get("tract_minority_pct")
+            # Build 11-digit tract FIPS: state(2) + county(3) + tract(6)
+            state_c = (census_data.get("state_code") or "").strip()
+            county_c = (census_data.get("county_code") or "").strip()
+            tract_c = (census_data.get("tract_code") or "").strip()
+            if state_c and county_c and tract_c:
+                obj.census_tract_fips = state_c.zfill(2) + county_c.zfill(3) + tract_c
             # Use census FIPS if RentCast didn't provide it
-            if not obj.county_fips:
-                state_c = census_data.get("state_code", "") or ""
-                county_c = census_data.get("county_code", "") or ""
-                if state_c and county_c:
-                    obj.county_fips = state_c.zfill(2) + county_c.zfill(3)
+            if not obj.county_fips and state_c and county_c:
+                obj.county_fips = state_c.zfill(2) + county_c.zfill(3)
         return obj
 
 

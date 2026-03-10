@@ -3018,5 +3018,8002 @@
     "cities": [
       "Falls Church"
     ]
+  },
+  "01073": {
+    "county": "Jefferson",
+    "state": "AL",
+    "lat": 33.55,
+    "lng": -86.9,
+    "radius": 20,
+    "cities": [
+      "Birmingham",
+      "Hoover"
+    ]
+  },
+  "01077": {
+    "county": "Lauderdale",
+    "state": "AL",
+    "lat": 34.9,
+    "lng": -87.65,
+    "radius": 20,
+    "cities": [
+      "Florence",
+      "Muscle Shoals"
+    ]
+  },
+  "01079": {
+    "county": "Lawrence",
+    "state": "AL",
+    "lat": 34.52,
+    "lng": -87.31,
+    "radius": 20,
+    "cities": [
+      "Decatur"
+    ]
+  },
+  "01081": {
+    "county": "Lee",
+    "state": "AL",
+    "lat": 32.6,
+    "lng": -85.36,
+    "radius": 20,
+    "cities": [
+      "Auburn",
+      "Opelika"
+    ]
+  },
+  "01083": {
+    "county": "Limestone",
+    "state": "AL",
+    "lat": 34.81,
+    "lng": -86.98,
+    "radius": 20,
+    "cities": [
+      "Huntsville"
+    ]
+  },
+  "01085": {
+    "county": "Lowndes",
+    "state": "AL",
+    "lat": 32.15,
+    "lng": -86.65,
+    "radius": 20,
+    "cities": [
+      "Montgomery"
+    ]
+  },
+  "01087": {
+    "county": "Macon",
+    "state": "AL",
+    "lat": 32.39,
+    "lng": -85.69,
+    "radius": 20,
+    "cities": []
+  },
+  "01089": {
+    "county": "Madison",
+    "state": "AL",
+    "lat": 34.76,
+    "lng": -86.55,
+    "radius": 20,
+    "cities": [
+      "Huntsville"
+    ]
+  },
+  "01091": {
+    "county": "Marengo",
+    "state": "AL",
+    "lat": 32.25,
+    "lng": -87.79,
+    "radius": 20,
+    "cities": []
+  },
+  "01095": {
+    "county": "Marshall",
+    "state": "AL",
+    "lat": 34.37,
+    "lng": -86.31,
+    "radius": 20,
+    "cities": []
+  },
+  "01097": {
+    "county": "Mobile",
+    "state": "AL",
+    "lat": 30.68,
+    "lng": -88.2,
+    "radius": 20,
+    "cities": [
+      "Mobile"
+    ]
+  },
+  "01001": {
+    "county": "Autauga",
+    "state": "AL",
+    "lat": 32.53,
+    "lng": -86.64,
+    "radius": 20,
+    "cities": [
+      "Montgomery"
+    ]
+  },
+  "01003": {
+    "county": "Baldwin",
+    "state": "AL",
+    "lat": 30.66,
+    "lng": -87.75,
+    "radius": 20,
+    "cities": [
+      "Daphne",
+      "Fairhope",
+      "Foley"
+    ]
+  },
+  "01005": {
+    "county": "Barbour",
+    "state": "AL",
+    "lat": 31.87,
+    "lng": -85.39,
+    "radius": 20,
+    "cities": []
+  },
+  "01007": {
+    "county": "Bibb",
+    "state": "AL",
+    "lat": 33.0,
+    "lng": -87.13,
+    "radius": 20,
+    "cities": [
+      "Birmingham",
+      "Hoover"
+    ]
+  },
+  "01011": {
+    "county": "Bullock",
+    "state": "AL",
+    "lat": 32.1,
+    "lng": -85.72,
+    "radius": 20,
+    "cities": []
+  },
+  "01013": {
+    "county": "Butler",
+    "state": "AL",
+    "lat": 31.75,
+    "lng": -86.68,
+    "radius": 20,
+    "cities": []
+  },
+  "01015": {
+    "county": "Calhoun",
+    "state": "AL",
+    "lat": 33.77,
+    "lng": -85.83,
+    "radius": 20,
+    "cities": [
+      "Anniston",
+      "Oxford"
+    ]
+  },
+  "01017": {
+    "county": "Chambers",
+    "state": "AL",
+    "lat": 32.91,
+    "lng": -85.39,
+    "radius": 20,
+    "cities": []
+  },
+  "01023": {
+    "county": "Choctaw",
+    "state": "AL",
+    "lat": 32.02,
+    "lng": -88.26,
+    "radius": 20,
+    "cities": []
+  },
+  "01025": {
+    "county": "Clarke",
+    "state": "AL",
+    "lat": 31.68,
+    "lng": -87.83,
+    "radius": 20,
+    "cities": []
+  },
+  "01031": {
+    "county": "Coffee",
+    "state": "AL",
+    "lat": 31.4,
+    "lng": -85.99,
+    "radius": 20,
+    "cities": []
+  },
+  "01033": {
+    "county": "Colbert",
+    "state": "AL",
+    "lat": 34.7,
+    "lng": -87.8,
+    "radius": 20,
+    "cities": [
+      "Florence",
+      "Muscle Shoals"
+    ]
+  },
+  "01035": {
+    "county": "Conecuh",
+    "state": "AL",
+    "lat": 31.43,
+    "lng": -86.99,
+    "radius": 20,
+    "cities": []
+  },
+  "01037": {
+    "county": "Coosa",
+    "state": "AL",
+    "lat": 32.94,
+    "lng": -86.25,
+    "radius": 20,
+    "cities": []
+  },
+  "01045": {
+    "county": "Dale",
+    "state": "AL",
+    "lat": 31.43,
+    "lng": -85.61,
+    "radius": 20,
+    "cities": []
+  },
+  "01047": {
+    "county": "Dallas",
+    "state": "AL",
+    "lat": 32.33,
+    "lng": -87.11,
+    "radius": 20,
+    "cities": []
+  },
+  "01049": {
+    "county": "DeKalb",
+    "state": "AL",
+    "lat": 34.46,
+    "lng": -85.8,
+    "radius": 20,
+    "cities": []
+  },
+  "01053": {
+    "county": "Escambia",
+    "state": "AL",
+    "lat": 31.13,
+    "lng": -87.16,
+    "radius": 20,
+    "cities": []
+  },
+  "01055": {
+    "county": "Etowah",
+    "state": "AL",
+    "lat": 34.05,
+    "lng": -86.03,
+    "radius": 20,
+    "cities": [
+      "Gadsden"
+    ]
+  },
+  "01059": {
+    "county": "Franklin",
+    "state": "AL",
+    "lat": 34.44,
+    "lng": -87.84,
+    "radius": 20,
+    "cities": []
+  },
+  "01063": {
+    "county": "Greene",
+    "state": "AL",
+    "lat": 32.85,
+    "lng": -87.95,
+    "radius": 20,
+    "cities": [
+      "Tuscaloosa"
+    ]
+  },
+  "01065": {
+    "county": "Hale",
+    "state": "AL",
+    "lat": 32.76,
+    "lng": -87.63,
+    "radius": 20,
+    "cities": [
+      "Tuscaloosa"
+    ]
+  },
+  "01067": {
+    "county": "Henry",
+    "state": "AL",
+    "lat": 31.51,
+    "lng": -85.24,
+    "radius": 20,
+    "cities": [
+      "Dothan"
+    ]
+  },
+  "01069": {
+    "county": "Houston",
+    "state": "AL",
+    "lat": 31.15,
+    "lng": -85.3,
+    "radius": 20,
+    "cities": [
+      "Dothan"
+    ]
+  },
+  "01099": {
+    "county": "Monroe",
+    "state": "AL",
+    "lat": 31.57,
+    "lng": -87.37,
+    "radius": 20,
+    "cities": []
+  },
+  "01101": {
+    "county": "Montgomery",
+    "state": "AL",
+    "lat": 32.22,
+    "lng": -86.21,
+    "radius": 20,
+    "cities": [
+      "Montgomery"
+    ]
+  },
+  "01103": {
+    "county": "Morgan",
+    "state": "AL",
+    "lat": 34.45,
+    "lng": -86.85,
+    "radius": 20,
+    "cities": [
+      "Decatur"
+    ]
+  },
+  "01105": {
+    "county": "Perry",
+    "state": "AL",
+    "lat": 32.64,
+    "lng": -87.29,
+    "radius": 20,
+    "cities": []
+  },
+  "01107": {
+    "county": "Pickens",
+    "state": "AL",
+    "lat": 33.28,
+    "lng": -88.09,
+    "radius": 20,
+    "cities": [
+      "Tuscaloosa"
+    ]
+  },
+  "01109": {
+    "county": "Pike",
+    "state": "AL",
+    "lat": 31.8,
+    "lng": -85.94,
+    "radius": 20,
+    "cities": []
+  },
+  "01113": {
+    "county": "Russell",
+    "state": "AL",
+    "lat": 32.29,
+    "lng": -85.18,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "01119": {
+    "county": "Sumter",
+    "state": "AL",
+    "lat": 32.59,
+    "lng": -88.2,
+    "radius": 20,
+    "cities": []
+  },
+  "01121": {
+    "county": "Talladega",
+    "state": "AL",
+    "lat": 33.38,
+    "lng": -86.17,
+    "radius": 20,
+    "cities": []
+  },
+  "01123": {
+    "county": "Tallapoosa",
+    "state": "AL",
+    "lat": 32.86,
+    "lng": -85.8,
+    "radius": 20,
+    "cities": []
+  },
+  "01125": {
+    "county": "Tuscaloosa",
+    "state": "AL",
+    "lat": 33.29,
+    "lng": -87.53,
+    "radius": 20,
+    "cities": [
+      "Tuscaloosa"
+    ]
+  },
+  "01131": {
+    "county": "Wilcox",
+    "state": "AL",
+    "lat": 31.99,
+    "lng": -87.31,
+    "radius": 20,
+    "cities": []
+  },
+  "04007": {
+    "county": "Gila",
+    "state": "AZ",
+    "lat": 33.8,
+    "lng": -110.81,
+    "radius": 20,
+    "cities": []
+  },
+  "04011": {
+    "county": "Greenlee",
+    "state": "AZ",
+    "lat": 33.21,
+    "lng": -109.24,
+    "radius": 20,
+    "cities": []
+  },
+  "04013": {
+    "county": "Maricopa",
+    "state": "AZ",
+    "lat": 33.35,
+    "lng": -112.49,
+    "radius": 20,
+    "cities": [
+      "Chandler",
+      "Mesa",
+      "Phoenix"
+    ]
+  },
+  "04003": {
+    "county": "Cochise",
+    "state": "AZ",
+    "lat": 31.88,
+    "lng": -109.75,
+    "radius": 20,
+    "cities": [
+      "Douglas",
+      "Sierra Vista"
+    ]
+  },
+  "04019": {
+    "county": "Pima",
+    "state": "AZ",
+    "lat": 32.1,
+    "lng": -111.79,
+    "radius": 20,
+    "cities": [
+      "Tucson"
+    ]
+  },
+  "05007": {
+    "county": "Benton",
+    "state": "AR",
+    "lat": 36.34,
+    "lng": -94.26,
+    "radius": 20,
+    "cities": [
+      "Fayetteville",
+      "Rogers",
+      "Springdale"
+    ]
+  },
+  "05011": {
+    "county": "Bradley",
+    "state": "AR",
+    "lat": 33.47,
+    "lng": -92.16,
+    "radius": 20,
+    "cities": []
+  },
+  "04021": {
+    "county": "Pinal",
+    "state": "AZ",
+    "lat": 32.9,
+    "lng": -111.34,
+    "radius": 20,
+    "cities": [
+      "Chandler",
+      "Mesa",
+      "Phoenix"
+    ]
+  },
+  "04023": {
+    "county": "Santa Cruz",
+    "state": "AZ",
+    "lat": 31.53,
+    "lng": -110.85,
+    "radius": 20,
+    "cities": []
+  },
+  "04027": {
+    "county": "Yuma",
+    "state": "AZ",
+    "lat": 32.77,
+    "lng": -113.91,
+    "radius": 20,
+    "cities": [
+      "Yuma"
+    ]
+  },
+  "05001": {
+    "county": "Arkansas",
+    "state": "AR",
+    "lat": 34.29,
+    "lng": -91.37,
+    "radius": 20,
+    "cities": []
+  },
+  "05103": {
+    "county": "Ouachita",
+    "state": "AR",
+    "lat": 33.59,
+    "lng": -92.88,
+    "radius": 20,
+    "cities": []
+  },
+  "05107": {
+    "county": "Phillips",
+    "state": "AR",
+    "lat": 34.43,
+    "lng": -90.85,
+    "radius": 20,
+    "cities": []
+  },
+  "05119": {
+    "county": "Pulaski",
+    "state": "AR",
+    "lat": 34.77,
+    "lng": -92.31,
+    "radius": 20,
+    "cities": [
+      "Conway",
+      "Little Rock",
+      "North Little Rock"
+    ]
+  },
+  "05017": {
+    "county": "Chicot",
+    "state": "AR",
+    "lat": 33.27,
+    "lng": -91.29,
+    "radius": 20,
+    "cities": []
+  },
+  "05027": {
+    "county": "Columbia",
+    "state": "AR",
+    "lat": 33.21,
+    "lng": -93.23,
+    "radius": 20,
+    "cities": []
+  },
+  "05035": {
+    "county": "Crittenden",
+    "state": "AR",
+    "lat": 35.21,
+    "lng": -90.31,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "05037": {
+    "county": "Cross",
+    "state": "AR",
+    "lat": 35.3,
+    "lng": -90.77,
+    "radius": 20,
+    "cities": []
+  },
+  "05039": {
+    "county": "Dallas",
+    "state": "AR",
+    "lat": 33.97,
+    "lng": -92.65,
+    "radius": 20,
+    "cities": []
+  },
+  "05041": {
+    "county": "Desha",
+    "state": "AR",
+    "lat": 33.83,
+    "lng": -91.26,
+    "radius": 20,
+    "cities": []
+  },
+  "05043": {
+    "county": "Drew",
+    "state": "AR",
+    "lat": 33.59,
+    "lng": -91.72,
+    "radius": 20,
+    "cities": []
+  },
+  "05051": {
+    "county": "Garland",
+    "state": "AR",
+    "lat": 34.58,
+    "lng": -93.15,
+    "radius": 20,
+    "cities": [
+      "Hot Springs"
+    ]
+  },
+  "05057": {
+    "county": "Hempstead",
+    "state": "AR",
+    "lat": 33.74,
+    "lng": -93.67,
+    "radius": 20,
+    "cities": []
+  },
+  "05069": {
+    "county": "Jefferson",
+    "state": "AR",
+    "lat": 34.27,
+    "lng": -91.93,
+    "radius": 20,
+    "cities": [
+      "Pine Bluff"
+    ]
+  },
+  "05077": {
+    "county": "Lee",
+    "state": "AR",
+    "lat": 34.78,
+    "lng": -90.78,
+    "radius": 20,
+    "cities": []
+  },
+  "05079": {
+    "county": "Lincoln",
+    "state": "AR",
+    "lat": 33.96,
+    "lng": -91.73,
+    "radius": 20,
+    "cities": [
+      "Pine Bluff"
+    ]
+  },
+  "05091": {
+    "county": "Miller",
+    "state": "AR",
+    "lat": 33.31,
+    "lng": -93.89,
+    "radius": 20,
+    "cities": [
+      "Texarkana"
+    ]
+  },
+  "05093": {
+    "county": "Mississippi",
+    "state": "AR",
+    "lat": 35.76,
+    "lng": -90.05,
+    "radius": 20,
+    "cities": []
+  },
+  "05095": {
+    "county": "Monroe",
+    "state": "AR",
+    "lat": 34.68,
+    "lng": -91.2,
+    "radius": 20,
+    "cities": []
+  },
+  "05133": {
+    "county": "Sevier",
+    "state": "AR",
+    "lat": 34.0,
+    "lng": -94.24,
+    "radius": 20,
+    "cities": []
+  },
+  "05139": {
+    "county": "Union",
+    "state": "AR",
+    "lat": 33.17,
+    "lng": -92.6,
+    "radius": 20,
+    "cities": []
+  },
+  "05143": {
+    "county": "Washington",
+    "state": "AR",
+    "lat": 35.98,
+    "lng": -94.22,
+    "radius": 20,
+    "cities": [
+      "Fayetteville",
+      "Rogers",
+      "Springdale"
+    ]
+  },
+  "06007": {
+    "county": "Butte",
+    "state": "CA",
+    "lat": 39.67,
+    "lng": -121.6,
+    "radius": 20,
+    "cities": [
+      "Chico"
+    ]
+  },
+  "05123": {
+    "county": "St. Francis",
+    "state": "AR",
+    "lat": 35.02,
+    "lng": -90.75,
+    "radius": 20,
+    "cities": []
+  },
+  "05125": {
+    "county": "Saline",
+    "state": "AR",
+    "lat": 34.65,
+    "lng": -92.68,
+    "radius": 20,
+    "cities": [
+      "Conway",
+      "Little Rock",
+      "North Little Rock"
+    ]
+  },
+  "05131": {
+    "county": "Sebastian",
+    "state": "AR",
+    "lat": 35.2,
+    "lng": -94.27,
+    "radius": 20,
+    "cities": [
+      "Fort Smith"
+    ]
+  },
+  "06021": {
+    "county": "Glenn",
+    "state": "CA",
+    "lat": 39.6,
+    "lng": -122.39,
+    "radius": 20,
+    "cities": []
+  },
+  "06011": {
+    "county": "Colusa",
+    "state": "CA",
+    "lat": 39.18,
+    "lng": -122.24,
+    "radius": 20,
+    "cities": []
+  },
+  "06035": {
+    "county": "Lassen",
+    "state": "CA",
+    "lat": 40.67,
+    "lng": -120.59,
+    "radius": 20,
+    "cities": []
+  },
+  "06025": {
+    "county": "Imperial",
+    "state": "CA",
+    "lat": 33.04,
+    "lng": -115.37,
+    "radius": 20,
+    "cities": [
+      "El Centro"
+    ]
+  },
+  "06053": {
+    "county": "Monterey",
+    "state": "CA",
+    "lat": 36.24,
+    "lng": -121.31,
+    "radius": 20,
+    "cities": [
+      "Salinas"
+    ]
+  },
+  "06039": {
+    "county": "Madera",
+    "state": "CA",
+    "lat": 37.22,
+    "lng": -119.76,
+    "radius": 20,
+    "cities": [
+      "Madera"
+    ]
+  },
+  "10003": {
+    "county": "New Castle",
+    "state": "DE",
+    "lat": 39.58,
+    "lng": -75.64,
+    "radius": 20,
+    "cities": [
+      "Wilmington"
+    ]
+  },
+  "12071": {
+    "county": "Lee",
+    "state": "FL",
+    "lat": 26.56,
+    "lng": -81.98,
+    "radius": 20,
+    "cities": [
+      "Cape Coral",
+      "Fort Myers"
+    ]
+  },
+  "12087": {
+    "county": "Monroe",
+    "state": "FL",
+    "lat": 25.04,
+    "lng": -81.37,
+    "radius": 20,
+    "cities": []
+  },
+  "12019": {
+    "county": "Clay",
+    "state": "FL",
+    "lat": 29.98,
+    "lng": -81.86,
+    "radius": 20,
+    "cities": [
+      "Jacksonville"
+    ]
+  },
+  "10005": {
+    "county": "Sussex",
+    "state": "DE",
+    "lat": 38.68,
+    "lng": -75.34,
+    "radius": 20,
+    "cities": [
+      "Salisbury"
+    ]
+  },
+  "12073": {
+    "county": "Leon",
+    "state": "FL",
+    "lat": 30.46,
+    "lng": -84.28,
+    "radius": 20,
+    "cities": [
+      "Tallahassee"
+    ]
+  },
+  "12091": {
+    "county": "Okaloosa",
+    "state": "FL",
+    "lat": 30.61,
+    "lng": -86.59,
+    "radius": 20,
+    "cities": [
+      "Crestview",
+      "Destin",
+      "Fort Walton Beach"
+    ]
+  },
+  "12093": {
+    "county": "Okeechobee",
+    "state": "FL",
+    "lat": 27.39,
+    "lng": -80.89,
+    "radius": 20,
+    "cities": []
+  },
+  "12021": {
+    "county": "Collier",
+    "state": "FL",
+    "lat": 26.1,
+    "lng": -81.44,
+    "radius": 20,
+    "cities": [
+      "Marco Island",
+      "Naples"
+    ]
+  },
+  "08123": {
+    "county": "Weld",
+    "state": "CO",
+    "lat": 40.55,
+    "lng": -104.39,
+    "radius": 20,
+    "cities": [
+      "Greeley"
+    ]
+  },
+  "12077": {
+    "county": "Liberty",
+    "state": "FL",
+    "lat": 30.24,
+    "lng": -84.88,
+    "radius": 20,
+    "cities": []
+  },
+  "12079": {
+    "county": "Madison",
+    "state": "FL",
+    "lat": 30.44,
+    "lng": -83.47,
+    "radius": 20,
+    "cities": []
+  },
+  "12033": {
+    "county": "Escambia",
+    "state": "FL",
+    "lat": 30.53,
+    "lng": -87.31,
+    "radius": 20,
+    "cities": [
+      "Brent",
+      "Ferry Pass",
+      "Pensacola"
+    ]
+  },
+  "12083": {
+    "county": "Marion",
+    "state": "FL",
+    "lat": 29.21,
+    "lng": -82.06,
+    "radius": 20,
+    "cities": [
+      "Ocala"
+    ]
+  },
+  "12001": {
+    "county": "Alachua",
+    "state": "FL",
+    "lat": 29.67,
+    "lng": -82.36,
+    "radius": 20,
+    "cities": [
+      "Gainesville"
+    ]
+  },
+  "12039": {
+    "county": "Gadsden",
+    "state": "FL",
+    "lat": 30.58,
+    "lng": -84.61,
+    "radius": 20,
+    "cities": [
+      "Tallahassee"
+    ]
+  },
+  "12047": {
+    "county": "Hamilton",
+    "state": "FL",
+    "lat": 30.5,
+    "lng": -82.95,
+    "radius": 20,
+    "cities": []
+  },
+  "12049": {
+    "county": "Hardee",
+    "state": "FL",
+    "lat": 27.49,
+    "lng": -81.81,
+    "radius": 20,
+    "cities": []
+  },
+  "12051": {
+    "county": "Hendry",
+    "state": "FL",
+    "lat": 26.55,
+    "lng": -81.17,
+    "radius": 20,
+    "cities": []
+  },
+  "12085": {
+    "county": "Martin",
+    "state": "FL",
+    "lat": 27.08,
+    "lng": -80.4,
+    "radius": 20,
+    "cities": [
+      "Port St. Lucie"
+    ]
+  },
+  "12005": {
+    "county": "Bay",
+    "state": "FL",
+    "lat": 30.13,
+    "lng": -85.63,
+    "radius": 20,
+    "cities": [
+      "Panama City"
+    ]
+  },
+  "12009": {
+    "county": "Brevard",
+    "state": "FL",
+    "lat": 28.3,
+    "lng": -80.7,
+    "radius": 20,
+    "cities": [
+      "Melbourne",
+      "Palm Bay",
+      "Titusville"
+    ]
+  },
+  "12055": {
+    "county": "Highlands",
+    "state": "FL",
+    "lat": 27.34,
+    "lng": -81.34,
+    "radius": 20,
+    "cities": [
+      "Avon Park",
+      "Sebring"
+    ]
+  },
+  "12059": {
+    "county": "Holmes",
+    "state": "FL",
+    "lat": 30.87,
+    "lng": -85.81,
+    "radius": 20,
+    "cities": []
+  },
+  "12061": {
+    "county": "Indian River",
+    "state": "FL",
+    "lat": 27.7,
+    "lng": -80.57,
+    "radius": 20,
+    "cities": [
+      "Sebastian",
+      "Vero Beach"
+    ]
+  },
+  "12063": {
+    "county": "Jackson",
+    "state": "FL",
+    "lat": 30.8,
+    "lng": -85.22,
+    "radius": 20,
+    "cities": []
+  },
+  "12065": {
+    "county": "Jefferson",
+    "state": "FL",
+    "lat": 30.4,
+    "lng": -83.91,
+    "radius": 20,
+    "cities": [
+      "Tallahassee"
+    ]
+  },
+  "10001": {
+    "county": "Kent",
+    "state": "DE",
+    "lat": 39.1,
+    "lng": -75.5,
+    "radius": 20,
+    "cities": [
+      "Dover"
+    ]
+  },
+  "06113": {
+    "county": "Yolo",
+    "state": "CA",
+    "lat": 38.69,
+    "lng": -121.9,
+    "radius": 20,
+    "cities": [
+      "Folsom",
+      "Roseville",
+      "Sacramento"
+    ]
+  },
+  "06115": {
+    "county": "Yuba",
+    "state": "CA",
+    "lat": 39.27,
+    "lng": -121.35,
+    "radius": 20,
+    "cities": [
+      "Yuba City"
+    ]
+  },
+  "08071": {
+    "county": "Las Animas",
+    "state": "CO",
+    "lat": 37.32,
+    "lng": -104.04,
+    "radius": 20,
+    "cities": []
+  },
+  "08087": {
+    "county": "Morgan",
+    "state": "CO",
+    "lat": 40.26,
+    "lng": -103.81,
+    "radius": 20,
+    "cities": []
+  },
+  "08089": {
+    "county": "Otero",
+    "state": "CO",
+    "lat": 37.9,
+    "lng": -103.72,
+    "radius": 20,
+    "cities": []
+  },
+  "08099": {
+    "county": "Prowers",
+    "state": "CO",
+    "lat": 37.95,
+    "lng": -102.39,
+    "radius": 20,
+    "cities": []
+  },
+  "08101": {
+    "county": "Pueblo",
+    "state": "CO",
+    "lat": 38.17,
+    "lng": -104.51,
+    "radius": 20,
+    "cities": [
+      "Pueblo"
+    ]
+  },
+  "08105": {
+    "county": "Rio Grande",
+    "state": "CO",
+    "lat": 37.58,
+    "lng": -106.38,
+    "radius": 20,
+    "cities": []
+  },
+  "08109": {
+    "county": "Saguache",
+    "state": "CO",
+    "lat": 38.08,
+    "lng": -106.28,
+    "radius": 20,
+    "cities": []
+  },
+  "08003": {
+    "county": "Alamosa",
+    "state": "CO",
+    "lat": 37.57,
+    "lng": -105.79,
+    "radius": 20,
+    "cities": []
+  },
+  "08013": {
+    "county": "Boulder",
+    "state": "CO",
+    "lat": 40.09,
+    "lng": -105.36,
+    "radius": 20,
+    "cities": [
+      "Boulder"
+    ]
+  },
+  "06093": {
+    "county": "Siskiyou",
+    "state": "CA",
+    "lat": 41.59,
+    "lng": -122.54,
+    "radius": 20,
+    "cities": []
+  },
+  "06095": {
+    "county": "Solano",
+    "state": "CA",
+    "lat": 38.27,
+    "lng": -121.94,
+    "radius": 20,
+    "cities": [
+      "Vallejo"
+    ]
+  },
+  "08021": {
+    "county": "Conejos",
+    "state": "CO",
+    "lat": 37.2,
+    "lng": -106.19,
+    "radius": 20,
+    "cities": []
+  },
+  "08023": {
+    "county": "Costilla",
+    "state": "CO",
+    "lat": 37.28,
+    "lng": -105.43,
+    "radius": 20,
+    "cities": []
+  },
+  "06097": {
+    "county": "Sonoma",
+    "state": "CA",
+    "lat": 38.53,
+    "lng": -122.92,
+    "radius": 20,
+    "cities": [
+      "Petaluma",
+      "Santa Rosa"
+    ]
+  },
+  "08037": {
+    "county": "Eagle",
+    "state": "CO",
+    "lat": 39.63,
+    "lng": -106.7,
+    "radius": 20,
+    "cities": []
+  },
+  "06101": {
+    "county": "Sutter",
+    "state": "CA",
+    "lat": 39.03,
+    "lng": -121.69,
+    "radius": 20,
+    "cities": [
+      "Yuba City"
+    ]
+  },
+  "08041": {
+    "county": "El Paso",
+    "state": "CO",
+    "lat": 38.83,
+    "lng": -104.53,
+    "radius": 20,
+    "cities": [
+      "Colorado Springs"
+    ]
+  },
+  "06079": {
+    "county": "San Luis Obispo",
+    "state": "CA",
+    "lat": 35.39,
+    "lng": -120.45,
+    "radius": 20,
+    "cities": [
+      "Paso Robles",
+      "San Luis Obispo"
+    ]
+  },
+  "06103": {
+    "county": "Tehama",
+    "state": "CA",
+    "lat": 40.13,
+    "lng": -122.23,
+    "radius": 20,
+    "cities": []
+  },
+  "06107": {
+    "county": "Tulare",
+    "state": "CA",
+    "lat": 36.22,
+    "lng": -118.8,
+    "radius": 20,
+    "cities": [
+      "Visalia"
+    ]
+  },
+  "08043": {
+    "county": "Fremont",
+    "state": "CO",
+    "lat": 38.47,
+    "lng": -105.44,
+    "radius": 20,
+    "cities": []
+  },
+  "06109": {
+    "county": "Tuolumne",
+    "state": "CA",
+    "lat": 38.03,
+    "lng": -119.95,
+    "radius": 20,
+    "cities": []
+  },
+  "08055": {
+    "county": "Huerfano",
+    "state": "CO",
+    "lat": 37.68,
+    "lng": -104.96,
+    "radius": 20,
+    "cities": []
+  },
+  "06083": {
+    "county": "Santa Barbara",
+    "state": "CA",
+    "lat": 34.54,
+    "lng": -120.03,
+    "radius": 20,
+    "cities": [
+      "Santa Barbara",
+      "Santa Maria"
+    ]
+  },
+  "08065": {
+    "county": "Lake",
+    "state": "CO",
+    "lat": 39.2,
+    "lng": -106.34,
+    "radius": 20,
+    "cities": []
+  },
+  "08069": {
+    "county": "Larimer",
+    "state": "CO",
+    "lat": 40.67,
+    "lng": -105.46,
+    "radius": 20,
+    "cities": [
+      "Fort Collins"
+    ]
+  },
+  "18097": {
+    "county": "Marion",
+    "state": "IN",
+    "lat": 39.78,
+    "lng": -86.14,
+    "radius": 20,
+    "cities": [
+      "Anderson",
+      "Carmel",
+      "Indianapolis"
+    ]
+  },
+  "17077": {
+    "county": "Jackson",
+    "state": "IL",
+    "lat": 37.79,
+    "lng": -89.38,
+    "radius": 20,
+    "cities": [
+      "Carbondale",
+      "Marion"
+    ]
+  },
+  "17081": {
+    "county": "Jefferson",
+    "state": "IL",
+    "lat": 38.3,
+    "lng": -88.92,
+    "radius": 20,
+    "cities": []
+  },
+  "17087": {
+    "county": "Johnson",
+    "state": "IL",
+    "lat": 37.46,
+    "lng": -88.88,
+    "radius": 20,
+    "cities": [
+      "Carbondale",
+      "Marion"
+    ]
+  },
+  "17201": {
+    "county": "Winnebago",
+    "state": "IL",
+    "lat": 42.34,
+    "lng": -89.16,
+    "radius": 20,
+    "cities": [
+      "Rockford"
+    ]
+  },
+  "17091": {
+    "county": "Kankakee",
+    "state": "IL",
+    "lat": 41.14,
+    "lng": -87.86,
+    "radius": 20,
+    "cities": [
+      "Kankakee"
+    ]
+  },
+  "18113": {
+    "county": "Noble",
+    "state": "IN",
+    "lat": 41.4,
+    "lng": -85.42,
+    "radius": 20,
+    "cities": []
+  },
+  "16027": {
+    "county": "Canyon",
+    "state": "ID",
+    "lat": 43.62,
+    "lng": -116.71,
+    "radius": 20,
+    "cities": [
+      "Boise City"
+    ]
+  },
+  "16031": {
+    "county": "Cassia",
+    "state": "ID",
+    "lat": 42.28,
+    "lng": -113.6,
+    "radius": 20,
+    "cities": []
+  },
+  "18003": {
+    "county": "Allen",
+    "state": "IN",
+    "lat": 41.09,
+    "lng": -85.07,
+    "radius": 20,
+    "cities": [
+      "Fort Wayne"
+    ]
+  },
+  "17003": {
+    "county": "Alexander",
+    "state": "IL",
+    "lat": 37.19,
+    "lng": -89.34,
+    "radius": 20,
+    "cities": [
+      "Cape Girardeau"
+    ]
+  },
+  "17017": {
+    "county": "Cass",
+    "state": "IL",
+    "lat": 39.97,
+    "lng": -90.25,
+    "radius": 20,
+    "cities": []
+  },
+  "17019": {
+    "county": "Champaign",
+    "state": "IL",
+    "lat": 40.14,
+    "lng": -88.2,
+    "radius": 20,
+    "cities": [
+      "Champaign",
+      "Urbana"
+    ]
+  },
+  "17115": {
+    "county": "Macon",
+    "state": "IL",
+    "lat": 39.86,
+    "lng": -88.96,
+    "radius": 20,
+    "cities": [
+      "Decatur"
+    ]
+  },
+  "17119": {
+    "county": "Madison",
+    "state": "IL",
+    "lat": 38.83,
+    "lng": -89.9,
+    "radius": 20,
+    "cities": [
+      "St. Louis"
+    ]
+  },
+  "18035": {
+    "county": "Delaware",
+    "state": "IN",
+    "lat": 40.23,
+    "lng": -85.4,
+    "radius": 20,
+    "cities": [
+      "Muncie"
+    ]
+  },
+  "18039": {
+    "county": "Elkhart",
+    "state": "IN",
+    "lat": 41.6,
+    "lng": -85.86,
+    "radius": 20,
+    "cities": [
+      "Elkhart",
+      "Goshen"
+    ]
+  },
+  "17143": {
+    "county": "Peoria",
+    "state": "IL",
+    "lat": 40.79,
+    "lng": -89.76,
+    "radius": 20,
+    "cities": [
+      "Peoria"
+    ]
+  },
+  "17157": {
+    "county": "Randolph",
+    "state": "IL",
+    "lat": 38.05,
+    "lng": -89.83,
+    "radius": 20,
+    "cities": []
+  },
+  "17161": {
+    "county": "Rock Island",
+    "state": "IL",
+    "lat": 41.47,
+    "lng": -90.57,
+    "radius": 20,
+    "cities": [
+      "Davenport",
+      "Moline",
+      "Rock Island"
+    ]
+  },
+  "17037": {
+    "county": "DeKalb",
+    "state": "IL",
+    "lat": 41.89,
+    "lng": -88.77,
+    "radius": 20,
+    "cities": [
+      "Elgin"
+    ]
+  },
+  "17163": {
+    "county": "St. Clair",
+    "state": "IL",
+    "lat": 38.47,
+    "lng": -89.93,
+    "radius": 20,
+    "cities": [
+      "St. Louis"
+    ]
+  },
+  "18071": {
+    "county": "Jackson",
+    "state": "IN",
+    "lat": 38.91,
+    "lng": -86.04,
+    "radius": 20,
+    "cities": []
+  },
+  "17167": {
+    "county": "Sangamon",
+    "state": "IL",
+    "lat": 39.76,
+    "lng": -89.66,
+    "radius": 20,
+    "cities": [
+      "Springfield"
+    ]
+  },
+  "18089": {
+    "county": "Lake",
+    "state": "IN",
+    "lat": 41.47,
+    "lng": -87.38,
+    "radius": 20,
+    "cities": [
+      "Gary"
+    ]
+  },
+  "17183": {
+    "county": "Vermilion",
+    "state": "IL",
+    "lat": 40.18,
+    "lng": -87.73,
+    "radius": 20,
+    "cities": [
+      "Danville"
+    ]
+  },
+  "18091": {
+    "county": "LaPorte",
+    "state": "IN",
+    "lat": 41.55,
+    "lng": -86.74,
+    "radius": 20,
+    "cities": [
+      "La Porte",
+      "Michigan City"
+    ]
+  },
+  "18095": {
+    "county": "Madison",
+    "state": "IN",
+    "lat": 40.16,
+    "lng": -85.72,
+    "radius": 20,
+    "cities": [
+      "Anderson",
+      "Carmel",
+      "Indianapolis"
+    ]
+  },
+  "13153": {
+    "county": "Houston",
+    "state": "GA",
+    "lat": 32.46,
+    "lng": -83.67,
+    "radius": 20,
+    "cities": [
+      "Warner Robins"
+    ]
+  },
+  "13155": {
+    "county": "Irwin",
+    "state": "GA",
+    "lat": 31.6,
+    "lng": -83.28,
+    "radius": 20,
+    "cities": []
+  },
+  "13163": {
+    "county": "Jefferson",
+    "state": "GA",
+    "lat": 33.05,
+    "lng": -82.42,
+    "radius": 20,
+    "cities": []
+  },
+  "13167": {
+    "county": "Johnson",
+    "state": "GA",
+    "lat": 32.7,
+    "lng": -82.66,
+    "radius": 20,
+    "cities": []
+  },
+  "13169": {
+    "county": "Jones",
+    "state": "GA",
+    "lat": 33.03,
+    "lng": -83.56,
+    "radius": 20,
+    "cities": [
+      "Bibb County",
+      "Macon"
+    ]
+  },
+  "12117": {
+    "county": "Seminole",
+    "state": "FL",
+    "lat": 28.72,
+    "lng": -81.24,
+    "radius": 20,
+    "cities": [
+      "Kissimmee",
+      "Orlando",
+      "Sanford"
+    ]
+  },
+  "13175": {
+    "county": "Laurens",
+    "state": "GA",
+    "lat": 32.46,
+    "lng": -82.92,
+    "radius": 20,
+    "cities": []
+  },
+  "13179": {
+    "county": "Liberty",
+    "state": "GA",
+    "lat": 31.81,
+    "lng": -81.46,
+    "radius": 20,
+    "cities": [
+      "Hinesville"
+    ]
+  },
+  "13185": {
+    "county": "Lowndes",
+    "state": "GA",
+    "lat": 30.83,
+    "lng": -83.27,
+    "radius": 20,
+    "cities": [
+      "Valdosta"
+    ]
+  },
+  "12097": {
+    "county": "Osceola",
+    "state": "FL",
+    "lat": 28.06,
+    "lng": -81.15,
+    "radius": 20,
+    "cities": [
+      "Kissimmee",
+      "Orlando",
+      "Sanford"
+    ]
+  },
+  "12119": {
+    "county": "Sumter",
+    "state": "FL",
+    "lat": 28.7,
+    "lng": -82.08,
+    "radius": 20,
+    "cities": [
+      "The Villages"
+    ]
+  },
+  "13093": {
+    "county": "Dooly",
+    "state": "GA",
+    "lat": 32.16,
+    "lng": -83.8,
+    "radius": 20,
+    "cities": []
+  },
+  "13095": {
+    "county": "Dougherty",
+    "state": "GA",
+    "lat": 31.53,
+    "lng": -84.22,
+    "radius": 20,
+    "cities": [
+      "Albany"
+    ]
+  },
+  "13097": {
+    "county": "Douglas",
+    "state": "GA",
+    "lat": 33.7,
+    "lng": -84.77,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13193": {
+    "county": "Macon",
+    "state": "GA",
+    "lat": 32.36,
+    "lng": -84.04,
+    "radius": 20,
+    "cities": []
+  },
+  "13197": {
+    "county": "Marion",
+    "state": "GA",
+    "lat": 32.35,
+    "lng": -84.52,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "13201": {
+    "county": "Miller",
+    "state": "GA",
+    "lat": 31.16,
+    "lng": -84.73,
+    "radius": 20,
+    "cities": []
+  },
+  "13205": {
+    "county": "Mitchell",
+    "state": "GA",
+    "lat": 31.23,
+    "lng": -84.19,
+    "radius": 20,
+    "cities": []
+  },
+  "12121": {
+    "county": "Suwannee",
+    "state": "FL",
+    "lat": 30.2,
+    "lng": -82.99,
+    "radius": 20,
+    "cities": []
+  },
+  "12123": {
+    "county": "Taylor",
+    "state": "FL",
+    "lat": 29.97,
+    "lng": -83.64,
+    "radius": 20,
+    "cities": []
+  },
+  "12127": {
+    "county": "Volusia",
+    "state": "FL",
+    "lat": 29.06,
+    "lng": -81.15,
+    "radius": 20,
+    "cities": [
+      "Daytona Beach",
+      "Deltona",
+      "Ormond Beach"
+    ]
+  },
+  "13099": {
+    "county": "Early",
+    "state": "GA",
+    "lat": 31.32,
+    "lng": -84.9,
+    "radius": 20,
+    "cities": []
+  },
+  "13105": {
+    "county": "Elbert",
+    "state": "GA",
+    "lat": 34.12,
+    "lng": -82.84,
+    "radius": 20,
+    "cities": []
+  },
+  "13107": {
+    "county": "Emanuel",
+    "state": "GA",
+    "lat": 32.59,
+    "lng": -82.3,
+    "radius": 20,
+    "cities": []
+  },
+  "13109": {
+    "county": "Evans",
+    "state": "GA",
+    "lat": 32.16,
+    "lng": -81.89,
+    "radius": 20,
+    "cities": []
+  },
+  "13113": {
+    "county": "Fayette",
+    "state": "GA",
+    "lat": 33.41,
+    "lng": -84.49,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13215": {
+    "county": "Muscogee",
+    "state": "GA",
+    "lat": 32.51,
+    "lng": -84.88,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "13217": {
+    "county": "Newton",
+    "state": "GA",
+    "lat": 33.56,
+    "lng": -83.85,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "12129": {
+    "county": "Wakulla",
+    "state": "FL",
+    "lat": 30.09,
+    "lng": -84.35,
+    "radius": 20,
+    "cities": [
+      "Tallahassee"
+    ]
+  },
+  "13115": {
+    "county": "Floyd",
+    "state": "GA",
+    "lat": 34.26,
+    "lng": -85.21,
+    "radius": 20,
+    "cities": [
+      "Rome"
+    ]
+  },
+  "13223": {
+    "county": "Paulding",
+    "state": "GA",
+    "lat": 33.92,
+    "lng": -84.87,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13225": {
+    "county": "Peach",
+    "state": "GA",
+    "lat": 32.57,
+    "lng": -83.83,
+    "radius": 20,
+    "cities": [
+      "Warner Robins"
+    ]
+  },
+  "13001": {
+    "county": "Appling",
+    "state": "GA",
+    "lat": 31.75,
+    "lng": -82.29,
+    "radius": 20,
+    "cities": []
+  },
+  "13007": {
+    "county": "Baker",
+    "state": "GA",
+    "lat": 31.33,
+    "lng": -84.44,
+    "radius": 20,
+    "cities": []
+  },
+  "13009": {
+    "county": "Baldwin",
+    "state": "GA",
+    "lat": 33.07,
+    "lng": -83.25,
+    "radius": 20,
+    "cities": []
+  },
+  "13235": {
+    "county": "Pulaski",
+    "state": "GA",
+    "lat": 32.23,
+    "lng": -83.48,
+    "radius": 20,
+    "cities": []
+  },
+  "13237": {
+    "county": "Putnam",
+    "state": "GA",
+    "lat": 33.32,
+    "lng": -83.37,
+    "radius": 20,
+    "cities": []
+  },
+  "13243": {
+    "county": "Randolph",
+    "state": "GA",
+    "lat": 31.76,
+    "lng": -84.75,
+    "radius": 20,
+    "cities": []
+  },
+  "13015": {
+    "county": "Bartow",
+    "state": "GA",
+    "lat": 34.24,
+    "lng": -84.84,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13017": {
+    "county": "Ben Hill",
+    "state": "GA",
+    "lat": 31.76,
+    "lng": -83.22,
+    "radius": 20,
+    "cities": []
+  },
+  "13021": {
+    "county": "Bibb",
+    "state": "GA",
+    "lat": 32.81,
+    "lng": -83.7,
+    "radius": 20,
+    "cities": [
+      "Bibb County",
+      "Macon"
+    ]
+  },
+  "13247": {
+    "county": "Rockdale",
+    "state": "GA",
+    "lat": 33.65,
+    "lng": -84.03,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13253": {
+    "county": "Seminole",
+    "state": "GA",
+    "lat": 30.94,
+    "lng": -84.87,
+    "radius": 20,
+    "cities": []
+  },
+  "13255": {
+    "county": "Spalding",
+    "state": "GA",
+    "lat": 33.26,
+    "lng": -84.28,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13027": {
+    "county": "Brooks",
+    "state": "GA",
+    "lat": 30.84,
+    "lng": -83.58,
+    "radius": 20,
+    "cities": [
+      "Valdosta"
+    ]
+  },
+  "13031": {
+    "county": "Bulloch",
+    "state": "GA",
+    "lat": 32.4,
+    "lng": -81.74,
+    "radius": 20,
+    "cities": []
+  },
+  "13033": {
+    "county": "Burke",
+    "state": "GA",
+    "lat": 33.06,
+    "lng": -82.0,
+    "radius": 20,
+    "cities": [
+      "Augusta",
+      "Richmond County"
+    ]
+  },
+  "13037": {
+    "county": "Calhoun",
+    "state": "GA",
+    "lat": 31.53,
+    "lng": -84.62,
+    "radius": 20,
+    "cities": []
+  },
+  "13259": {
+    "county": "Stewart",
+    "state": "GA",
+    "lat": 32.08,
+    "lng": -84.84,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "13261": {
+    "county": "Sumter",
+    "state": "GA",
+    "lat": 32.04,
+    "lng": -84.2,
+    "radius": 20,
+    "cities": []
+  },
+  "13263": {
+    "county": "Talbot",
+    "state": "GA",
+    "lat": 32.7,
+    "lng": -84.53,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "13265": {
+    "county": "Taliaferro",
+    "state": "GA",
+    "lat": 33.57,
+    "lng": -82.88,
+    "radius": 20,
+    "cities": []
+  },
+  "13267": {
+    "county": "Tattnall",
+    "state": "GA",
+    "lat": 32.05,
+    "lng": -82.06,
+    "radius": 20,
+    "cities": []
+  },
+  "13271": {
+    "county": "Telfair",
+    "state": "GA",
+    "lat": 31.93,
+    "lng": -82.94,
+    "radius": 20,
+    "cities": []
+  },
+  "13273": {
+    "county": "Terrell",
+    "state": "GA",
+    "lat": 31.78,
+    "lng": -84.44,
+    "radius": 20,
+    "cities": [
+      "Albany"
+    ]
+  },
+  "13275": {
+    "county": "Thomas",
+    "state": "GA",
+    "lat": 30.86,
+    "lng": -83.92,
+    "radius": 20,
+    "cities": []
+  },
+  "13277": {
+    "county": "Tift",
+    "state": "GA",
+    "lat": 31.46,
+    "lng": -83.53,
+    "radius": 20,
+    "cities": []
+  },
+  "13279": {
+    "county": "Toombs",
+    "state": "GA",
+    "lat": 32.12,
+    "lng": -82.33,
+    "radius": 20,
+    "cities": []
+  },
+  "13045": {
+    "county": "Carroll",
+    "state": "GA",
+    "lat": 33.58,
+    "lng": -85.08,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13049": {
+    "county": "Charlton",
+    "state": "GA",
+    "lat": 30.78,
+    "lng": -82.14,
+    "radius": 20,
+    "cities": []
+  },
+  "13285": {
+    "county": "Troup",
+    "state": "GA",
+    "lat": 33.03,
+    "lng": -85.03,
+    "radius": 20,
+    "cities": []
+  },
+  "13287": {
+    "county": "Turner",
+    "state": "GA",
+    "lat": 31.72,
+    "lng": -83.62,
+    "radius": 20,
+    "cities": []
+  },
+  "13289": {
+    "county": "Twiggs",
+    "state": "GA",
+    "lat": 32.67,
+    "lng": -83.43,
+    "radius": 20,
+    "cities": [
+      "Bibb County",
+      "Macon"
+    ]
+  },
+  "13293": {
+    "county": "Upson",
+    "state": "GA",
+    "lat": 32.88,
+    "lng": -84.3,
+    "radius": 20,
+    "cities": []
+  },
+  "13297": {
+    "county": "Walton",
+    "state": "GA",
+    "lat": 33.78,
+    "lng": -83.73,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13127": {
+    "county": "Glynn",
+    "state": "GA",
+    "lat": 31.21,
+    "lng": -81.49,
+    "radius": 20,
+    "cities": [
+      "Brunswick"
+    ]
+  },
+  "13131": {
+    "county": "Grady",
+    "state": "GA",
+    "lat": 30.87,
+    "lng": -84.23,
+    "radius": 20,
+    "cities": []
+  },
+  "13299": {
+    "county": "Ware",
+    "state": "GA",
+    "lat": 31.05,
+    "lng": -82.42,
+    "radius": 20,
+    "cities": []
+  },
+  "13301": {
+    "county": "Warren",
+    "state": "GA",
+    "lat": 33.41,
+    "lng": -82.68,
+    "radius": 20,
+    "cities": []
+  },
+  "13303": {
+    "county": "Washington",
+    "state": "GA",
+    "lat": 32.97,
+    "lng": -82.8,
+    "radius": 20,
+    "cities": []
+  },
+  "13307": {
+    "county": "Webster",
+    "state": "GA",
+    "lat": 32.05,
+    "lng": -84.55,
+    "radius": 20,
+    "cities": []
+  },
+  "13309": {
+    "county": "Wheeler",
+    "state": "GA",
+    "lat": 32.12,
+    "lng": -82.72,
+    "radius": 20,
+    "cities": []
+  },
+  "13313": {
+    "county": "Whitfield",
+    "state": "GA",
+    "lat": 34.81,
+    "lng": -84.97,
+    "radius": 20,
+    "cities": [
+      "Dalton"
+    ]
+  },
+  "13315": {
+    "county": "Wilcox",
+    "state": "GA",
+    "lat": 31.97,
+    "lng": -83.43,
+    "radius": 20,
+    "cities": []
+  },
+  "13059": {
+    "county": "Clarke",
+    "state": "GA",
+    "lat": 33.95,
+    "lng": -83.37,
+    "radius": 20,
+    "cities": [
+      "Athens",
+      "Clarke County"
+    ]
+  },
+  "13133": {
+    "county": "Greene",
+    "state": "GA",
+    "lat": 33.58,
+    "lng": -83.17,
+    "radius": 20,
+    "cities": []
+  },
+  "13317": {
+    "county": "Wilkes",
+    "state": "GA",
+    "lat": 33.78,
+    "lng": -82.74,
+    "radius": 20,
+    "cities": []
+  },
+  "13319": {
+    "county": "Wilkinson",
+    "state": "GA",
+    "lat": 32.8,
+    "lng": -83.17,
+    "radius": 20,
+    "cities": []
+  },
+  "13321": {
+    "county": "Worth",
+    "state": "GA",
+    "lat": 31.55,
+    "lng": -83.85,
+    "radius": 20,
+    "cities": [
+      "Albany"
+    ]
+  },
+  "13061": {
+    "county": "Clay",
+    "state": "GA",
+    "lat": 31.63,
+    "lng": -84.98,
+    "radius": 20,
+    "cities": []
+  },
+  "13063": {
+    "county": "Clayton",
+    "state": "GA",
+    "lat": 33.54,
+    "lng": -84.36,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "12107": {
+    "county": "Putnam",
+    "state": "FL",
+    "lat": 29.61,
+    "lng": -81.74,
+    "radius": 20,
+    "cities": []
+  },
+  "13137": {
+    "county": "Habersham",
+    "state": "GA",
+    "lat": 34.63,
+    "lng": -83.53,
+    "radius": 20,
+    "cities": []
+  },
+  "13141": {
+    "county": "Hancock",
+    "state": "GA",
+    "lat": 33.27,
+    "lng": -83.0,
+    "radius": 20,
+    "cities": []
+  },
+  "13069": {
+    "county": "Coffee",
+    "state": "GA",
+    "lat": 31.55,
+    "lng": -82.85,
+    "radius": 20,
+    "cities": []
+  },
+  "13071": {
+    "county": "Colquitt",
+    "state": "GA",
+    "lat": 31.19,
+    "lng": -83.77,
+    "radius": 20,
+    "cities": []
+  },
+  "12111": {
+    "county": "St. Lucie",
+    "state": "FL",
+    "lat": 27.38,
+    "lng": -80.45,
+    "radius": 20,
+    "cities": [
+      "Port St. Lucie"
+    ]
+  },
+  "13151": {
+    "county": "Henry",
+    "state": "GA",
+    "lat": 33.45,
+    "lng": -84.15,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "15003": {
+    "county": "Honolulu",
+    "state": "HI",
+    "lat": 23.87,
+    "lng": -164.44,
+    "radius": 20,
+    "cities": [
+      "Urban Honolulu"
+    ]
+  },
+  "13077": {
+    "county": "Coweta",
+    "state": "GA",
+    "lat": 33.35,
+    "lng": -84.76,
+    "radius": 20,
+    "cities": [
+      "Alpharetta",
+      "Atlanta",
+      "Sandy Springs"
+    ]
+  },
+  "13081": {
+    "county": "Crisp",
+    "state": "GA",
+    "lat": 31.92,
+    "lng": -83.77,
+    "radius": 20,
+    "cities": []
+  },
+  "13087": {
+    "county": "Decatur",
+    "state": "GA",
+    "lat": 30.88,
+    "lng": -84.58,
+    "radius": 20,
+    "cities": []
+  },
+  "26021": {
+    "county": "Berrien",
+    "state": "MI",
+    "lat": 42.0,
+    "lng": -86.69,
+    "radius": 20,
+    "cities": [
+      "Niles"
+    ]
+  },
+  "26099": {
+    "county": "Macomb",
+    "state": "MI",
+    "lat": 42.67,
+    "lng": -82.91,
+    "radius": 20,
+    "cities": [
+      "Farmington Hills",
+      "Troy",
+      "Warren"
+    ]
+  },
+  "25013": {
+    "county": "Hampden",
+    "state": "MA",
+    "lat": 42.14,
+    "lng": -72.63,
+    "radius": 20,
+    "cities": [
+      "Springfield"
+    ]
+  },
+  "26025": {
+    "county": "Calhoun",
+    "state": "MI",
+    "lat": 42.25,
+    "lng": -85.01,
+    "radius": 20,
+    "cities": [
+      "Battle Creek"
+    ]
+  },
+  "26121": {
+    "county": "Muskegon",
+    "state": "MI",
+    "lat": 43.29,
+    "lng": -86.54,
+    "radius": 20,
+    "cities": [
+      "Muskegon"
+    ]
+  },
+  "26033": {
+    "county": "Chippewa",
+    "state": "MI",
+    "lat": 46.33,
+    "lng": -84.53,
+    "radius": 20,
+    "cities": []
+  },
+  "26045": {
+    "county": "Eaton",
+    "state": "MI",
+    "lat": 42.6,
+    "lng": -84.84,
+    "radius": 20,
+    "cities": [
+      "East Lansing",
+      "Lansing"
+    ]
+  },
+  "26049": {
+    "county": "Genesee",
+    "state": "MI",
+    "lat": 43.02,
+    "lng": -83.71,
+    "radius": 20,
+    "cities": [
+      "Flint"
+    ]
+  },
+  "24001": {
+    "county": "Allegany",
+    "state": "MD",
+    "lat": 39.62,
+    "lng": -78.7,
+    "radius": 20,
+    "cities": [
+      "Cumberland"
+    ]
+  },
+  "24037": {
+    "county": "St. Mary's",
+    "state": "MD",
+    "lat": 38.22,
+    "lng": -76.53,
+    "radius": 20,
+    "cities": [
+      "California",
+      "Lexington Park"
+    ]
+  },
+  "24039": {
+    "county": "Somerset",
+    "state": "MD",
+    "lat": 38.08,
+    "lng": -75.85,
+    "radius": 20,
+    "cities": [
+      "Salisbury"
+    ]
+  },
+  "24043": {
+    "county": "Washington",
+    "state": "MD",
+    "lat": 39.6,
+    "lng": -77.81,
+    "radius": 20,
+    "cities": [
+      "Hagerstown",
+      "Martinsburg"
+    ]
+  },
+  "24045": {
+    "county": "Wicomico",
+    "state": "MD",
+    "lat": 38.37,
+    "lng": -75.63,
+    "radius": 20,
+    "cities": [
+      "Salisbury"
+    ]
+  },
+  "24003": {
+    "county": "Anne Arundel",
+    "state": "MD",
+    "lat": 38.99,
+    "lng": -76.57,
+    "radius": 20,
+    "cities": [
+      "Baltimore",
+      "Columbia",
+      "Towson"
+    ]
+  },
+  "24047": {
+    "county": "Worcester",
+    "state": "MD",
+    "lat": 38.22,
+    "lng": -75.3,
+    "radius": 20,
+    "cities": [
+      "Salisbury"
+    ]
+  },
+  "24510": {
+    "county": "Baltimore city",
+    "state": "MD",
+    "lat": 39.3,
+    "lng": -76.61,
+    "radius": 20,
+    "cities": [
+      "Baltimore",
+      "Columbia",
+      "Towson"
+    ]
+  },
+  "24005": {
+    "county": "Baltimore",
+    "state": "MD",
+    "lat": 39.44,
+    "lng": -76.62,
+    "radius": 20,
+    "cities": [
+      "Baltimore",
+      "Columbia",
+      "Towson"
+    ]
+  },
+  "25023": {
+    "county": "Plymouth",
+    "state": "MA",
+    "lat": 41.99,
+    "lng": -70.74,
+    "radius": 20,
+    "cities": [
+      "Boston"
+    ]
+  },
+  "26057": {
+    "county": "Gratiot",
+    "state": "MI",
+    "lat": 43.29,
+    "lng": -84.6,
+    "radius": 20,
+    "cities": []
+  },
+  "26065": {
+    "county": "Ingham",
+    "state": "MI",
+    "lat": 42.6,
+    "lng": -84.37,
+    "radius": 20,
+    "cities": [
+      "East Lansing",
+      "Lansing"
+    ]
+  },
+  "26075": {
+    "county": "Jackson",
+    "state": "MI",
+    "lat": 42.25,
+    "lng": -84.42,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "26077": {
+    "county": "Kalamazoo",
+    "state": "MI",
+    "lat": 42.25,
+    "lng": -85.53,
+    "radius": 20,
+    "cities": [
+      "Kalamazoo",
+      "Portage"
+    ]
+  },
+  "24019": {
+    "county": "Dorchester",
+    "state": "MD",
+    "lat": 38.42,
+    "lng": -76.08,
+    "radius": 20,
+    "cities": []
+  },
+  "24021": {
+    "county": "Frederick",
+    "state": "MD",
+    "lat": 39.47,
+    "lng": -77.4,
+    "radius": 20,
+    "cities": [
+      "Frederick",
+      "Gaithersburg",
+      "Rockville"
+    ]
+  },
+  "26081": {
+    "county": "Kent",
+    "state": "MI",
+    "lat": 43.03,
+    "lng": -85.55,
+    "radius": 20,
+    "cities": [
+      "Grand Rapids",
+      "Kentwood"
+    ]
+  },
+  "25005": {
+    "county": "Bristol",
+    "state": "MA",
+    "lat": 41.76,
+    "lng": -71.09,
+    "radius": 20,
+    "cities": [
+      "Providence",
+      "Warwick"
+    ]
+  },
+  "24025": {
+    "county": "Harford",
+    "state": "MD",
+    "lat": 39.54,
+    "lng": -76.3,
+    "radius": 20,
+    "cities": [
+      "Baltimore",
+      "Columbia",
+      "Towson"
+    ]
+  },
+  "25027": {
+    "county": "Worcester",
+    "state": "MA",
+    "lat": 42.35,
+    "lng": -71.91,
+    "radius": 20,
+    "cities": [
+      "Worcester"
+    ]
+  },
+  "26087": {
+    "county": "Lapeer",
+    "state": "MI",
+    "lat": 43.09,
+    "lng": -83.22,
+    "radius": 20,
+    "cities": [
+      "Farmington Hills",
+      "Troy",
+      "Warren"
+    ]
+  },
+  "24027": {
+    "county": "Howard",
+    "state": "MD",
+    "lat": 39.25,
+    "lng": -76.93,
+    "radius": 20,
+    "cities": [
+      "Baltimore",
+      "Columbia",
+      "Towson"
+    ]
+  },
+  "22013": {
+    "county": "Bienville Parish",
+    "state": "LA",
+    "lat": 32.35,
+    "lng": -93.06,
+    "radius": 20,
+    "cities": []
+  },
+  "22015": {
+    "county": "Bossier Parish",
+    "state": "LA",
+    "lat": 32.68,
+    "lng": -93.6,
+    "radius": 20,
+    "cities": [
+      "Bossier City",
+      "Shreveport"
+    ]
+  },
+  "22017": {
+    "county": "Caddo Parish",
+    "state": "LA",
+    "lat": 32.58,
+    "lng": -93.88,
+    "radius": 20,
+    "cities": [
+      "Bossier City",
+      "Shreveport"
+    ]
+  },
+  "22109": {
+    "county": "Terrebonne Parish",
+    "state": "LA",
+    "lat": 29.34,
+    "lng": -90.84,
+    "radius": 20,
+    "cities": [
+      "Houma",
+      "Thibodaux"
+    ]
+  },
+  "22111": {
+    "county": "Union Parish",
+    "state": "LA",
+    "lat": 32.83,
+    "lng": -92.37,
+    "radius": 20,
+    "cities": [
+      "Monroe"
+    ]
+  },
+  "22113": {
+    "county": "Vermilion Parish",
+    "state": "LA",
+    "lat": 29.81,
+    "lng": -92.31,
+    "radius": 20,
+    "cities": [
+      "Lafayette"
+    ]
+  },
+  "22115": {
+    "county": "Vernon Parish",
+    "state": "LA",
+    "lat": 31.11,
+    "lng": -93.18,
+    "radius": 20,
+    "cities": []
+  },
+  "22117": {
+    "county": "Washington Parish",
+    "state": "LA",
+    "lat": 30.85,
+    "lng": -90.04,
+    "radius": 20,
+    "cities": []
+  },
+  "21061": {
+    "county": "Edmonson",
+    "state": "KY",
+    "lat": 37.21,
+    "lng": -86.24,
+    "radius": 20,
+    "cities": [
+      "Bowling Green"
+    ]
+  },
+  "21067": {
+    "county": "Fayette",
+    "state": "KY",
+    "lat": 38.04,
+    "lng": -84.46,
+    "radius": 20,
+    "cities": [
+      "Fayette",
+      "Lexington"
+    ]
+  },
+  "19193": {
+    "county": "Woodbury",
+    "state": "IA",
+    "lat": 42.39,
+    "lng": -96.04,
+    "radius": 20,
+    "cities": [
+      "Sioux City"
+    ]
+  },
+  "22019": {
+    "county": "Calcasieu Parish",
+    "state": "LA",
+    "lat": 30.23,
+    "lng": -93.36,
+    "radius": 20,
+    "cities": [
+      "Lake Charles"
+    ]
+  },
+  "22119": {
+    "county": "Webster Parish",
+    "state": "LA",
+    "lat": 32.71,
+    "lng": -93.33,
+    "radius": 20,
+    "cities": []
+  },
+  "22121": {
+    "county": "West Baton Rouge Parish",
+    "state": "LA",
+    "lat": 30.46,
+    "lng": -91.31,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22125": {
+    "county": "West Feliciana Parish",
+    "state": "LA",
+    "lat": 30.88,
+    "lng": -91.42,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22127": {
+    "county": "Winn Parish",
+    "state": "LA",
+    "lat": 31.94,
+    "lng": -92.64,
+    "radius": 20,
+    "cities": []
+  },
+  "23001": {
+    "county": "Androscoggin",
+    "state": "ME",
+    "lat": 44.17,
+    "lng": -70.21,
+    "radius": 20,
+    "cities": [
+      "Auburn",
+      "Lewiston"
+    ]
+  },
+  "18141": {
+    "county": "St. Joseph",
+    "state": "IN",
+    "lat": 41.62,
+    "lng": -86.29,
+    "radius": 20,
+    "cities": [
+      "Mishawaka",
+      "South Bend"
+    ]
+  },
+  "22025": {
+    "county": "Catahoula Parish",
+    "state": "LA",
+    "lat": 31.67,
+    "lng": -91.85,
+    "radius": 20,
+    "cities": []
+  },
+  "22027": {
+    "county": "Claiborne Parish",
+    "state": "LA",
+    "lat": 32.82,
+    "lng": -93.0,
+    "radius": 20,
+    "cities": []
+  },
+  "22029": {
+    "county": "Concordia Parish",
+    "state": "LA",
+    "lat": 31.45,
+    "lng": -91.64,
+    "radius": 20,
+    "cities": []
+  },
+  "22031": {
+    "county": "De Soto Parish",
+    "state": "LA",
+    "lat": 32.06,
+    "lng": -93.74,
+    "radius": 20,
+    "cities": [
+      "Bossier City",
+      "Shreveport"
+    ]
+  },
+  "22033": {
+    "county": "East Baton Rouge Parish",
+    "state": "LA",
+    "lat": 30.54,
+    "lng": -91.1,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "20055": {
+    "county": "Finney",
+    "state": "KS",
+    "lat": 38.04,
+    "lng": -100.74,
+    "radius": 20,
+    "cities": []
+  },
+  "20057": {
+    "county": "Ford",
+    "state": "KS",
+    "lat": 37.69,
+    "lng": -99.89,
+    "radius": 20,
+    "cities": []
+  },
+  "20061": {
+    "county": "Geary",
+    "state": "KS",
+    "lat": 39.0,
+    "lng": -96.75,
+    "radius": 20,
+    "cities": [
+      "Manhattan"
+    ]
+  },
+  "18163": {
+    "county": "Vanderburgh",
+    "state": "IN",
+    "lat": 38.02,
+    "lng": -87.59,
+    "radius": 20,
+    "cities": [
+      "Evansville"
+    ]
+  },
+  "22035": {
+    "county": "East Carroll Parish",
+    "state": "LA",
+    "lat": 32.73,
+    "lng": -91.24,
+    "radius": 20,
+    "cities": []
+  },
+  "20067": {
+    "county": "Grant",
+    "state": "KS",
+    "lat": 37.56,
+    "lng": -101.31,
+    "radius": 20,
+    "cities": []
+  },
+  "21111": {
+    "county": "Jefferson",
+    "state": "KY",
+    "lat": 38.19,
+    "lng": -85.66,
+    "radius": 20,
+    "cities": [
+      "Louisville/Jefferson County"
+    ]
+  },
+  "22037": {
+    "county": "East Feliciana Parish",
+    "state": "LA",
+    "lat": 30.85,
+    "lng": -91.05,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22039": {
+    "county": "Evangeline Parish",
+    "state": "LA",
+    "lat": 30.73,
+    "lng": -92.41,
+    "radius": 20,
+    "cities": []
+  },
+  "22041": {
+    "county": "Franklin Parish",
+    "state": "LA",
+    "lat": 32.13,
+    "lng": -91.67,
+    "radius": 20,
+    "cities": []
+  },
+  "22043": {
+    "county": "Grant Parish",
+    "state": "LA",
+    "lat": 31.6,
+    "lng": -92.56,
+    "radius": 20,
+    "cities": [
+      "Alexandria"
+    ]
+  },
+  "22045": {
+    "county": "Iberia Parish",
+    "state": "LA",
+    "lat": 29.76,
+    "lng": -91.77,
+    "radius": 20,
+    "cities": [
+      "Lafayette"
+    ]
+  },
+  "22047": {
+    "county": "Iberville Parish",
+    "state": "LA",
+    "lat": 30.26,
+    "lng": -91.35,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22049": {
+    "county": "Jackson Parish",
+    "state": "LA",
+    "lat": 32.3,
+    "lng": -92.56,
+    "radius": 20,
+    "cities": []
+  },
+  "22051": {
+    "county": "Jefferson Parish",
+    "state": "LA",
+    "lat": 29.68,
+    "lng": -90.1,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "20091": {
+    "county": "Johnson",
+    "state": "KS",
+    "lat": 38.88,
+    "lng": -94.82,
+    "radius": 20,
+    "cities": [
+      "Kansas City"
+    ]
+  },
+  "19013": {
+    "county": "Black Hawk",
+    "state": "IA",
+    "lat": 42.47,
+    "lng": -92.31,
+    "radius": 20,
+    "cities": [
+      "Cedar Falls",
+      "Waterloo"
+    ]
+  },
+  "19021": {
+    "county": "Buena Vista",
+    "state": "IA",
+    "lat": 42.74,
+    "lng": -95.15,
+    "radius": 20,
+    "cities": []
+  },
+  "22055": {
+    "county": "Lafayette Parish",
+    "state": "LA",
+    "lat": 30.21,
+    "lng": -92.06,
+    "radius": 20,
+    "cities": [
+      "Lafayette"
+    ]
+  },
+  "19047": {
+    "county": "Crawford",
+    "state": "IA",
+    "lat": 42.04,
+    "lng": -95.38,
+    "radius": 20,
+    "cities": []
+  },
+  "21117": {
+    "county": "Kenton",
+    "state": "KY",
+    "lat": 38.93,
+    "lng": -84.53,
+    "radius": 20,
+    "cities": [
+      "Cincinnati"
+    ]
+  },
+  "22057": {
+    "county": "Lafourche Parish",
+    "state": "LA",
+    "lat": 29.5,
+    "lng": -90.4,
+    "radius": 20,
+    "cities": [
+      "Houma",
+      "Thibodaux"
+    ]
+  },
+  "22061": {
+    "county": "Lincoln Parish",
+    "state": "LA",
+    "lat": 32.6,
+    "lng": -92.66,
+    "radius": 20,
+    "cities": []
+  },
+  "20161": {
+    "county": "Riley",
+    "state": "KS",
+    "lat": 39.3,
+    "lng": -96.73,
+    "radius": 20,
+    "cities": [
+      "Manhattan"
+    ]
+  },
+  "21145": {
+    "county": "McCracken",
+    "state": "KY",
+    "lat": 37.05,
+    "lng": -88.71,
+    "radius": 20,
+    "cities": []
+  },
+  "22065": {
+    "county": "Madison Parish",
+    "state": "LA",
+    "lat": 32.36,
+    "lng": -91.24,
+    "radius": 20,
+    "cities": []
+  },
+  "22067": {
+    "county": "Morehouse Parish",
+    "state": "LA",
+    "lat": 32.82,
+    "lng": -91.8,
+    "radius": 20,
+    "cities": [
+      "Monroe"
+    ]
+  },
+  "22069": {
+    "county": "Natchitoches Parish",
+    "state": "LA",
+    "lat": 31.72,
+    "lng": -93.1,
+    "radius": 20,
+    "cities": []
+  },
+  "22071": {
+    "county": "Orleans Parish",
+    "state": "LA",
+    "lat": 30.07,
+    "lng": -89.93,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "20173": {
+    "county": "Sedgwick",
+    "state": "KS",
+    "lat": 37.68,
+    "lng": -97.46,
+    "radius": 20,
+    "cities": [
+      "Wichita"
+    ]
+  },
+  "20175": {
+    "county": "Seward",
+    "state": "KS",
+    "lat": 37.19,
+    "lng": -100.85,
+    "radius": 20,
+    "cities": []
+  },
+  "20177": {
+    "county": "Shawnee",
+    "state": "KS",
+    "lat": 39.04,
+    "lng": -95.76,
+    "radius": 20,
+    "cities": [
+      "Topeka"
+    ]
+  },
+  "22073": {
+    "county": "Ouachita Parish",
+    "state": "LA",
+    "lat": 32.48,
+    "lng": -92.15,
+    "radius": 20,
+    "cities": [
+      "Monroe"
+    ]
+  },
+  "22075": {
+    "county": "Plaquemines Parish",
+    "state": "LA",
+    "lat": 29.38,
+    "lng": -89.48,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "22077": {
+    "county": "Pointe Coupee Parish",
+    "state": "LA",
+    "lat": 30.71,
+    "lng": -91.6,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22079": {
+    "county": "Rapides Parish",
+    "state": "LA",
+    "lat": 31.2,
+    "lng": -92.53,
+    "radius": 20,
+    "cities": [
+      "Alexandria"
+    ]
+  },
+  "20209": {
+    "county": "Wyandotte",
+    "state": "KS",
+    "lat": 39.11,
+    "lng": -94.76,
+    "radius": 20,
+    "cities": [
+      "Kansas City"
+    ]
+  },
+  "19127": {
+    "county": "Marshall",
+    "state": "IA",
+    "lat": 42.04,
+    "lng": -93.0,
+    "radius": 20,
+    "cities": []
+  },
+  "21221": {
+    "county": "Trigg",
+    "state": "KY",
+    "lat": 36.81,
+    "lng": -87.87,
+    "radius": 20,
+    "cities": [
+      "Clarksville"
+    ]
+  },
+  "22081": {
+    "county": "Red River Parish",
+    "state": "LA",
+    "lat": 32.09,
+    "lng": -93.34,
+    "radius": 20,
+    "cities": []
+  },
+  "22083": {
+    "county": "Richland Parish",
+    "state": "LA",
+    "lat": 32.42,
+    "lng": -91.76,
+    "radius": 20,
+    "cities": []
+  },
+  "22085": {
+    "county": "Sabine Parish",
+    "state": "LA",
+    "lat": 31.56,
+    "lng": -93.55,
+    "radius": 20,
+    "cities": []
+  },
+  "22087": {
+    "county": "St. Bernard Parish",
+    "state": "LA",
+    "lat": 29.9,
+    "lng": -89.3,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "22089": {
+    "county": "St. Charles Parish",
+    "state": "LA",
+    "lat": 29.91,
+    "lng": -90.36,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "22091": {
+    "county": "St. Helena Parish",
+    "state": "LA",
+    "lat": 30.82,
+    "lng": -90.71,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22093": {
+    "county": "St. James Parish",
+    "state": "LA",
+    "lat": 30.03,
+    "lng": -90.79,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "22095": {
+    "county": "St. John the Baptist Parish",
+    "state": "LA",
+    "lat": 30.13,
+    "lng": -90.47,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "19153": {
+    "county": "Polk",
+    "state": "IA",
+    "lat": 41.69,
+    "lng": -93.57,
+    "radius": 20,
+    "cities": [
+      "Des Moines",
+      "West Des Moines"
+    ]
+  },
+  "21227": {
+    "county": "Warren",
+    "state": "KY",
+    "lat": 36.99,
+    "lng": -86.42,
+    "radius": 20,
+    "cities": [
+      "Bowling Green"
+    ]
+  },
+  "22097": {
+    "county": "St. Landry Parish",
+    "state": "LA",
+    "lat": 30.6,
+    "lng": -92.01,
+    "radius": 20,
+    "cities": []
+  },
+  "22099": {
+    "county": "St. Martin Parish",
+    "state": "LA",
+    "lat": 30.13,
+    "lng": -91.61,
+    "radius": 20,
+    "cities": [
+      "Lafayette"
+    ]
+  },
+  "22101": {
+    "county": "St. Mary Parish",
+    "state": "LA",
+    "lat": 29.63,
+    "lng": -91.47,
+    "radius": 20,
+    "cities": []
+  },
+  "22001": {
+    "county": "Acadia Parish",
+    "state": "LA",
+    "lat": 30.29,
+    "lng": -92.41,
+    "radius": 20,
+    "cities": [
+      "Lafayette"
+    ]
+  },
+  "22003": {
+    "county": "Allen Parish",
+    "state": "LA",
+    "lat": 30.65,
+    "lng": -92.83,
+    "radius": 20,
+    "cities": []
+  },
+  "22005": {
+    "county": "Ascension Parish",
+    "state": "LA",
+    "lat": 30.2,
+    "lng": -90.91,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22007": {
+    "county": "Assumption Parish",
+    "state": "LA",
+    "lat": 29.9,
+    "lng": -91.06,
+    "radius": 20,
+    "cities": [
+      "Baton Rouge"
+    ]
+  },
+  "22009": {
+    "county": "Avoyelles Parish",
+    "state": "LA",
+    "lat": 31.08,
+    "lng": -92.0,
+    "radius": 20,
+    "cities": []
+  },
+  "22103": {
+    "county": "St. Tammany Parish",
+    "state": "LA",
+    "lat": 30.41,
+    "lng": -89.95,
+    "radius": 20,
+    "cities": [
+      "Metairie",
+      "New Orleans"
+    ]
+  },
+  "22105": {
+    "county": "Tangipahoa Parish",
+    "state": "LA",
+    "lat": 30.63,
+    "lng": -90.41,
+    "radius": 20,
+    "cities": [
+      "Hammond"
+    ]
+  },
+  "22107": {
+    "county": "Tensas Parish",
+    "state": "LA",
+    "lat": 32.0,
+    "lng": -91.34,
+    "radius": 20,
+    "cities": []
+  },
+  "21047": {
+    "county": "Christian",
+    "state": "KY",
+    "lat": 36.89,
+    "lng": -87.49,
+    "radius": 20,
+    "cities": [
+      "Clarksville"
+    ]
+  },
+  "19163": {
+    "county": "Scott",
+    "state": "IA",
+    "lat": 41.64,
+    "lng": -90.62,
+    "radius": 20,
+    "cities": [
+      "Davenport",
+      "Moline",
+      "Rock Island"
+    ]
+  },
+  "32031": {
+    "county": "Washoe",
+    "state": "NV",
+    "lat": 40.66,
+    "lng": -119.66,
+    "radius": 20,
+    "cities": [
+      "Reno"
+    ]
+  },
+  "32510": {
+    "county": "Carson City",
+    "state": "NV",
+    "lat": 39.15,
+    "lng": -119.75,
+    "radius": 20,
+    "cities": [
+      "Carson City"
+    ]
+  },
+  "31079": {
+    "county": "Hall",
+    "state": "NE",
+    "lat": 40.87,
+    "lng": -98.5,
+    "radius": 20,
+    "cities": [
+      "Grand Island"
+    ]
+  },
+  "33011": {
+    "county": "Hillsborough",
+    "state": "NH",
+    "lat": 42.92,
+    "lng": -71.72,
+    "radius": 20,
+    "cities": [
+      "Manchester",
+      "Nashua"
+    ]
+  },
+  "35001": {
+    "county": "Bernalillo",
+    "state": "NM",
+    "lat": 35.05,
+    "lng": -106.67,
+    "radius": 20,
+    "cities": [
+      "Albuquerque"
+    ]
+  },
+  "29189": {
+    "county": "St. Louis",
+    "state": "MO",
+    "lat": 38.64,
+    "lng": -90.44,
+    "radius": 20,
+    "cities": [
+      "St. Louis"
+    ]
+  },
+  "35005": {
+    "county": "Chaves",
+    "state": "NM",
+    "lat": 33.36,
+    "lng": -104.47,
+    "radius": 20,
+    "cities": []
+  },
+  "35006": {
+    "county": "Cibola",
+    "state": "NM",
+    "lat": 34.91,
+    "lng": -108.0,
+    "radius": 20,
+    "cities": []
+  },
+  "35007": {
+    "county": "Colfax",
+    "state": "NM",
+    "lat": 36.61,
+    "lng": -104.65,
+    "radius": 20,
+    "cities": []
+  },
+  "35009": {
+    "county": "Curry",
+    "state": "NM",
+    "lat": 34.57,
+    "lng": -103.35,
+    "radius": 20,
+    "cities": []
+  },
+  "34021": {
+    "county": "Mercer",
+    "state": "NJ",
+    "lat": 40.28,
+    "lng": -74.7,
+    "radius": 20,
+    "cities": [
+      "Princeton",
+      "Trenton"
+    ]
+  },
+  "31151": {
+    "county": "Saline",
+    "state": "NE",
+    "lat": 40.52,
+    "lng": -97.14,
+    "radius": 20,
+    "cities": []
+  },
+  "34001": {
+    "county": "Atlantic",
+    "state": "NJ",
+    "lat": 39.47,
+    "lng": -74.63,
+    "radius": 20,
+    "cities": [
+      "Atlantic City",
+      "Hammonton"
+    ]
+  },
+  "31157": {
+    "county": "Scotts Bluff",
+    "state": "NE",
+    "lat": 41.85,
+    "lng": -103.71,
+    "radius": 20,
+    "cities": []
+  },
+  "29201": {
+    "county": "Scott",
+    "state": "MO",
+    "lat": 37.05,
+    "lng": -89.57,
+    "radius": 20,
+    "cities": []
+  },
+  "34023": {
+    "county": "Middlesex",
+    "state": "NJ",
+    "lat": 40.44,
+    "lng": -74.41,
+    "radius": 20,
+    "cities": [
+      "Lakewood",
+      "New Brunswick"
+    ]
+  },
+  "29510": {
+    "county": "St. Louis city",
+    "state": "MO",
+    "lat": 38.64,
+    "lng": -90.25,
+    "radius": 20,
+    "cities": [
+      "St. Louis"
+    ]
+  },
+  "34005": {
+    "county": "Burlington",
+    "state": "NJ",
+    "lat": 39.88,
+    "lng": -74.67,
+    "radius": 20,
+    "cities": [
+      "Camden"
+    ]
+  },
+  "34025": {
+    "county": "Monmouth",
+    "state": "NJ",
+    "lat": 40.29,
+    "lng": -74.16,
+    "radius": 20,
+    "cities": [
+      "Lakewood",
+      "New Brunswick"
+    ]
+  },
+  "34007": {
+    "county": "Camden",
+    "state": "NJ",
+    "lat": 39.8,
+    "lng": -74.96,
+    "radius": 20,
+    "cities": [
+      "Camden"
+    ]
+  },
+  "34009": {
+    "county": "Cape May",
+    "state": "NJ",
+    "lat": 39.08,
+    "lng": -74.85,
+    "radius": 20,
+    "cities": [
+      "Ocean City"
+    ]
+  },
+  "34011": {
+    "county": "Cumberland",
+    "state": "NJ",
+    "lat": 39.33,
+    "lng": -75.13,
+    "radius": 20,
+    "cities": [
+      "Bridgeton",
+      "Vineland"
+    ]
+  },
+  "32007": {
+    "county": "Elko",
+    "state": "NV",
+    "lat": 41.14,
+    "lng": -115.35,
+    "radius": 20,
+    "cities": []
+  },
+  "31037": {
+    "county": "Colfax",
+    "state": "NE",
+    "lat": 41.57,
+    "lng": -97.09,
+    "radius": 20,
+    "cities": []
+  },
+  "31043": {
+    "county": "Dakota",
+    "state": "NE",
+    "lat": 42.39,
+    "lng": -96.56,
+    "radius": 20,
+    "cities": [
+      "Sioux City"
+    ]
+  },
+  "31047": {
+    "county": "Dawson",
+    "state": "NE",
+    "lat": 40.87,
+    "lng": -99.82,
+    "radius": 20,
+    "cities": []
+  },
+  "31055": {
+    "county": "Douglas",
+    "state": "NE",
+    "lat": 41.3,
+    "lng": -96.15,
+    "radius": 20,
+    "cities": [
+      "Council Bluffs",
+      "Omaha"
+    ]
+  },
+  "34033": {
+    "county": "Salem",
+    "state": "NJ",
+    "lat": 39.58,
+    "lng": -75.36,
+    "radius": 20,
+    "cities": [
+      "Wilmington"
+    ]
+  },
+  "34015": {
+    "county": "Gloucester",
+    "state": "NJ",
+    "lat": 39.72,
+    "lng": -75.14,
+    "radius": 20,
+    "cities": [
+      "Camden"
+    ]
+  },
+  "34035": {
+    "county": "Somerset",
+    "state": "NJ",
+    "lat": 40.56,
+    "lng": -74.62,
+    "radius": 20,
+    "cities": [
+      "Lakewood",
+      "New Brunswick"
+    ]
+  },
+  "26163": {
+    "county": "Wayne",
+    "state": "MI",
+    "lat": 42.28,
+    "lng": -83.26,
+    "radius": 20,
+    "cities": [
+      "Dearborn",
+      "Detroit",
+      "Livonia"
+    ]
+  },
+  "28117": {
+    "county": "Prentiss",
+    "state": "MS",
+    "lat": 34.62,
+    "lng": -88.52,
+    "radius": 20,
+    "cities": []
+  },
+  "28119": {
+    "county": "Quitman",
+    "state": "MS",
+    "lat": 34.25,
+    "lng": -90.29,
+    "radius": 20,
+    "cities": []
+  },
+  "28121": {
+    "county": "Rankin",
+    "state": "MS",
+    "lat": 32.26,
+    "lng": -89.95,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "28123": {
+    "county": "Scott",
+    "state": "MS",
+    "lat": 32.41,
+    "lng": -89.54,
+    "radius": 20,
+    "cities": []
+  },
+  "28125": {
+    "county": "Sharkey",
+    "state": "MS",
+    "lat": 32.88,
+    "lng": -90.81,
+    "radius": 20,
+    "cities": []
+  },
+  "28127": {
+    "county": "Simpson",
+    "state": "MS",
+    "lat": 31.91,
+    "lng": -89.92,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "29155": {
+    "county": "Pemiscot",
+    "state": "MO",
+    "lat": 36.21,
+    "lng": -89.79,
+    "radius": 20,
+    "cities": []
+  },
+  "27123": {
+    "county": "Ramsey",
+    "state": "MN",
+    "lat": 45.02,
+    "lng": -93.1,
+    "radius": 20,
+    "cities": [
+      "Bloomington",
+      "Minneapolis",
+      "St. Paul"
+    ]
+  },
+  "28133": {
+    "county": "Sunflower",
+    "state": "MS",
+    "lat": 33.6,
+    "lng": -90.59,
+    "radius": 20,
+    "cities": []
+  },
+  "28135": {
+    "county": "Tallahatchie",
+    "state": "MS",
+    "lat": 33.95,
+    "lng": -90.17,
+    "radius": 20,
+    "cities": []
+  },
+  "28137": {
+    "county": "Tate",
+    "state": "MS",
+    "lat": 34.65,
+    "lng": -89.94,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "28143": {
+    "county": "Tunica",
+    "state": "MS",
+    "lat": 34.65,
+    "lng": -90.38,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "28147": {
+    "county": "Walthall",
+    "state": "MS",
+    "lat": 31.15,
+    "lng": -90.11,
+    "radius": 20,
+    "cities": []
+  },
+  "28149": {
+    "county": "Warren",
+    "state": "MS",
+    "lat": 32.36,
+    "lng": -90.85,
+    "radius": 20,
+    "cities": []
+  },
+  "28151": {
+    "county": "Washington",
+    "state": "MS",
+    "lat": 33.28,
+    "lng": -90.95,
+    "radius": 20,
+    "cities": []
+  },
+  "26125": {
+    "county": "Oakland",
+    "state": "MI",
+    "lat": 42.66,
+    "lng": -83.39,
+    "radius": 20,
+    "cities": [
+      "Farmington Hills",
+      "Troy",
+      "Warren"
+    ]
+  },
+  "28153": {
+    "county": "Wayne",
+    "state": "MS",
+    "lat": 31.64,
+    "lng": -88.7,
+    "radius": 20,
+    "cities": []
+  },
+  "28157": {
+    "county": "Wilkinson",
+    "state": "MS",
+    "lat": 31.16,
+    "lng": -91.31,
+    "radius": 20,
+    "cities": []
+  },
+  "28159": {
+    "county": "Winston",
+    "state": "MS",
+    "lat": 33.09,
+    "lng": -89.03,
+    "radius": 20,
+    "cities": []
+  },
+  "28161": {
+    "county": "Yalobusha",
+    "state": "MS",
+    "lat": 34.03,
+    "lng": -89.71,
+    "radius": 20,
+    "cities": []
+  },
+  "28163": {
+    "county": "Yazoo",
+    "state": "MS",
+    "lat": 32.78,
+    "lng": -90.4,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "27145": {
+    "county": "Stearns",
+    "state": "MN",
+    "lat": 45.55,
+    "lng": -94.61,
+    "radius": 20,
+    "cities": [
+      "St. Cloud"
+    ]
+  },
+  "27163": {
+    "county": "Washington",
+    "state": "MN",
+    "lat": 45.04,
+    "lng": -92.88,
+    "radius": 20,
+    "cities": [
+      "Bloomington",
+      "Minneapolis",
+      "St. Paul"
+    ]
+  },
+  "29031": {
+    "county": "Cape Girardeau",
+    "state": "MO",
+    "lat": 37.38,
+    "lng": -89.68,
+    "radius": 20,
+    "cities": [
+      "Cape Girardeau"
+    ]
+  },
+  "28001": {
+    "county": "Adams",
+    "state": "MS",
+    "lat": 31.48,
+    "lng": -91.35,
+    "radius": 20,
+    "cities": []
+  },
+  "27037": {
+    "county": "Dakota",
+    "state": "MN",
+    "lat": 44.67,
+    "lng": -93.07,
+    "radius": 20,
+    "cities": [
+      "Bloomington",
+      "Minneapolis",
+      "St. Paul"
+    ]
+  },
+  "26139": {
+    "county": "Ottawa",
+    "state": "MI",
+    "lat": 42.95,
+    "lng": -86.42,
+    "radius": 20,
+    "cities": [
+      "Grand Rapids",
+      "Kentwood"
+    ]
+  },
+  "28003": {
+    "county": "Alcorn",
+    "state": "MS",
+    "lat": 34.88,
+    "lng": -88.58,
+    "radius": 20,
+    "cities": []
+  },
+  "28005": {
+    "county": "Amite",
+    "state": "MS",
+    "lat": 31.17,
+    "lng": -90.8,
+    "radius": 20,
+    "cities": []
+  },
+  "28007": {
+    "county": "Attala",
+    "state": "MS",
+    "lat": 33.09,
+    "lng": -89.58,
+    "radius": 20,
+    "cities": []
+  },
+  "28009": {
+    "county": "Benton",
+    "state": "MS",
+    "lat": 34.82,
+    "lng": -89.19,
+    "radius": 20,
+    "cities": []
+  },
+  "28011": {
+    "county": "Bolivar",
+    "state": "MS",
+    "lat": 33.8,
+    "lng": -90.88,
+    "radius": 20,
+    "cities": []
+  },
+  "28013": {
+    "county": "Calhoun",
+    "state": "MS",
+    "lat": 33.94,
+    "lng": -89.34,
+    "radius": 20,
+    "cities": []
+  },
+  "28015": {
+    "county": "Carroll",
+    "state": "MS",
+    "lat": 33.45,
+    "lng": -89.92,
+    "radius": 20,
+    "cities": []
+  },
+  "28017": {
+    "county": "Chickasaw",
+    "state": "MS",
+    "lat": 33.92,
+    "lng": -88.95,
+    "radius": 20,
+    "cities": []
+  },
+  "28021": {
+    "county": "Claiborne",
+    "state": "MS",
+    "lat": 31.97,
+    "lng": -90.91,
+    "radius": 20,
+    "cities": []
+  },
+  "28023": {
+    "county": "Clarke",
+    "state": "MS",
+    "lat": 32.04,
+    "lng": -88.69,
+    "radius": 20,
+    "cities": []
+  },
+  "28025": {
+    "county": "Clay",
+    "state": "MS",
+    "lat": 33.66,
+    "lng": -88.78,
+    "radius": 20,
+    "cities": []
+  },
+  "28027": {
+    "county": "Coahoma",
+    "state": "MS",
+    "lat": 34.23,
+    "lng": -90.6,
+    "radius": 20,
+    "cities": []
+  },
+  "26145": {
+    "county": "Saginaw",
+    "state": "MI",
+    "lat": 43.33,
+    "lng": -84.05,
+    "radius": 20,
+    "cities": [
+      "Saginaw"
+    ]
+  },
+  "28029": {
+    "county": "Copiah",
+    "state": "MS",
+    "lat": 31.87,
+    "lng": -90.45,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "28031": {
+    "county": "Covington",
+    "state": "MS",
+    "lat": 31.63,
+    "lng": -89.55,
+    "radius": 20,
+    "cities": [
+      "Hattiesburg"
+    ]
+  },
+  "28033": {
+    "county": "DeSoto",
+    "state": "MS",
+    "lat": 34.88,
+    "lng": -89.99,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "28035": {
+    "county": "Forrest",
+    "state": "MS",
+    "lat": 31.19,
+    "lng": -89.26,
+    "radius": 20,
+    "cities": [
+      "Hattiesburg"
+    ]
+  },
+  "27053": {
+    "county": "Hennepin",
+    "state": "MN",
+    "lat": 45.0,
+    "lng": -93.48,
+    "radius": 20,
+    "cities": [
+      "Bloomington",
+      "Minneapolis",
+      "St. Paul"
+    ]
+  },
+  "28037": {
+    "county": "Franklin",
+    "state": "MS",
+    "lat": 31.48,
+    "lng": -90.9,
+    "radius": 20,
+    "cities": []
+  },
+  "28041": {
+    "county": "Greene",
+    "state": "MS",
+    "lat": 31.21,
+    "lng": -88.64,
+    "radius": 20,
+    "cities": []
+  },
+  "28043": {
+    "county": "Grenada",
+    "state": "MS",
+    "lat": 33.77,
+    "lng": -89.8,
+    "radius": 20,
+    "cities": []
+  },
+  "28047": {
+    "county": "Harrison",
+    "state": "MS",
+    "lat": 30.42,
+    "lng": -89.08,
+    "radius": 20,
+    "cities": [
+      "Biloxi",
+      "Gulfport"
+    ]
+  },
+  "26159": {
+    "county": "Van Buren",
+    "state": "MI",
+    "lat": 42.29,
+    "lng": -86.31,
+    "radius": 20,
+    "cities": []
+  },
+  "26161": {
+    "county": "Washtenaw",
+    "state": "MI",
+    "lat": 42.25,
+    "lng": -83.84,
+    "radius": 20,
+    "cities": [
+      "Ann Arbor"
+    ]
+  },
+  "28049": {
+    "county": "Hinds",
+    "state": "MS",
+    "lat": 32.27,
+    "lng": -90.44,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "29095": {
+    "county": "Jackson",
+    "state": "MO",
+    "lat": 39.01,
+    "lng": -94.35,
+    "radius": 20,
+    "cities": [
+      "Kansas City"
+    ]
+  },
+  "28051": {
+    "county": "Holmes",
+    "state": "MS",
+    "lat": 33.12,
+    "lng": -90.09,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "28053": {
+    "county": "Humphreys",
+    "state": "MS",
+    "lat": 33.13,
+    "lng": -90.53,
+    "radius": 20,
+    "cities": []
+  },
+  "28055": {
+    "county": "Issaquena",
+    "state": "MS",
+    "lat": 32.74,
+    "lng": -90.99,
+    "radius": 20,
+    "cities": []
+  },
+  "28059": {
+    "county": "Jackson",
+    "state": "MS",
+    "lat": 30.46,
+    "lng": -88.62,
+    "radius": 20,
+    "cities": [
+      "Biloxi",
+      "Gulfport"
+    ]
+  },
+  "28061": {
+    "county": "Jasper",
+    "state": "MS",
+    "lat": 32.02,
+    "lng": -89.12,
+    "radius": 20,
+    "cities": []
+  },
+  "28063": {
+    "county": "Jefferson",
+    "state": "MS",
+    "lat": 31.73,
+    "lng": -91.04,
+    "radius": 20,
+    "cities": []
+  },
+  "28065": {
+    "county": "Jefferson Davis",
+    "state": "MS",
+    "lat": 31.57,
+    "lng": -89.82,
+    "radius": 20,
+    "cities": []
+  },
+  "28067": {
+    "county": "Jones",
+    "state": "MS",
+    "lat": 31.62,
+    "lng": -89.17,
+    "radius": 20,
+    "cities": []
+  },
+  "28069": {
+    "county": "Kemper",
+    "state": "MS",
+    "lat": 32.75,
+    "lng": -88.64,
+    "radius": 20,
+    "cities": []
+  },
+  "28073": {
+    "county": "Lamar",
+    "state": "MS",
+    "lat": 31.21,
+    "lng": -89.51,
+    "radius": 20,
+    "cities": [
+      "Hattiesburg"
+    ]
+  },
+  "27067": {
+    "county": "Kandiyohi",
+    "state": "MN",
+    "lat": 45.15,
+    "lng": -95.0,
+    "radius": 20,
+    "cities": []
+  },
+  "28075": {
+    "county": "Lauderdale",
+    "state": "MS",
+    "lat": 32.4,
+    "lng": -88.66,
+    "radius": 20,
+    "cities": []
+  },
+  "28079": {
+    "county": "Leake",
+    "state": "MS",
+    "lat": 32.75,
+    "lng": -89.52,
+    "radius": 20,
+    "cities": []
+  },
+  "28081": {
+    "county": "Lee",
+    "state": "MS",
+    "lat": 34.29,
+    "lng": -88.68,
+    "radius": 20,
+    "cities": []
+  },
+  "28083": {
+    "county": "Leflore",
+    "state": "MS",
+    "lat": 33.55,
+    "lng": -90.3,
+    "radius": 20,
+    "cities": []
+  },
+  "28085": {
+    "county": "Lincoln",
+    "state": "MS",
+    "lat": 31.53,
+    "lng": -90.45,
+    "radius": 20,
+    "cities": []
+  },
+  "28087": {
+    "county": "Lowndes",
+    "state": "MS",
+    "lat": 33.47,
+    "lng": -88.44,
+    "radius": 20,
+    "cities": []
+  },
+  "28089": {
+    "county": "Madison",
+    "state": "MS",
+    "lat": 32.63,
+    "lng": -90.03,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "28091": {
+    "county": "Marion",
+    "state": "MS",
+    "lat": 31.23,
+    "lng": -89.82,
+    "radius": 20,
+    "cities": []
+  },
+  "28093": {
+    "county": "Marshall",
+    "state": "MS",
+    "lat": 34.76,
+    "lng": -89.5,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "28095": {
+    "county": "Monroe",
+    "state": "MS",
+    "lat": 33.89,
+    "lng": -88.48,
+    "radius": 20,
+    "cities": []
+  },
+  "28097": {
+    "county": "Montgomery",
+    "state": "MS",
+    "lat": 33.49,
+    "lng": -89.62,
+    "radius": 20,
+    "cities": []
+  },
+  "27105": {
+    "county": "Nobles",
+    "state": "MN",
+    "lat": 43.67,
+    "lng": -95.75,
+    "radius": 20,
+    "cities": []
+  },
+  "28099": {
+    "county": "Neshoba",
+    "state": "MS",
+    "lat": 32.75,
+    "lng": -89.12,
+    "radius": 20,
+    "cities": []
+  },
+  "28101": {
+    "county": "Newton",
+    "state": "MS",
+    "lat": 32.4,
+    "lng": -89.12,
+    "radius": 20,
+    "cities": []
+  },
+  "28103": {
+    "county": "Noxubee",
+    "state": "MS",
+    "lat": 33.11,
+    "lng": -88.57,
+    "radius": 20,
+    "cities": []
+  },
+  "28105": {
+    "county": "Oktibbeha",
+    "state": "MS",
+    "lat": 33.43,
+    "lng": -88.88,
+    "radius": 20,
+    "cities": []
+  },
+  "28107": {
+    "county": "Panola",
+    "state": "MS",
+    "lat": 34.36,
+    "lng": -89.95,
+    "radius": 20,
+    "cities": []
+  },
+  "28109": {
+    "county": "Pearl River",
+    "state": "MS",
+    "lat": 30.77,
+    "lng": -89.59,
+    "radius": 20,
+    "cities": []
+  },
+  "28113": {
+    "county": "Pike",
+    "state": "MS",
+    "lat": 31.17,
+    "lng": -90.4,
+    "radius": 20,
+    "cities": []
+  },
+  "29133": {
+    "county": "Mississippi",
+    "state": "MO",
+    "lat": 36.83,
+    "lng": -89.29,
+    "radius": 20,
+    "cities": []
+  },
+  "37041": {
+    "county": "Chowan",
+    "state": "NC",
+    "lat": 36.13,
+    "lng": -76.6,
+    "radius": 20,
+    "cities": []
+  },
+  "37045": {
+    "county": "Cleveland",
+    "state": "NC",
+    "lat": 35.33,
+    "lng": -81.56,
+    "radius": 20,
+    "cities": []
+  },
+  "39049": {
+    "county": "Franklin",
+    "state": "OH",
+    "lat": 39.97,
+    "lng": -83.01,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "37123": {
+    "county": "Montgomery",
+    "state": "NC",
+    "lat": 35.33,
+    "lng": -79.91,
+    "radius": 20,
+    "cities": []
+  },
+  "39057": {
+    "county": "Greene",
+    "state": "OH",
+    "lat": 39.69,
+    "lng": -83.89,
+    "radius": 20,
+    "cities": [
+      "Dayton",
+      "Kettering"
+    ]
+  },
+  "39061": {
+    "county": "Hamilton",
+    "state": "OH",
+    "lat": 39.2,
+    "lng": -84.54,
+    "radius": 20,
+    "cities": [
+      "Cincinnati"
+    ]
+  },
+  "37131": {
+    "county": "Northampton",
+    "state": "NC",
+    "lat": 36.42,
+    "lng": -77.4,
+    "radius": 20,
+    "cities": []
+  },
+  "39003": {
+    "county": "Allen",
+    "state": "OH",
+    "lat": 40.77,
+    "lng": -84.11,
+    "radius": 20,
+    "cities": [
+      "Lima"
+    ]
+  },
+  "37057": {
+    "county": "Davidson",
+    "state": "NC",
+    "lat": 35.79,
+    "lng": -80.21,
+    "radius": 20,
+    "cities": [
+      "Salem",
+      "Winston"
+    ]
+  },
+  "36105": {
+    "county": "Sullivan",
+    "state": "NY",
+    "lat": 41.72,
+    "lng": -74.77,
+    "radius": 20,
+    "cities": []
+  },
+  "37145": {
+    "county": "Person",
+    "state": "NC",
+    "lat": 36.39,
+    "lng": -78.97,
+    "radius": 20,
+    "cities": [
+      "Chapel Hill",
+      "Durham"
+    ]
+  },
+  "39017": {
+    "county": "Butler",
+    "state": "OH",
+    "lat": 39.44,
+    "lng": -84.58,
+    "radius": 20,
+    "cities": [
+      "Cincinnati"
+    ]
+  },
+  "36111": {
+    "county": "Ulster",
+    "state": "NY",
+    "lat": 41.89,
+    "lng": -74.26,
+    "radius": 20,
+    "cities": [
+      "Kingston"
+    ]
+  },
+  "37153": {
+    "county": "Richmond",
+    "state": "NC",
+    "lat": 35.01,
+    "lng": -79.75,
+    "radius": 20,
+    "cities": []
+  },
+  "37065": {
+    "county": "Edgecombe",
+    "state": "NC",
+    "lat": 35.91,
+    "lng": -77.6,
+    "radius": 20,
+    "cities": [
+      "Rocky Mount"
+    ]
+  },
+  "37155": {
+    "county": "Robeson",
+    "state": "NC",
+    "lat": 34.64,
+    "lng": -79.1,
+    "radius": 20,
+    "cities": []
+  },
+  "37159": {
+    "county": "Rowan",
+    "state": "NC",
+    "lat": 35.64,
+    "lng": -80.52,
+    "radius": 20,
+    "cities": [
+      "Charlotte",
+      "Concord",
+      "Gastonia"
+    ]
+  },
+  "39023": {
+    "county": "Clark",
+    "state": "OH",
+    "lat": 39.92,
+    "lng": -83.78,
+    "radius": 20,
+    "cities": [
+      "Springfield"
+    ]
+  },
+  "37165": {
+    "county": "Scotland",
+    "state": "NC",
+    "lat": 34.84,
+    "lng": -79.48,
+    "radius": 20,
+    "cities": []
+  },
+  "39035": {
+    "county": "Cuyahoga",
+    "state": "OH",
+    "lat": 41.63,
+    "lng": -81.7,
+    "radius": 20,
+    "cities": [
+      "Cleveland",
+      "Elyria"
+    ]
+  },
+  "37071": {
+    "county": "Gaston",
+    "state": "NC",
+    "lat": 35.29,
+    "lng": -81.18,
+    "radius": 20,
+    "cities": [
+      "Charlotte",
+      "Concord",
+      "Gastonia"
+    ]
+  },
+  "37077": {
+    "county": "Granville",
+    "state": "NC",
+    "lat": 36.3,
+    "lng": -78.65,
+    "radius": 20,
+    "cities": [
+      "Chapel Hill",
+      "Durham"
+    ]
+  },
+  "36121": {
+    "county": "Wyoming",
+    "state": "NY",
+    "lat": 42.7,
+    "lng": -78.22,
+    "radius": 20,
+    "cities": []
+  },
+  "37001": {
+    "county": "Alamance",
+    "state": "NC",
+    "lat": 36.04,
+    "lng": -79.4,
+    "radius": 20,
+    "cities": [
+      "Burlington"
+    ]
+  },
+  "37007": {
+    "county": "Anson",
+    "state": "NC",
+    "lat": 34.97,
+    "lng": -80.1,
+    "radius": 20,
+    "cities": [
+      "Charlotte",
+      "Concord",
+      "Gastonia"
+    ]
+  },
+  "37091": {
+    "county": "Hertford",
+    "state": "NC",
+    "lat": 36.36,
+    "lng": -76.98,
+    "radius": 20,
+    "cities": []
+  },
+  "37015": {
+    "county": "Bertie",
+    "state": "NC",
+    "lat": 36.07,
+    "lng": -76.97,
+    "radius": 20,
+    "cities": []
+  },
+  "37093": {
+    "county": "Hoke",
+    "state": "NC",
+    "lat": 35.02,
+    "lng": -79.24,
+    "radius": 20,
+    "cities": [
+      "Fayetteville"
+    ]
+  },
+  "37187": {
+    "county": "Washington",
+    "state": "NC",
+    "lat": 35.84,
+    "lng": -76.57,
+    "radius": 20,
+    "cities": []
+  },
+  "37033": {
+    "county": "Caswell",
+    "state": "NC",
+    "lat": 36.39,
+    "lng": -79.33,
+    "radius": 20,
+    "cities": []
+  },
+  "39045": {
+    "county": "Fairfield",
+    "state": "OH",
+    "lat": 39.75,
+    "lng": -82.63,
+    "radius": 20,
+    "cities": [
+      "Columbus"
+    ]
+  },
+  "36027": {
+    "county": "Dutchess",
+    "state": "NY",
+    "lat": 41.76,
+    "lng": -73.74,
+    "radius": 20,
+    "cities": [
+      "Middletown",
+      "Newburgh",
+      "Poughkeepsie"
+    ]
+  },
+  "36029": {
+    "county": "Erie",
+    "state": "NY",
+    "lat": 42.76,
+    "lng": -78.78,
+    "radius": 20,
+    "cities": [
+      "Buffalo",
+      "Cheektowaga"
+    ]
+  },
+  "36071": {
+    "county": "Orange",
+    "state": "NY",
+    "lat": 41.4,
+    "lng": -74.31,
+    "radius": 20,
+    "cities": [
+      "Middletown",
+      "Newburgh",
+      "Poughkeepsie"
+    ]
+  },
+  "36073": {
+    "county": "Orleans",
+    "state": "NY",
+    "lat": 43.38,
+    "lng": -78.23,
+    "radius": 20,
+    "cities": [
+      "Rochester"
+    ]
+  },
+  "36099": {
+    "county": "Seneca",
+    "state": "NY",
+    "lat": 42.78,
+    "lng": -76.82,
+    "radius": 20,
+    "cities": []
+  },
+  "36055": {
+    "county": "Monroe",
+    "state": "NY",
+    "lat": 43.31,
+    "lng": -77.68,
+    "radius": 20,
+    "cities": [
+      "Rochester"
+    ]
+  },
+  "35013": {
+    "county": "Do\u00f1a Ana",
+    "state": "NM",
+    "lat": 32.35,
+    "lng": -106.83,
+    "radius": 20,
+    "cities": [
+      "Las Cruces"
+    ]
+  },
+  "35015": {
+    "county": "Eddy",
+    "state": "NM",
+    "lat": 32.47,
+    "lng": -104.3,
+    "radius": 20,
+    "cities": []
+  },
+  "35017": {
+    "county": "Grant",
+    "state": "NM",
+    "lat": 32.74,
+    "lng": -108.38,
+    "radius": 20,
+    "cities": []
+  },
+  "35019": {
+    "county": "Guadalupe",
+    "state": "NM",
+    "lat": 34.86,
+    "lng": -104.79,
+    "radius": 20,
+    "cities": []
+  },
+  "35023": {
+    "county": "Hidalgo",
+    "state": "NM",
+    "lat": 31.91,
+    "lng": -108.71,
+    "radius": 20,
+    "cities": []
+  },
+  "35025": {
+    "county": "Lea",
+    "state": "NM",
+    "lat": 32.79,
+    "lng": -103.41,
+    "radius": 20,
+    "cities": []
+  },
+  "35027": {
+    "county": "Lincoln",
+    "state": "NM",
+    "lat": 33.74,
+    "lng": -105.46,
+    "radius": 20,
+    "cities": []
+  },
+  "35029": {
+    "county": "Luna",
+    "state": "NM",
+    "lat": 32.18,
+    "lng": -107.75,
+    "radius": 20,
+    "cities": []
+  },
+  "36057": {
+    "county": "Montgomery",
+    "state": "NY",
+    "lat": 42.9,
+    "lng": -74.44,
+    "radius": 20,
+    "cities": []
+  },
+  "35031": {
+    "county": "McKinley",
+    "state": "NM",
+    "lat": 35.58,
+    "lng": -108.26,
+    "radius": 20,
+    "cities": []
+  },
+  "35033": {
+    "county": "Mora",
+    "state": "NM",
+    "lat": 36.01,
+    "lng": -104.94,
+    "radius": 20,
+    "cities": []
+  },
+  "35035": {
+    "county": "Otero",
+    "state": "NM",
+    "lat": 32.61,
+    "lng": -105.74,
+    "radius": 20,
+    "cities": []
+  },
+  "35037": {
+    "county": "Quay",
+    "state": "NM",
+    "lat": 35.1,
+    "lng": -103.55,
+    "radius": 20,
+    "cities": []
+  },
+  "35039": {
+    "county": "Rio Arriba",
+    "state": "NM",
+    "lat": 36.51,
+    "lng": -106.69,
+    "radius": 20,
+    "cities": []
+  },
+  "35041": {
+    "county": "Roosevelt",
+    "state": "NM",
+    "lat": 34.02,
+    "lng": -103.48,
+    "radius": 20,
+    "cities": []
+  },
+  "35043": {
+    "county": "Sandoval",
+    "state": "NM",
+    "lat": 35.69,
+    "lng": -106.87,
+    "radius": 20,
+    "cities": [
+      "Albuquerque"
+    ]
+  },
+  "36039": {
+    "county": "Greene",
+    "state": "NY",
+    "lat": 42.28,
+    "lng": -74.12,
+    "radius": 20,
+    "cities": []
+  },
+  "35047": {
+    "county": "San Miguel",
+    "state": "NM",
+    "lat": 35.48,
+    "lng": -104.82,
+    "radius": 20,
+    "cities": []
+  },
+  "35049": {
+    "county": "Santa Fe",
+    "state": "NM",
+    "lat": 35.51,
+    "lng": -105.98,
+    "radius": 20,
+    "cities": [
+      "Santa Fe"
+    ]
+  },
+  "35053": {
+    "county": "Socorro",
+    "state": "NM",
+    "lat": 34.01,
+    "lng": -106.93,
+    "radius": 20,
+    "cities": []
+  },
+  "35055": {
+    "county": "Taos",
+    "state": "NM",
+    "lat": 36.58,
+    "lng": -105.63,
+    "radius": 20,
+    "cities": []
+  },
+  "35057": {
+    "county": "Torrance",
+    "state": "NM",
+    "lat": 34.64,
+    "lng": -105.85,
+    "radius": 20,
+    "cities": [
+      "Albuquerque"
+    ]
+  },
+  "35061": {
+    "county": "Valencia",
+    "state": "NM",
+    "lat": 34.72,
+    "lng": -106.81,
+    "radius": 20,
+    "cities": [
+      "Albuquerque"
+    ]
+  },
+  "36001": {
+    "county": "Albany",
+    "state": "NY",
+    "lat": 42.6,
+    "lng": -73.97,
+    "radius": 20,
+    "cities": [
+      "Albany",
+      "Schenectady",
+      "Troy"
+    ]
+  },
+  "36063": {
+    "county": "Niagara",
+    "state": "NY",
+    "lat": 43.34,
+    "lng": -78.77,
+    "radius": 20,
+    "cities": [
+      "Buffalo",
+      "Cheektowaga"
+    ]
+  },
+  "36065": {
+    "county": "Oneida",
+    "state": "NY",
+    "lat": 43.24,
+    "lng": -75.44,
+    "radius": 20,
+    "cities": [
+      "Rome",
+      "Utica"
+    ]
+  },
+  "36083": {
+    "county": "Rensselaer",
+    "state": "NY",
+    "lat": 42.71,
+    "lng": -73.51,
+    "radius": 20,
+    "cities": [
+      "Albany",
+      "Schenectady",
+      "Troy"
+    ]
+  },
+  "36067": {
+    "county": "Onondaga",
+    "state": "NY",
+    "lat": 43.01,
+    "lng": -76.19,
+    "radius": 20,
+    "cities": [
+      "Syracuse"
+    ]
+  },
+  "36015": {
+    "county": "Chemung",
+    "state": "NY",
+    "lat": 42.14,
+    "lng": -76.76,
+    "radius": 20,
+    "cities": [
+      "Elmira"
+    ]
+  },
+  "36093": {
+    "county": "Schenectady",
+    "state": "NY",
+    "lat": 42.82,
+    "lng": -74.06,
+    "radius": 20,
+    "cities": [
+      "Albany",
+      "Schenectady",
+      "Troy"
+    ]
+  },
+  "36051": {
+    "county": "Livingston",
+    "state": "NY",
+    "lat": 42.73,
+    "lng": -77.78,
+    "radius": 20,
+    "cities": [
+      "Rochester"
+    ]
+  },
+  "42089": {
+    "county": "Monroe",
+    "state": "PA",
+    "lat": 41.06,
+    "lng": -75.34,
+    "radius": 20,
+    "cities": [
+      "East Stroudsburg"
+    ]
+  },
+  "47037": {
+    "county": "Davidson",
+    "state": "TN",
+    "lat": 36.17,
+    "lng": -86.78,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "47045": {
+    "county": "Dyer",
+    "state": "TN",
+    "lat": 36.06,
+    "lng": -89.41,
+    "radius": 20,
+    "cities": []
+  },
+  "47047": {
+    "county": "Fayette",
+    "state": "TN",
+    "lat": 35.2,
+    "lng": -89.41,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "47053": {
+    "county": "Gibson",
+    "state": "TN",
+    "lat": 36.0,
+    "lng": -88.93,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "42133": {
+    "county": "York",
+    "state": "PA",
+    "lat": 39.92,
+    "lng": -76.73,
+    "radius": 20,
+    "cities": [
+      "Hanover",
+      "York"
+    ]
+  },
+  "42091": {
+    "county": "Montgomery",
+    "state": "PA",
+    "lat": 40.21,
+    "lng": -75.37,
+    "radius": 20,
+    "cities": [
+      "Bucks County",
+      "Chester County",
+      "Montgomery County"
+    ]
+  },
+  "47065": {
+    "county": "Hamilton",
+    "state": "TN",
+    "lat": 35.18,
+    "lng": -85.16,
+    "radius": 20,
+    "cities": [
+      "Chattanooga"
+    ]
+  },
+  "44007": {
+    "county": "Providence",
+    "state": "RI",
+    "lat": 41.87,
+    "lng": -71.58,
+    "radius": 20,
+    "cities": [
+      "Providence",
+      "Warwick"
+    ]
+  },
+  "47069": {
+    "county": "Hardeman",
+    "state": "TN",
+    "lat": 35.21,
+    "lng": -88.99,
+    "radius": 20,
+    "cities": []
+  },
+  "47075": {
+    "county": "Haywood",
+    "state": "TN",
+    "lat": 35.58,
+    "lng": -89.28,
+    "radius": 20,
+    "cities": []
+  },
+  "47093": {
+    "county": "Knox",
+    "state": "TN",
+    "lat": 35.99,
+    "lng": -83.94,
+    "radius": 20,
+    "cities": [
+      "Knoxville"
+    ]
+  },
+  "42043": {
+    "county": "Dauphin",
+    "state": "PA",
+    "lat": 40.42,
+    "lng": -76.78,
+    "radius": 20,
+    "cities": [
+      "Carlisle",
+      "Harrisburg"
+    ]
+  },
+  "42095": {
+    "county": "Northampton",
+    "state": "PA",
+    "lat": 40.75,
+    "lng": -75.31,
+    "radius": 20,
+    "cities": [
+      "Allentown",
+      "Bethlehem",
+      "Easton"
+    ]
+  },
+  "42045": {
+    "county": "Delaware",
+    "state": "PA",
+    "lat": 39.92,
+    "lng": -75.4,
+    "radius": 20,
+    "cities": [
+      "Philadelphia"
+    ]
+  },
+  "45005": {
+    "county": "Allendale",
+    "state": "SC",
+    "lat": 32.99,
+    "lng": -81.36,
+    "radius": 20,
+    "cities": []
+  },
+  "45009": {
+    "county": "Bamberg",
+    "state": "SC",
+    "lat": 33.21,
+    "lng": -81.05,
+    "radius": 20,
+    "cities": []
+  },
+  "45087": {
+    "county": "Union",
+    "state": "SC",
+    "lat": 34.69,
+    "lng": -81.62,
+    "radius": 20,
+    "cities": []
+  },
+  "42101": {
+    "county": "Philadelphia",
+    "state": "PA",
+    "lat": 40.01,
+    "lng": -75.13,
+    "radius": 20,
+    "cities": [
+      "Philadelphia"
+    ]
+  },
+  "42049": {
+    "county": "Erie",
+    "state": "PA",
+    "lat": 42.12,
+    "lng": -80.1,
+    "radius": 20,
+    "cities": [
+      "Erie"
+    ]
+  },
+  "45017": {
+    "county": "Calhoun",
+    "state": "SC",
+    "lat": 33.67,
+    "lng": -80.78,
+    "radius": 20,
+    "cities": [
+      "Columbia"
+    ]
+  },
+  "45021": {
+    "county": "Cherokee",
+    "state": "SC",
+    "lat": 35.05,
+    "lng": -81.62,
+    "radius": 20,
+    "cities": []
+  },
+  "42061": {
+    "county": "Huntingdon",
+    "state": "PA",
+    "lat": 40.42,
+    "lng": -77.98,
+    "radius": 20,
+    "cities": []
+  },
+  "45029": {
+    "county": "Colleton",
+    "state": "SC",
+    "lat": 32.84,
+    "lng": -80.65,
+    "radius": 20,
+    "cities": []
+  },
+  "42071": {
+    "county": "Lancaster",
+    "state": "PA",
+    "lat": 40.04,
+    "lng": -76.25,
+    "radius": 20,
+    "cities": [
+      "Lancaster"
+    ]
+  },
+  "42075": {
+    "county": "Lebanon",
+    "state": "PA",
+    "lat": 40.37,
+    "lng": -76.46,
+    "radius": 20,
+    "cities": [
+      "Lebanon"
+    ]
+  },
+  "42077": {
+    "county": "Lehigh",
+    "state": "PA",
+    "lat": 40.61,
+    "lng": -75.59,
+    "radius": 20,
+    "cities": [
+      "Allentown",
+      "Bethlehem",
+      "Easton"
+    ]
+  },
+  "42119": {
+    "county": "Union",
+    "state": "PA",
+    "lat": 40.96,
+    "lng": -77.06,
+    "radius": 20,
+    "cities": []
+  },
+  "42079": {
+    "county": "Luzerne",
+    "state": "PA",
+    "lat": 41.18,
+    "lng": -75.99,
+    "radius": 20,
+    "cities": [
+      "Barre",
+      "Scranton",
+      "Wilkes"
+    ]
+  },
+  "45049": {
+    "county": "Hampton",
+    "state": "SC",
+    "lat": 32.78,
+    "lng": -81.14,
+    "radius": 20,
+    "cities": []
+  },
+  "45053": {
+    "county": "Jasper",
+    "state": "SC",
+    "lat": 32.42,
+    "lng": -81.02,
+    "radius": 20,
+    "cities": [
+      "Bluffton",
+      "Hilton Head Island"
+    ]
+  },
+  "42085": {
+    "county": "Mercer",
+    "state": "PA",
+    "lat": 41.3,
+    "lng": -80.26,
+    "radius": 20,
+    "cities": [
+      "Boardman",
+      "Warren",
+      "Youngstown"
+    ]
+  },
+  "39139": {
+    "county": "Richland",
+    "state": "OH",
+    "lat": 40.77,
+    "lng": -82.54,
+    "radius": 20,
+    "cities": [
+      "Mansfield"
+    ]
+  },
+  "40109": {
+    "county": "Oklahoma",
+    "state": "OK",
+    "lat": 35.55,
+    "lng": -97.41,
+    "radius": 20,
+    "cities": [
+      "Oklahoma City"
+    ]
+  },
+  "39151": {
+    "county": "Stark",
+    "state": "OH",
+    "lat": 40.81,
+    "lng": -81.37,
+    "radius": 20,
+    "cities": [
+      "Canton",
+      "Massillon"
+    ]
+  },
+  "42029": {
+    "county": "Chester",
+    "state": "PA",
+    "lat": 39.97,
+    "lng": -75.75,
+    "radius": 20,
+    "cities": [
+      "Bucks County",
+      "Chester County",
+      "Montgomery County"
+    ]
+  },
+  "42027": {
+    "county": "Centre",
+    "state": "PA",
+    "lat": 40.92,
+    "lng": -77.82,
+    "radius": 20,
+    "cities": [
+      "State College"
+    ]
+  },
+  "40113": {
+    "county": "Osage",
+    "state": "OK",
+    "lat": 36.63,
+    "lng": -96.4,
+    "radius": 20,
+    "cities": [
+      "Tulsa"
+    ]
+  },
+  "39153": {
+    "county": "Summit",
+    "state": "OH",
+    "lat": 41.13,
+    "lng": -81.53,
+    "radius": 20,
+    "cities": [
+      "Akron"
+    ]
+  },
+  "41059": {
+    "county": "Umatilla",
+    "state": "OR",
+    "lat": 45.59,
+    "lng": -118.74,
+    "radius": 20,
+    "cities": []
+  },
+  "40139": {
+    "county": "Texas",
+    "state": "OK",
+    "lat": 36.75,
+    "lng": -101.49,
+    "radius": 20,
+    "cities": []
+  },
+  "40141": {
+    "county": "Tillman",
+    "state": "OK",
+    "lat": 34.37,
+    "lng": -98.92,
+    "radius": 20,
+    "cities": []
+  },
+  "40143": {
+    "county": "Tulsa",
+    "state": "OK",
+    "lat": 36.12,
+    "lng": -95.94,
+    "radius": 20,
+    "cities": [
+      "Tulsa"
+    ]
+  },
+  "39155": {
+    "county": "Trumbull",
+    "state": "OH",
+    "lat": 41.32,
+    "lng": -80.76,
+    "radius": 20,
+    "cities": [
+      "Boardman",
+      "Warren",
+      "Youngstown"
+    ]
+  },
+  "41067": {
+    "county": "Washington",
+    "state": "OR",
+    "lat": 45.56,
+    "lng": -123.1,
+    "radius": 20,
+    "cities": [
+      "Hillsboro",
+      "Portland",
+      "Vancouver"
+    ]
+  },
+  "39165": {
+    "county": "Warren",
+    "state": "OH",
+    "lat": 39.43,
+    "lng": -84.17,
+    "radius": 20,
+    "cities": [
+      "Cincinnati"
+    ]
+  },
+  "39085": {
+    "county": "Lake",
+    "state": "OH",
+    "lat": 41.91,
+    "lng": -81.25,
+    "radius": 20,
+    "cities": [
+      "Cleveland",
+      "Elyria"
+    ]
+  },
+  "42003": {
+    "county": "Allegheny",
+    "state": "PA",
+    "lat": 40.47,
+    "lng": -79.98,
+    "radius": 20,
+    "cities": [
+      "Pittsburgh"
+    ]
+  },
+  "39093": {
+    "county": "Lorain",
+    "state": "OH",
+    "lat": 41.45,
+    "lng": -82.15,
+    "radius": 20,
+    "cities": [
+      "Cleveland",
+      "Elyria"
+    ]
+  },
+  "39095": {
+    "county": "Lucas",
+    "state": "OH",
+    "lat": 41.68,
+    "lng": -83.47,
+    "radius": 20,
+    "cities": [
+      "Toledo"
+    ]
+  },
+  "40031": {
+    "county": "Comanche",
+    "state": "OK",
+    "lat": 34.66,
+    "lng": -98.47,
+    "radius": 20,
+    "cities": [
+      "Lawton"
+    ]
+  },
+  "40039": {
+    "county": "Custer",
+    "state": "OK",
+    "lat": 35.64,
+    "lng": -99.0,
+    "radius": 20,
+    "cities": []
+  },
+  "39099": {
+    "county": "Mahoning",
+    "state": "OH",
+    "lat": 41.01,
+    "lng": -80.78,
+    "radius": 20,
+    "cities": [
+      "Boardman",
+      "Warren",
+      "Youngstown"
+    ]
+  },
+  "41027": {
+    "county": "Hood River",
+    "state": "OR",
+    "lat": 45.52,
+    "lng": -121.65,
+    "radius": 20,
+    "cities": []
+  },
+  "40065": {
+    "county": "Jackson",
+    "state": "OK",
+    "lat": 34.59,
+    "lng": -99.41,
+    "radius": 20,
+    "cities": []
+  },
+  "42007": {
+    "county": "Beaver",
+    "state": "PA",
+    "lat": 40.68,
+    "lng": -80.35,
+    "radius": 20,
+    "cities": [
+      "Pittsburgh"
+    ]
+  },
+  "42011": {
+    "county": "Berks",
+    "state": "PA",
+    "lat": 40.42,
+    "lng": -75.93,
+    "radius": 20,
+    "cities": [
+      "Reading"
+    ]
+  },
+  "39113": {
+    "county": "Montgomery",
+    "state": "OH",
+    "lat": 39.75,
+    "lng": -84.29,
+    "radius": 20,
+    "cities": [
+      "Dayton",
+      "Kettering"
+    ]
+  },
+  "41045": {
+    "county": "Malheur",
+    "state": "OR",
+    "lat": 43.19,
+    "lng": -117.62,
+    "radius": 20,
+    "cities": []
+  },
+  "41047": {
+    "county": "Marion",
+    "state": "OR",
+    "lat": 44.9,
+    "lng": -122.58,
+    "radius": 20,
+    "cities": [
+      "Salem"
+    ]
+  },
+  "41049": {
+    "county": "Morrow",
+    "state": "OR",
+    "lat": 45.42,
+    "lng": -119.58,
+    "radius": 20,
+    "cities": []
+  },
+  "48349": {
+    "county": "Navarro",
+    "state": "TX",
+    "lat": 32.05,
+    "lng": -96.47,
+    "radius": 20,
+    "cities": []
+  },
+  "48353": {
+    "county": "Nolan",
+    "state": "TX",
+    "lat": 32.3,
+    "lng": -100.41,
+    "radius": 20,
+    "cities": []
+  },
+  "48355": {
+    "county": "Nueces",
+    "state": "TX",
+    "lat": 27.74,
+    "lng": -97.52,
+    "radius": 20,
+    "cities": [
+      "Corpus Christi"
+    ]
+  },
+  "49049": {
+    "county": "Utah",
+    "state": "UT",
+    "lat": 40.12,
+    "lng": -111.67,
+    "radius": 20,
+    "cities": [
+      "Orem",
+      "Provo"
+    ]
+  },
+  "49057": {
+    "county": "Weber",
+    "state": "UT",
+    "lat": 41.27,
+    "lng": -111.91,
+    "radius": 20,
+    "cities": [
+      "Clearfield",
+      "Ogden"
+    ]
+  },
+  "51087": {
+    "county": "Henrico",
+    "state": "VA",
+    "lat": 37.54,
+    "lng": -77.41,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "51089": {
+    "county": "Henry",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -79.87,
+    "radius": 20,
+    "cities": []
+  },
+  "51095": {
+    "county": "James City",
+    "state": "VA",
+    "lat": 37.31,
+    "lng": -76.77,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "48357": {
+    "county": "Ochiltree",
+    "state": "TX",
+    "lat": 36.28,
+    "lng": -100.82,
+    "radius": 20,
+    "cities": []
+  },
+  "48361": {
+    "county": "Orange",
+    "state": "TX",
+    "lat": 30.12,
+    "lng": -93.89,
+    "radius": 20,
+    "cities": [
+      "Beaumont",
+      "Port Arthur"
+    ]
+  },
+  "51107": {
+    "county": "Loudoun",
+    "state": "VA",
+    "lat": 39.09,
+    "lng": -77.64,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "48455": {
+    "county": "Trinity",
+    "state": "TX",
+    "lat": 31.09,
+    "lng": -95.14,
+    "radius": 20,
+    "cities": []
+  },
+  "48457": {
+    "county": "Tyler",
+    "state": "TX",
+    "lat": 30.77,
+    "lng": -94.38,
+    "radius": 20,
+    "cities": []
+  },
+  "48461": {
+    "county": "Upton",
+    "state": "TX",
+    "lat": 31.37,
+    "lng": -102.04,
+    "radius": 20,
+    "cities": []
+  },
+  "48463": {
+    "county": "Uvalde",
+    "state": "TX",
+    "lat": 29.36,
+    "lng": -99.76,
+    "radius": 20,
+    "cities": []
+  },
+  "51117": {
+    "county": "Mecklenburg",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -78.36,
+    "radius": 20,
+    "cities": []
+  },
+  "51135": {
+    "county": "Nottoway",
+    "state": "VA",
+    "lat": 37.14,
+    "lng": -78.05,
+    "radius": 20,
+    "cities": []
+  },
+  "48215": {
+    "county": "Hidalgo",
+    "state": "TX",
+    "lat": 26.4,
+    "lng": -98.18,
+    "radius": 20,
+    "cities": [
+      "Edinburg",
+      "McAllen",
+      "Mission"
+    ]
+  },
+  "48465": {
+    "county": "Val Verde",
+    "state": "TX",
+    "lat": 29.89,
+    "lng": -101.15,
+    "radius": 20,
+    "cities": []
+  },
+  "48469": {
+    "county": "Victoria",
+    "state": "TX",
+    "lat": 28.8,
+    "lng": -96.97,
+    "radius": 20,
+    "cities": [
+      "Victoria"
+    ]
+  },
+  "48471": {
+    "county": "Walker",
+    "state": "TX",
+    "lat": 30.74,
+    "lng": -95.57,
+    "radius": 20,
+    "cities": []
+  },
+  "51145": {
+    "county": "Powhatan",
+    "state": "VA",
+    "lat": 37.55,
+    "lng": -77.92,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "51147": {
+    "county": "Prince Edward",
+    "state": "VA",
+    "lat": 37.22,
+    "lng": -78.44,
+    "radius": 20,
+    "cities": []
+  },
+  "51149": {
+    "county": "Prince George",
+    "state": "VA",
+    "lat": 37.19,
+    "lng": -77.22,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "51153": {
+    "county": "Prince William",
+    "state": "VA",
+    "lat": 38.7,
+    "lng": -77.48,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "48369": {
+    "county": "Parmer",
+    "state": "TX",
+    "lat": 34.53,
+    "lng": -102.78,
+    "radius": 20,
+    "cities": []
+  },
+  "48371": {
+    "county": "Pecos",
+    "state": "TX",
+    "lat": 30.78,
+    "lng": -102.72,
+    "radius": 20,
+    "cities": []
+  },
+  "48373": {
+    "county": "Polk",
+    "state": "TX",
+    "lat": 30.79,
+    "lng": -94.83,
+    "radius": 20,
+    "cities": []
+  },
+  "48375": {
+    "county": "Potter",
+    "state": "TX",
+    "lat": 35.4,
+    "lng": -101.89,
+    "radius": 20,
+    "cities": [
+      "Amarillo"
+    ]
+  },
+  "48475": {
+    "county": "Ward",
+    "state": "TX",
+    "lat": 31.51,
+    "lng": -103.1,
+    "radius": 20,
+    "cities": []
+  },
+  "48477": {
+    "county": "Washington",
+    "state": "TX",
+    "lat": 30.21,
+    "lng": -96.4,
+    "radius": 20,
+    "cities": []
+  },
+  "48479": {
+    "county": "Webb",
+    "state": "TX",
+    "lat": 27.76,
+    "lng": -99.33,
+    "radius": 20,
+    "cities": [
+      "Laredo"
+    ]
+  },
+  "48377": {
+    "county": "Presidio",
+    "state": "TX",
+    "lat": 30.0,
+    "lng": -104.24,
+    "radius": 20,
+    "cities": []
+  },
+  "48381": {
+    "county": "Randall",
+    "state": "TX",
+    "lat": 34.97,
+    "lng": -101.9,
+    "radius": 20,
+    "cities": [
+      "Amarillo"
+    ]
+  },
+  "48383": {
+    "county": "Reagan",
+    "state": "TX",
+    "lat": 31.37,
+    "lng": -101.52,
+    "radius": 20,
+    "cities": []
+  },
+  "48387": {
+    "county": "Red River",
+    "state": "TX",
+    "lat": 33.62,
+    "lng": -95.05,
+    "radius": 20,
+    "cities": []
+  },
+  "48389": {
+    "county": "Reeves",
+    "state": "TX",
+    "lat": 31.32,
+    "lng": -103.69,
+    "radius": 20,
+    "cities": []
+  },
+  "48391": {
+    "county": "Refugio",
+    "state": "TX",
+    "lat": 28.32,
+    "lng": -97.16,
+    "radius": 20,
+    "cities": []
+  },
+  "48395": {
+    "county": "Robertson",
+    "state": "TX",
+    "lat": 31.03,
+    "lng": -96.51,
+    "radius": 20,
+    "cities": [
+      "Bryan",
+      "College Station"
+    ]
+  },
+  "48217": {
+    "county": "Hill",
+    "state": "TX",
+    "lat": 31.99,
+    "lng": -97.13,
+    "radius": 20,
+    "cities": []
+  },
+  "48219": {
+    "county": "Hockley",
+    "state": "TX",
+    "lat": 33.61,
+    "lng": -102.34,
+    "radius": 20,
+    "cities": []
+  },
+  "48225": {
+    "county": "Houston",
+    "state": "TX",
+    "lat": 31.32,
+    "lng": -95.42,
+    "radius": 20,
+    "cities": []
+  },
+  "48227": {
+    "county": "Howard",
+    "state": "TX",
+    "lat": 32.31,
+    "lng": -101.44,
+    "radius": 20,
+    "cities": []
+  },
+  "48229": {
+    "county": "Hudspeth",
+    "state": "TX",
+    "lat": 31.46,
+    "lng": -105.39,
+    "radius": 20,
+    "cities": [
+      "El Paso"
+    ]
+  },
+  "48481": {
+    "county": "Wharton",
+    "state": "TX",
+    "lat": 29.28,
+    "lng": -96.22,
+    "radius": 20,
+    "cities": []
+  },
+  "48485": {
+    "county": "Wichita",
+    "state": "TX",
+    "lat": 33.99,
+    "lng": -98.7,
+    "radius": 20,
+    "cities": [
+      "Wichita Falls"
+    ]
+  },
+  "48487": {
+    "county": "Wilbarger",
+    "state": "TX",
+    "lat": 34.08,
+    "lng": -99.24,
+    "radius": 20,
+    "cities": []
+  },
+  "48489": {
+    "county": "Willacy",
+    "state": "TX",
+    "lat": 26.48,
+    "lng": -97.59,
+    "radius": 20,
+    "cities": []
+  },
+  "51001": {
+    "county": "Accomack",
+    "state": "VA",
+    "lat": 37.76,
+    "lng": -75.76,
+    "radius": 20,
+    "cities": []
+  },
+  "48399": {
+    "county": "Runnels",
+    "state": "TX",
+    "lat": 31.83,
+    "lng": -99.98,
+    "radius": 20,
+    "cities": []
+  },
+  "48401": {
+    "county": "Rusk",
+    "state": "TX",
+    "lat": 32.11,
+    "lng": -94.76,
+    "radius": 20,
+    "cities": [
+      "Longview"
+    ]
+  },
+  "48405": {
+    "county": "San Augustine",
+    "state": "TX",
+    "lat": 31.39,
+    "lng": -94.17,
+    "radius": 20,
+    "cities": []
+  },
+  "48409": {
+    "county": "San Patricio",
+    "state": "TX",
+    "lat": 28.01,
+    "lng": -97.52,
+    "radius": 20,
+    "cities": [
+      "Corpus Christi"
+    ]
+  },
+  "48233": {
+    "county": "Hutchinson",
+    "state": "TX",
+    "lat": 35.84,
+    "lng": -101.35,
+    "radius": 20,
+    "cities": []
+  },
+  "48239": {
+    "county": "Jackson",
+    "state": "TX",
+    "lat": 28.95,
+    "lng": -96.58,
+    "radius": 20,
+    "cities": []
+  },
+  "48241": {
+    "county": "Jasper",
+    "state": "TX",
+    "lat": 30.74,
+    "lng": -94.02,
+    "radius": 20,
+    "cities": []
+  },
+  "48245": {
+    "county": "Jefferson",
+    "state": "TX",
+    "lat": 29.85,
+    "lng": -94.15,
+    "radius": 20,
+    "cities": [
+      "Beaumont",
+      "Port Arthur"
+    ]
+  },
+  "48413": {
+    "county": "Schleicher",
+    "state": "TX",
+    "lat": 30.9,
+    "lng": -100.54,
+    "radius": 20,
+    "cities": []
+  },
+  "48415": {
+    "county": "Scurry",
+    "state": "TX",
+    "lat": 32.75,
+    "lng": -100.92,
+    "radius": 20,
+    "cities": []
+  },
+  "48419": {
+    "county": "Shelby",
+    "state": "TX",
+    "lat": 31.79,
+    "lng": -94.14,
+    "radius": 20,
+    "cities": []
+  },
+  "48423": {
+    "county": "Smith",
+    "state": "TX",
+    "lat": 32.37,
+    "lng": -95.27,
+    "radius": 20,
+    "cities": [
+      "Tyler"
+    ]
+  },
+  "48247": {
+    "county": "Jim Hogg",
+    "state": "TX",
+    "lat": 27.04,
+    "lng": -98.7,
+    "radius": 20,
+    "cities": []
+  },
+  "48249": {
+    "county": "Jim Wells",
+    "state": "TX",
+    "lat": 27.73,
+    "lng": -98.09,
+    "radius": 20,
+    "cities": []
+  },
+  "48251": {
+    "county": "Johnson",
+    "state": "TX",
+    "lat": 32.38,
+    "lng": -97.37,
+    "radius": 20,
+    "cities": [
+      "Arlington",
+      "Fort Worth",
+      "Grapevine"
+    ]
+  },
+  "48493": {
+    "county": "Wilson",
+    "state": "TX",
+    "lat": 29.17,
+    "lng": -98.09,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48495": {
+    "county": "Winkler",
+    "state": "TX",
+    "lat": 31.85,
+    "lng": -103.05,
+    "radius": 20,
+    "cities": []
+  },
+  "48427": {
+    "county": "Starr",
+    "state": "TX",
+    "lat": 26.56,
+    "lng": -98.74,
+    "radius": 20,
+    "cities": []
+  },
+  "48435": {
+    "county": "Sutton",
+    "state": "TX",
+    "lat": 30.5,
+    "lng": -100.54,
+    "radius": 20,
+    "cities": []
+  },
+  "48437": {
+    "county": "Swisher",
+    "state": "TX",
+    "lat": 34.53,
+    "lng": -101.74,
+    "radius": 20,
+    "cities": []
+  },
+  "48439": {
+    "county": "Tarrant",
+    "state": "TX",
+    "lat": 32.77,
+    "lng": -97.29,
+    "radius": 20,
+    "cities": [
+      "Arlington",
+      "Fort Worth",
+      "Grapevine"
+    ]
+  },
+  "48253": {
+    "county": "Jones",
+    "state": "TX",
+    "lat": 32.74,
+    "lng": -99.88,
+    "radius": 20,
+    "cities": [
+      "Abilene"
+    ]
+  },
+  "48255": {
+    "county": "Karnes",
+    "state": "TX",
+    "lat": 28.91,
+    "lng": -97.86,
+    "radius": 20,
+    "cities": []
+  },
+  "48261": {
+    "county": "Kenedy",
+    "state": "TX",
+    "lat": 26.93,
+    "lng": -97.64,
+    "radius": 20,
+    "cities": []
+  },
+  "48501": {
+    "county": "Yoakum",
+    "state": "TX",
+    "lat": 33.17,
+    "lng": -102.83,
+    "radius": 20,
+    "cities": []
+  },
+  "48505": {
+    "county": "Zapata",
+    "state": "TX",
+    "lat": 27.0,
+    "lng": -99.17,
+    "radius": 20,
+    "cities": []
+  },
+  "48507": {
+    "county": "Zavala",
+    "state": "TX",
+    "lat": 28.87,
+    "lng": -99.76,
+    "radius": 20,
+    "cities": []
+  },
+  "51025": {
+    "county": "Brunswick",
+    "state": "VA",
+    "lat": 36.76,
+    "lng": -77.86,
+    "radius": 20,
+    "cities": []
+  },
+  "48273": {
+    "county": "Kleberg",
+    "state": "TX",
+    "lat": 27.43,
+    "lng": -97.67,
+    "radius": 20,
+    "cities": []
+  },
+  "48277": {
+    "county": "Lamar",
+    "state": "TX",
+    "lat": 33.67,
+    "lng": -95.57,
+    "radius": 20,
+    "cities": []
+  },
+  "48279": {
+    "county": "Lamb",
+    "state": "TX",
+    "lat": 34.07,
+    "lng": -102.35,
+    "radius": 20,
+    "cities": []
+  },
+  "48283": {
+    "county": "La Salle",
+    "state": "TX",
+    "lat": 28.34,
+    "lng": -99.1,
+    "radius": 20,
+    "cities": []
+  },
+  "48285": {
+    "county": "Lavaca",
+    "state": "TX",
+    "lat": 29.38,
+    "lng": -96.93,
+    "radius": 20,
+    "cities": []
+  },
+  "48287": {
+    "county": "Lee",
+    "state": "TX",
+    "lat": 30.31,
+    "lng": -96.97,
+    "radius": 20,
+    "cities": []
+  },
+  "51041": {
+    "county": "Chesterfield",
+    "state": "VA",
+    "lat": 37.38,
+    "lng": -77.59,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "48293": {
+    "county": "Limestone",
+    "state": "TX",
+    "lat": 31.55,
+    "lng": -96.58,
+    "radius": 20,
+    "cities": []
+  },
+  "48297": {
+    "county": "Live Oak",
+    "state": "TX",
+    "lat": 28.35,
+    "lng": -98.12,
+    "radius": 20,
+    "cities": []
+  },
+  "48303": {
+    "county": "Lubbock",
+    "state": "TX",
+    "lat": 33.61,
+    "lng": -101.82,
+    "radius": 20,
+    "cities": [
+      "Lubbock"
+    ]
+  },
+  "49035": {
+    "county": "Salt Lake",
+    "state": "UT",
+    "lat": 40.67,
+    "lng": -111.92,
+    "radius": 20,
+    "cities": [
+      "Salt Lake City"
+    ]
+  },
+  "51047": {
+    "county": "Culpeper",
+    "state": "VA",
+    "lat": 38.49,
+    "lng": -77.96,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "51053": {
+    "county": "Dinwiddie",
+    "state": "VA",
+    "lat": 37.08,
+    "lng": -77.63,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "48305": {
+    "county": "Lynn",
+    "state": "TX",
+    "lat": 33.18,
+    "lng": -101.82,
+    "radius": 20,
+    "cities": [
+      "Lubbock"
+    ]
+  },
+  "48309": {
+    "county": "McLennan",
+    "state": "TX",
+    "lat": 31.55,
+    "lng": -97.2,
+    "radius": 20,
+    "cities": [
+      "Waco"
+    ]
+  },
+  "48313": {
+    "county": "Madison",
+    "state": "TX",
+    "lat": 30.97,
+    "lng": -95.93,
+    "radius": 20,
+    "cities": []
+  },
+  "48321": {
+    "county": "Matagorda",
+    "state": "TX",
+    "lat": 28.79,
+    "lng": -96.0,
+    "radius": 20,
+    "cities": []
+  },
+  "48323": {
+    "county": "Maverick",
+    "state": "TX",
+    "lat": 28.74,
+    "lng": -100.31,
+    "radius": 20,
+    "cities": []
+  },
+  "48325": {
+    "county": "Medina",
+    "state": "TX",
+    "lat": 29.36,
+    "lng": -99.11,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48329": {
+    "county": "Midland",
+    "state": "TX",
+    "lat": 31.87,
+    "lng": -102.03,
+    "radius": 20,
+    "cities": [
+      "Midland"
+    ]
+  },
+  "48331": {
+    "county": "Milam",
+    "state": "TX",
+    "lat": 30.79,
+    "lng": -96.98,
+    "radius": 20,
+    "cities": []
+  },
+  "48335": {
+    "county": "Mitchell",
+    "state": "TX",
+    "lat": 32.31,
+    "lng": -100.92,
+    "radius": 20,
+    "cities": []
+  },
+  "49045": {
+    "county": "Tooele",
+    "state": "UT",
+    "lat": 40.45,
+    "lng": -113.13,
+    "radius": 20,
+    "cities": [
+      "Salt Lake City"
+    ]
+  },
+  "48441": {
+    "county": "Taylor",
+    "state": "TX",
+    "lat": 32.3,
+    "lng": -99.89,
+    "radius": 20,
+    "cities": [
+      "Abilene"
+    ]
+  },
+  "48443": {
+    "county": "Terrell",
+    "state": "TX",
+    "lat": 30.22,
+    "lng": -102.08,
+    "radius": 20,
+    "cities": []
+  },
+  "48445": {
+    "county": "Terry",
+    "state": "TX",
+    "lat": 33.17,
+    "lng": -102.34,
+    "radius": 20,
+    "cities": []
+  },
+  "48449": {
+    "county": "Titus",
+    "state": "TX",
+    "lat": 33.22,
+    "lng": -94.97,
+    "radius": 20,
+    "cities": []
+  },
+  "48451": {
+    "county": "Tom Green",
+    "state": "TX",
+    "lat": 31.4,
+    "lng": -100.46,
+    "radius": 20,
+    "cities": [
+      "San Angelo"
+    ]
+  },
+  "48341": {
+    "county": "Moore",
+    "state": "TX",
+    "lat": 35.84,
+    "lng": -101.89,
+    "radius": 20,
+    "cities": []
+  },
+  "48347": {
+    "county": "Nacogdoches",
+    "state": "TX",
+    "lat": 31.62,
+    "lng": -94.62,
+    "radius": 20,
+    "cities": []
+  },
+  "51081": {
+    "county": "Greensville",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -77.56,
+    "radius": 20,
+    "cities": []
+  },
+  "51083": {
+    "county": "Halifax",
+    "state": "VA",
+    "lat": 36.77,
+    "lng": -78.94,
+    "radius": 20,
+    "cities": []
+  },
+  "48029": {
+    "county": "Bexar",
+    "state": "TX",
+    "lat": 29.45,
+    "lng": -98.52,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48169": {
+    "county": "Garza",
+    "state": "TX",
+    "lat": 33.18,
+    "lng": -101.3,
+    "radius": 20,
+    "cities": []
+  },
+  "48177": {
+    "county": "Gonzales",
+    "state": "TX",
+    "lat": 29.46,
+    "lng": -97.49,
+    "radius": 20,
+    "cities": []
+  },
+  "48179": {
+    "county": "Gray",
+    "state": "TX",
+    "lat": 35.4,
+    "lng": -100.81,
+    "radius": 20,
+    "cities": []
+  },
+  "48181": {
+    "county": "Grayson",
+    "state": "TX",
+    "lat": 33.63,
+    "lng": -96.68,
+    "radius": 20,
+    "cities": [
+      "Denison",
+      "Sherman"
+    ]
+  },
+  "48183": {
+    "county": "Gregg",
+    "state": "TX",
+    "lat": 32.48,
+    "lng": -94.82,
+    "radius": 20,
+    "cities": [
+      "Longview"
+    ]
+  },
+  "48185": {
+    "county": "Grimes",
+    "state": "TX",
+    "lat": 30.54,
+    "lng": -95.99,
+    "radius": 20,
+    "cities": []
+  },
+  "48187": {
+    "county": "Guadalupe",
+    "state": "TX",
+    "lat": 29.58,
+    "lng": -97.95,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48189": {
+    "county": "Hale",
+    "state": "TX",
+    "lat": 34.07,
+    "lng": -101.83,
+    "radius": 20,
+    "cities": []
+  },
+  "48203": {
+    "county": "Harrison",
+    "state": "TX",
+    "lat": 32.55,
+    "lng": -94.37,
+    "radius": 20,
+    "cities": [
+      "Longview"
+    ]
+  },
+  "47097": {
+    "county": "Lauderdale",
+    "state": "TN",
+    "lat": 35.76,
+    "lng": -89.63,
+    "radius": 20,
+    "cities": []
+  },
+  "48213": {
+    "county": "Henderson",
+    "state": "TX",
+    "lat": 32.21,
+    "lng": -95.85,
+    "radius": 20,
+    "cities": []
+  },
+  "47113": {
+    "county": "Madison",
+    "state": "TN",
+    "lat": 35.61,
+    "lng": -88.84,
+    "radius": 20,
+    "cities": [
+      "Jackson"
+    ]
+  },
+  "48195": {
+    "county": "Hansford",
+    "state": "TX",
+    "lat": 36.28,
+    "lng": -101.35,
+    "radius": 20,
+    "cities": []
+  },
+  "47119": {
+    "county": "Maury",
+    "state": "TN",
+    "lat": 35.62,
+    "lng": -87.08,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "47125": {
+    "county": "Montgomery",
+    "state": "TN",
+    "lat": 36.5,
+    "lng": -87.38,
+    "radius": 20,
+    "cities": [
+      "Clarksville"
+    ]
+  },
+  "48037": {
+    "county": "Bowie",
+    "state": "TX",
+    "lat": 33.45,
+    "lng": -94.42,
+    "radius": 20,
+    "cities": [
+      "Texarkana"
+    ]
+  },
+  "48041": {
+    "county": "Brazos",
+    "state": "TX",
+    "lat": 30.66,
+    "lng": -96.3,
+    "radius": 20,
+    "cities": [
+      "Bryan",
+      "College Station"
+    ]
+  },
+  "47147": {
+    "county": "Robertson",
+    "state": "TN",
+    "lat": 36.53,
+    "lng": -86.87,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "47149": {
+    "county": "Rutherford",
+    "state": "TN",
+    "lat": 35.84,
+    "lng": -86.42,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "48115": {
+    "county": "Dawson",
+    "state": "TX",
+    "lat": 32.74,
+    "lng": -101.95,
+    "radius": 20,
+    "cities": []
+  },
+  "48117": {
+    "county": "Deaf Smith",
+    "state": "TX",
+    "lat": 34.97,
+    "lng": -102.6,
+    "radius": 20,
+    "cities": []
+  },
+  "48043": {
+    "county": "Brewster",
+    "state": "TX",
+    "lat": 29.81,
+    "lng": -103.25,
+    "radius": 20,
+    "cities": []
+  },
+  "48047": {
+    "county": "Brooks",
+    "state": "TX",
+    "lat": 27.03,
+    "lng": -98.22,
+    "radius": 20,
+    "cities": []
+  },
+  "48049": {
+    "county": "Brown",
+    "state": "TX",
+    "lat": 31.77,
+    "lng": -99.0,
+    "radius": 20,
+    "cities": []
+  },
+  "48053": {
+    "county": "Burnet",
+    "state": "TX",
+    "lat": 30.79,
+    "lng": -98.18,
+    "radius": 20,
+    "cities": []
+  },
+  "48057": {
+    "county": "Calhoun",
+    "state": "TX",
+    "lat": 28.44,
+    "lng": -96.62,
+    "radius": 20,
+    "cities": []
+  },
+  "47157": {
+    "county": "Shelby",
+    "state": "TN",
+    "lat": 35.18,
+    "lng": -89.89,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "48061": {
+    "county": "Cameron",
+    "state": "TX",
+    "lat": 26.15,
+    "lng": -97.45,
+    "radius": 20,
+    "cities": [
+      "Brownsville",
+      "Harlingen"
+    ]
+  },
+  "48123": {
+    "county": "DeWitt",
+    "state": "TX",
+    "lat": 29.08,
+    "lng": -97.36,
+    "radius": 20,
+    "cities": []
+  },
+  "48127": {
+    "county": "Dimmit",
+    "state": "TX",
+    "lat": 28.42,
+    "lng": -99.76,
+    "radius": 20,
+    "cities": []
+  },
+  "48131": {
+    "county": "Duval",
+    "state": "TX",
+    "lat": 27.68,
+    "lng": -98.51,
+    "radius": 20,
+    "cities": []
+  },
+  "48063": {
+    "county": "Camp",
+    "state": "TX",
+    "lat": 32.97,
+    "lng": -94.98,
+    "radius": 20,
+    "cities": []
+  },
+  "48069": {
+    "county": "Castro",
+    "state": "TX",
+    "lat": 34.53,
+    "lng": -102.26,
+    "radius": 20,
+    "cities": []
+  },
+  "48135": {
+    "county": "Ector",
+    "state": "TX",
+    "lat": 31.87,
+    "lng": -102.54,
+    "radius": 20,
+    "cities": [
+      "Odessa"
+    ]
+  },
+  "48137": {
+    "county": "Edwards",
+    "state": "TX",
+    "lat": 29.98,
+    "lng": -100.3,
+    "radius": 20,
+    "cities": []
+  },
+  "48073": {
+    "county": "Cherokee",
+    "state": "TX",
+    "lat": 31.84,
+    "lng": -95.16,
+    "radius": 20,
+    "cities": []
+  },
+  "48079": {
+    "county": "Cochran",
+    "state": "TX",
+    "lat": 33.6,
+    "lng": -102.83,
+    "radius": 20,
+    "cities": []
+  },
+  "48141": {
+    "county": "El Paso",
+    "state": "TX",
+    "lat": 31.77,
+    "lng": -106.23,
+    "radius": 20,
+    "cities": [
+      "El Paso"
+    ]
+  },
+  "47165": {
+    "county": "Sumner",
+    "state": "TN",
+    "lat": 36.47,
+    "lng": -86.46,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "47167": {
+    "county": "Tipton",
+    "state": "TN",
+    "lat": 35.5,
+    "lng": -89.76,
+    "radius": 20,
+    "cities": [
+      "Memphis"
+    ]
+  },
+  "48145": {
+    "county": "Falls",
+    "state": "TX",
+    "lat": 31.25,
+    "lng": -96.94,
+    "radius": 20,
+    "cities": [
+      "Waco"
+    ]
+  },
+  "48153": {
+    "county": "Floyd",
+    "state": "TX",
+    "lat": 34.07,
+    "lng": -101.3,
+    "radius": 20,
+    "cities": []
+  },
+  "48089": {
+    "county": "Colorado",
+    "state": "TX",
+    "lat": 29.62,
+    "lng": -96.53,
+    "radius": 20,
+    "cities": []
+  },
+  "48091": {
+    "county": "Comal",
+    "state": "TX",
+    "lat": 29.81,
+    "lng": -98.28,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48097": {
+    "county": "Cooke",
+    "state": "TX",
+    "lat": 33.64,
+    "lng": -97.21,
+    "radius": 20,
+    "cities": []
+  },
+  "48099": {
+    "county": "Coryell",
+    "state": "TX",
+    "lat": 31.39,
+    "lng": -97.8,
+    "radius": 20,
+    "cities": [
+      "Killeen",
+      "Temple"
+    ]
+  },
+  "47187": {
+    "county": "Williamson",
+    "state": "TN",
+    "lat": 35.89,
+    "lng": -86.9,
+    "radius": 20,
+    "cities": [
+      "Davidson",
+      "Franklin",
+      "Murfreesboro",
+      "Nashville"
+    ]
+  },
+  "48001": {
+    "county": "Anderson",
+    "state": "TX",
+    "lat": 31.81,
+    "lng": -95.65,
+    "radius": 20,
+    "cities": []
+  },
+  "48003": {
+    "county": "Andrews",
+    "state": "TX",
+    "lat": 32.31,
+    "lng": -102.64,
+    "radius": 20,
+    "cities": []
+  },
+  "48103": {
+    "county": "Crane",
+    "state": "TX",
+    "lat": 31.43,
+    "lng": -102.52,
+    "radius": 20,
+    "cities": []
+  },
+  "48105": {
+    "county": "Crockett",
+    "state": "TX",
+    "lat": 30.72,
+    "lng": -101.41,
+    "radius": 20,
+    "cities": []
+  },
+  "48107": {
+    "county": "Crosby",
+    "state": "TX",
+    "lat": 33.61,
+    "lng": -101.3,
+    "radius": 20,
+    "cities": [
+      "Lubbock"
+    ]
+  },
+  "48109": {
+    "county": "Culberson",
+    "state": "TX",
+    "lat": 31.45,
+    "lng": -104.52,
+    "radius": 20,
+    "cities": []
+  },
+  "48111": {
+    "county": "Dallam",
+    "state": "TX",
+    "lat": 36.28,
+    "lng": -102.6,
+    "radius": 20,
+    "cities": []
+  },
+  "48005": {
+    "county": "Angelina",
+    "state": "TX",
+    "lat": 31.25,
+    "lng": -94.61,
+    "radius": 20,
+    "cities": []
+  },
+  "48013": {
+    "county": "Atascosa",
+    "state": "TX",
+    "lat": 28.89,
+    "lng": -98.53,
+    "radius": 20,
+    "cities": [
+      "New Braunfels",
+      "San Antonio"
+    ]
+  },
+  "48017": {
+    "county": "Bailey",
+    "state": "TX",
+    "lat": 34.07,
+    "lng": -102.83,
+    "radius": 20,
+    "cities": []
+  },
+  "48161": {
+    "county": "Freestone",
+    "state": "TX",
+    "lat": 31.7,
+    "lng": -96.15,
+    "radius": 20,
+    "cities": []
+  },
+  "48163": {
+    "county": "Frio",
+    "state": "TX",
+    "lat": 28.87,
+    "lng": -99.11,
+    "radius": 20,
+    "cities": []
+  },
+  "48165": {
+    "county": "Gaines",
+    "state": "TX",
+    "lat": 32.74,
+    "lng": -102.64,
+    "radius": 20,
+    "cities": []
+  },
+  "48025": {
+    "county": "Bee",
+    "state": "TX",
+    "lat": 28.42,
+    "lng": -97.74,
+    "radius": 20,
+    "cities": []
+  },
+  "48027": {
+    "county": "Bell",
+    "state": "TX",
+    "lat": 31.04,
+    "lng": -97.48,
+    "radius": 20,
+    "cities": [
+      "Killeen",
+      "Temple"
+    ]
+  },
+  "53017": {
+    "county": "Douglas",
+    "state": "WA",
+    "lat": 47.74,
+    "lng": -119.69,
+    "radius": 20,
+    "cities": [
+      "Wenatchee"
+    ]
+  },
+  "53021": {
+    "county": "Franklin",
+    "state": "WA",
+    "lat": 46.53,
+    "lng": -118.9,
+    "radius": 20,
+    "cities": [
+      "Kennewick",
+      "Richland"
+    ]
+  },
+  "53025": {
+    "county": "Grant",
+    "state": "WA",
+    "lat": 47.2,
+    "lng": -119.45,
+    "radius": 20,
+    "cities": []
+  },
+  "56021": {
+    "county": "Laramie",
+    "state": "WY",
+    "lat": 41.31,
+    "lng": -104.69,
+    "radius": 20,
+    "cities": [
+      "Cheyenne"
+    ]
+  },
+  "51175": {
+    "county": "Southampton",
+    "state": "VA",
+    "lat": 36.72,
+    "lng": -77.11,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "53071": {
+    "county": "Walla Walla",
+    "state": "WA",
+    "lat": 46.23,
+    "lng": -118.48,
+    "radius": 20,
+    "cities": [
+      "Walla Walla"
+    ]
+  },
+  "55059": {
+    "county": "Kenosha",
+    "state": "WI",
+    "lat": 42.58,
+    "lng": -87.65,
+    "radius": 20,
+    "cities": [
+      "Kenosha County",
+      "Lake County"
+    ]
+  },
+  "51177": {
+    "county": "Spotsylvania",
+    "state": "VA",
+    "lat": 38.19,
+    "lng": -77.66,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "51179": {
+    "county": "Stafford",
+    "state": "VA",
+    "lat": 38.42,
+    "lng": -77.46,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "51183": {
+    "county": "Sussex",
+    "state": "VA",
+    "lat": 36.92,
+    "lng": -77.26,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "53077": {
+    "county": "Yakima",
+    "state": "WA",
+    "lat": 46.46,
+    "lng": -120.74,
+    "radius": 20,
+    "cities": [
+      "Yakima"
+    ]
+  },
+  "53033": {
+    "county": "King",
+    "state": "WA",
+    "lat": 47.49,
+    "lng": -121.84,
+    "radius": 20,
+    "cities": [
+      "Bellevue",
+      "Kent",
+      "Seattle"
+    ]
+  },
+  "51193": {
+    "county": "Westmoreland",
+    "state": "VA",
+    "lat": 38.11,
+    "lng": -76.8,
+    "radius": 20,
+    "cities": []
+  },
+  "55079": {
+    "county": "Milwaukee",
+    "state": "WI",
+    "lat": 43.02,
+    "lng": -87.58,
+    "radius": 20,
+    "cities": [
+      "Milwaukee",
+      "Waukesha"
+    ]
+  },
+  "51550": {
+    "county": "Chesapeake city",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -76.3,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "54021": {
+    "county": "Gilmer",
+    "state": "WV",
+    "lat": 38.92,
+    "lng": -80.86,
+    "radius": 20,
+    "cities": []
+  },
+  "51590": {
+    "county": "Danville city",
+    "state": "VA",
+    "lat": 36.58,
+    "lng": -79.41,
+    "radius": 20,
+    "cities": []
+  },
+  "51595": {
+    "county": "Emporia city",
+    "state": "VA",
+    "lat": 36.7,
+    "lng": -77.54,
+    "radius": 20,
+    "cities": []
+  },
+  "51620": {
+    "county": "Franklin city",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -76.94,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "54039": {
+    "county": "Kanawha",
+    "state": "WV",
+    "lat": 38.34,
+    "lng": -81.53,
+    "radius": 20,
+    "cities": [
+      "Charleston"
+    ]
+  },
+  "51650": {
+    "county": "Hampton city",
+    "state": "VA",
+    "lat": 37.05,
+    "lng": -76.3,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "51660": {
+    "county": "Harrisonburg city",
+    "state": "VA",
+    "lat": 38.44,
+    "lng": -78.87,
+    "radius": 20,
+    "cities": [
+      "Harrisonburg"
+    ]
+  },
+  "51670": {
+    "county": "Hopewell city",
+    "state": "VA",
+    "lat": 37.29,
+    "lng": -77.3,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "51680": {
+    "county": "Lynchburg city",
+    "state": "VA",
+    "lat": 37.4,
+    "lng": -79.19,
+    "radius": 20,
+    "cities": [
+      "Lynchburg"
+    ]
+  },
+  "51683": {
+    "county": "Manassas city",
+    "state": "VA",
+    "lat": 38.75,
+    "lng": -77.48,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "51685": {
+    "county": "Manassas Park city",
+    "state": "VA",
+    "lat": 38.77,
+    "lng": -77.44,
+    "radius": 20,
+    "cities": [
+      "Alexandria",
+      "Arlington",
+      "Washington"
+    ]
+  },
+  "51690": {
+    "county": "Martinsville city",
+    "state": "VA",
+    "lat": 36.68,
+    "lng": -79.86,
+    "radius": 20,
+    "cities": []
+  },
+  "51700": {
+    "county": "Newport News city",
+    "state": "VA",
+    "lat": 37.08,
+    "lng": -76.52,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "51710": {
+    "county": "Norfolk city",
+    "state": "VA",
+    "lat": 36.92,
+    "lng": -76.25,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "51730": {
+    "county": "Petersburg city",
+    "state": "VA",
+    "lat": 37.2,
+    "lng": -77.39,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "55101": {
+    "county": "Racine",
+    "state": "WI",
+    "lat": 42.75,
+    "lng": -87.7,
+    "radius": 20,
+    "cities": [
+      "Racine"
+    ]
+  },
+  "53047": {
+    "county": "Okanogan",
+    "state": "WA",
+    "lat": 48.55,
+    "lng": -119.74,
+    "radius": 20,
+    "cities": []
+  },
+  "51740": {
+    "county": "Portsmouth city",
+    "state": "VA",
+    "lat": 36.86,
+    "lng": -76.36,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "51760": {
+    "county": "Richmond city",
+    "state": "VA",
+    "lat": 37.53,
+    "lng": -77.48,
+    "radius": 20,
+    "cities": [
+      "Richmond"
+    ]
+  },
+  "55105": {
+    "county": "Rock",
+    "state": "WI",
+    "lat": 42.67,
+    "lng": -89.07,
+    "radius": 20,
+    "cities": [
+      "Beloit",
+      "Janesville"
+    ]
+  },
+  "53053": {
+    "county": "Pierce",
+    "state": "WA",
+    "lat": 47.04,
+    "lng": -122.14,
+    "radius": 20,
+    "cities": [
+      "Lakewood",
+      "Tacoma"
+    ]
+  },
+  "51770": {
+    "county": "Roanoke city",
+    "state": "VA",
+    "lat": 37.28,
+    "lng": -79.96,
+    "radius": 20,
+    "cities": [
+      "Roanoke"
+    ]
+  },
+  "51800": {
+    "county": "Suffolk city",
+    "state": "VA",
+    "lat": 36.7,
+    "lng": -76.63,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "55009": {
+    "county": "Brown",
+    "state": "WI",
+    "lat": 44.47,
+    "lng": -87.99,
+    "radius": 20,
+    "cities": [
+      "Green Bay"
+    ]
+  },
+  "51810": {
+    "county": "Virginia Beach city",
+    "state": "VA",
+    "lat": 36.78,
+    "lng": -76.02,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "55121": {
+    "county": "Trempealeau",
+    "state": "WI",
+    "lat": 44.3,
+    "lng": -91.36,
+    "radius": 20,
+    "cities": []
+  },
+  "53057": {
+    "county": "Skagit",
+    "state": "WA",
+    "lat": 48.48,
+    "lng": -121.8,
+    "radius": 20,
+    "cities": [
+      "Anacortes",
+      "Mount Vernon"
+    ]
+  },
+  "51830": {
+    "county": "Williamsburg city",
+    "state": "VA",
+    "lat": 37.27,
+    "lng": -76.71,
+    "radius": 20,
+    "cities": [
+      "Newport News",
+      "Norfolk",
+      "Virginia Beach"
+    ]
+  },
+  "51840": {
+    "county": "Winchester city",
+    "state": "VA",
+    "lat": 39.17,
+    "lng": -78.17,
+    "radius": 20,
+    "cities": [
+      "Winchester"
+    ]
+  },
+  "55025": {
+    "county": "Dane",
+    "state": "WI",
+    "lat": 43.07,
+    "lng": -89.42,
+    "radius": 20,
+    "cities": [
+      "Madison"
+    ]
+  },
+  "53001": {
+    "county": "Adams",
+    "state": "WA",
+    "lat": 46.98,
+    "lng": -118.56,
+    "radius": 20,
+    "cities": []
+  },
+  "53005": {
+    "county": "Benton",
+    "state": "WA",
+    "lat": 46.24,
+    "lng": -119.51,
+    "radius": 20,
+    "cities": [
+      "Kennewick",
+      "Richland"
+    ]
+  },
+  "53007": {
+    "county": "Chelan",
+    "state": "WA",
+    "lat": 47.87,
+    "lng": -120.62,
+    "radius": 20,
+    "cities": [
+      "Wenatchee"
+    ]
+  },
+  "09003": {
+    "county": "Hartford",
+    "state": "CT",
+    "lat": 41.77,
+    "lng": -72.68,
+    "radius": 20,
+    "cities": [
+      "Hartford",
+      "New Britain",
+      "Bristol",
+      "Manchester",
+      "West Hartford"
+    ]
+  },
+  "09007": {
+    "county": "Middlesex",
+    "state": "CT",
+    "lat": 41.43,
+    "lng": -72.53,
+    "radius": 15,
+    "cities": [
+      "Middletown",
+      "Durham",
+      "Chester"
+    ]
+  },
+  "09009": {
+    "county": "New Haven",
+    "state": "CT",
+    "lat": 41.35,
+    "lng": -72.9,
+    "radius": 20,
+    "cities": [
+      "New Haven",
+      "Waterbury",
+      "Meriden",
+      "Hamden",
+      "West Haven"
+    ]
+  },
+  "09011": {
+    "county": "New London",
+    "state": "CT",
+    "lat": 41.47,
+    "lng": -72.1,
+    "radius": 20,
+    "cities": [
+      "New London",
+      "Norwich",
+      "Groton"
+    ]
+  },
+  "09013": {
+    "county": "Tolland",
+    "state": "CT",
+    "lat": 41.85,
+    "lng": -72.35,
+    "radius": 15,
+    "cities": [
+      "Vernon",
+      "Tolland",
+      "Stafford"
+    ]
+  },
+  "09015": {
+    "county": "Windham",
+    "state": "CT",
+    "lat": 41.8,
+    "lng": -72.0,
+    "radius": 15,
+    "cities": [
+      "Willimantic",
+      "Putnam",
+      "Danielson"
+    ]
   }
 }

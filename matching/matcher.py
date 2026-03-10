@@ -35,6 +35,15 @@ def load_programs() -> tuple[ProgramRules, ...]:
     return tuple(programs)
 
 
+@lru_cache(maxsize=8)
+def _load_tract_set(filename: str) -> frozenset[str]:
+    """Load a JSON array of 11-digit tract FIPS codes from data/. Cached."""
+    data_dir = os.path.dirname(PROGRAMS_DIR)  # data/ is parent of data/programs/
+    path = os.path.join(data_dir, filename)
+    with open(path) as f:
+        return frozenset(json.load(f))
+
+
 def check_property_type(
     listing_type: str | None, tier: EligibilityTier
 ) -> CriterionResult:
@@ -167,6 +176,39 @@ def check_eligible_county(
         criterion="eligible_county",
         status=CriterionStatus.FAIL,
         detail=f"County FIPS {resolved_fips} is not in the eligible county list",
+    )
+
+
+def check_eligible_tract(
+    tract_fips: str | None, tier: EligibilityTier
+) -> CriterionResult:
+    """Check if the property's census tract is in the tier's eligible tract list."""
+    if not tier.eligible_tract_fips_file:
+        return CriterionResult(
+            criterion="eligible_tract",
+            status=CriterionStatus.PASS,
+            detail="No census tract restrictions for this tier",
+        )
+
+    if not tract_fips:
+        return CriterionResult(
+            criterion="eligible_tract",
+            status=CriterionStatus.UNVERIFIED,
+            detail="Census tract FIPS not available to check eligibility",
+        )
+
+    tract_set = _load_tract_set(tier.eligible_tract_fips_file)
+    if tract_fips in tract_set:
+        return CriterionResult(
+            criterion="eligible_tract",
+            status=CriterionStatus.PASS,
+            detail=f"Census tract {tract_fips} is in the eligible tract list",
+        )
+
+    return CriterionResult(
+        criterion="eligible_tract",
+        status=CriterionStatus.FAIL,
+        detail=f"Census tract {tract_fips} is not in the eligible tract list",
     )
 
 
@@ -383,6 +425,7 @@ def match_tier(listing: ListingInput, tier: EligibilityTier) -> TierResult:
         check_loan_amount(listing.price, tier),
         check_eligible_county(listing.county_fips, listing.latitude, listing.longitude, tier),
         check_eligible_msa(listing.census_msa_code, tier),
+        check_eligible_tract(listing.census_tract_fips, tier),
         check_lmi_tract(listing.tract_income_level, tier),
         check_dmmct(listing.census_majority_aa_hp, tier),
         check_mmct_or_lmi(listing.census_tract_minority_pct, listing.tract_income_level, tier),

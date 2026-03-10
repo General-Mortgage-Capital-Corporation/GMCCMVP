@@ -1,0 +1,41 @@
+{
+  "program_name": "GMCC Diamond",
+  "qm_status": "QM",
+  "tiers": [
+    {
+      "tier_name": "Diamond Community Lending - Eligible Census Tract",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "min_loan_amount": null,
+      "max_loan_amount": 766550,
+      "max_ltv": 97.0,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": 50.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": "diamond_tracts.json",
+      "additional_rules": {
+        "description": "Diamond Community Lending Program (CLP) offers CRA pricing incentive up to 2.0 points on eligible census tracts. Agency guidelines with overlays. Property must be in a Diamond-designated eligible census tract. No income restriction. Primary residence only. Fixed rate only. Non-occupant co-borrower allowed. EAD not eligible. FTHB not required.",
+        "cra_incentive": "Up to $4,500 CLP incentive cap, 2.0 points on purchase and refinance loans"
+      }
+    }
+  ],
+  "general_notes": [
+    "Diamond Community Lending Program (CLP) offers CRA pricing incentive on eligible census tracts across 46 states.",
+    "Agency loan amounts: Conforming and High Balance. No jumbo.",
+    "No income restriction — no max income level required.",
+    "Primary residence only. 2-4 units OK. Fixed rate only.",
+    "Max 97% LTV (MI required for LTV > 80%). Max DTI 50% per AUS findings.",
+    "Non-occupant co-borrower allowed. FTHB not required. EAD not eligible.",
+    "CLP incentive: up to $4,500 cap, 2.0 points on purchase and refinance.",
+    "Eligible areas can be verified at https://hub.collateralanalytics.com/correspondentsearch"
+  ]
+}

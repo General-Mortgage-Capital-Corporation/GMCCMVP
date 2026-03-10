@@ -65,6 +65,24 @@ def _load_msa_lookup() -> dict:
     return _MSA_LOOKUP
 
 
+_TRACT_COUNTIES_CACHE: dict[str, set[str]] = {}
+
+
+def _get_tract_counties(tract_file: str) -> set[str]:
+    """Derive unique 5-digit county FIPS from an 11-digit tract FIPS file. Cached."""
+    if tract_file in _TRACT_COUNTIES_CACHE:
+        return _TRACT_COUNTIES_CACHE[tract_file]
+    path = os.path.join(os.path.dirname(__file__), "data", tract_file)
+    counties = set()
+    if os.path.exists(path):
+        with open(path) as f:
+            tracts = json.load(f)
+        for t in tracts:
+            counties.add(t[:5])  # first 5 digits = state(2) + county(3)
+    _TRACT_COUNTIES_CACHE[tract_file] = counties
+    return counties
+
+
 _STREET_SUFFIXES = {
     'avenue': 'ave', 'street': 'st', 'drive': 'dr', 'boulevard': 'blvd',
     'road': 'rd', 'lane': 'ln', 'court': 'ct', 'place': 'pl',
@@ -434,6 +452,10 @@ def program_locations():
                 msa_info = msa_lookup.get(msa_code)
                 if msa_info:
                     all_fips.update(msa_info["counties"])
+            # Derive county FIPS from tract-level eligibility files
+            if tier.eligible_tract_fips_file:
+                tract_counties = _get_tract_counties(tier.eligible_tract_fips_file)
+                all_fips.update(tract_counties)
 
         # Group by state
         states_map: dict[str, list] = {}
