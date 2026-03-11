@@ -2,7 +2,6 @@
 
 import type { RentCastListing, ProgramResult } from "@/types";
 import { formatPrice, formatDistance } from "@/lib/utils";
-import ProgramBadge from "./ProgramBadge";
 
 interface PropertyCardProps {
   listing: RentCastListing;
@@ -11,14 +10,33 @@ interface PropertyCardProps {
 
 function getEligiblePrograms(listing: RentCastListing): ProgramResult[] {
   if (!listing.matchData?.programs) return [];
-  return listing.matchData.programs.filter(
-    (p) => p.status !== "Ineligible",
+  return listing.matchData.programs.filter((p) => p.status !== "Ineligible");
+}
+
+function ProgBadge({ prog }: { prog: ProgramResult }) {
+  const isBeta =
+    prog.program_name.toLowerCase().includes("diamond") ||
+    prog.program_name.toLowerCase().includes("beta");
+  const colors =
+    prog.status === "Eligible"
+      ? "bg-emerald-50 text-emerald-800"
+      : "bg-amber-50 text-amber-800";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${colors}`}>
+      {prog.program_name}
+      {isBeta && (
+        <span className="rounded bg-violet-600 px-1 text-[9px] font-bold uppercase leading-4 tracking-wide text-white">
+          β
+        </span>
+      )}
+    </span>
   );
 }
 
 export default function PropertyCard({ listing, onClick }: PropertyCardProps) {
   const eligiblePrograms = getEligiblePrograms(listing);
-  const hasPrograms = eligiblePrograms.length > 0;
+  const hasMatchData = listing.matchData !== undefined;
+  const distanceStr = formatDistance(listing.distance);
 
   const details = [
     listing.bedrooms != null ? `${listing.bedrooms} bd` : null,
@@ -28,72 +46,69 @@ export default function PropertyCard({ listing, onClick }: PropertyCardProps) {
       : null,
   ]
     .filter(Boolean)
-    .join(" | ");
-
-  const distanceStr = formatDistance(listing.distance);
+    .join(" · ");
 
   return (
-    <button
-      type="button"
+    <div
       onClick={onClick}
-      className={`group relative flex w-full flex-col rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
-        hasPrograms
-          ? "border-emerald-200 ring-1 ring-emerald-100"
-          : "border-gray-200"
-      }`}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-150 hover:border-slate-300 hover:shadow-md"
     >
-      {/* Price & distance */}
-      <div className="flex items-start justify-between">
-        <span className="text-lg font-bold text-gray-900">
+      <div className="flex-1 p-5">
+        <p className="text-[1.375rem] font-bold tracking-tight text-slate-900">
           {formatPrice(listing.price)}
-        </span>
-        {distanceStr && (
-          <span className="text-xs text-gray-500">{distanceStr}</span>
-        )}
-      </div>
+        </p>
 
-      {/* Address */}
-      <p className="mt-1 text-sm text-gray-600 leading-snug">
-        {listing.formattedAddress ?? "Address unavailable"}
-      </p>
+        <p className="mt-0.5 text-[0.9375rem] leading-snug text-slate-500">
+          {listing.formattedAddress ?? "Address unavailable"}
+        </p>
 
-      {/* Property details */}
-      {details && (
-        <p className="mt-1 text-xs text-gray-500">{details}</p>
-      )}
-
-      {/* Property type & days on market */}
-      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-        {listing.propertyType && (
-          <span className="rounded bg-gray-100 px-1.5 py-0.5">
-            {listing.propertyType}
-          </span>
-        )}
-        {listing.daysOnMarket != null && (
-          <span>{listing.daysOnMarket} days on market</span>
-        )}
-      </div>
-
-      {/* Program badges */}
-      {hasPrograms && (
+        {/* Property meta */}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {eligiblePrograms.map((p) => (
-            <ProgramBadge
-              key={p.program_name}
-              programName={p.program_name}
-              status={p.status}
-              compact
-            />
-          ))}
+          {listing.propertyType && (
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+              {listing.propertyType}
+            </span>
+          )}
+          {details && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              {details}
+            </span>
+          )}
+          {listing.daysOnMarket != null && (
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+              {listing.daysOnMarket}d on market
+            </span>
+          )}
         </div>
-      )}
 
-      {/* Matching status indicator */}
-      {listing.matchData === undefined && (
-        <div className="mt-2 text-xs text-gray-400 italic">
-          Checking eligibility...
+        {/* Programs section */}
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-widest text-slate-400">
+            Matching Programs
+          </p>
+
+          {!hasMatchData ? (
+            <div className="flex gap-1.5">
+              <span className="h-5 w-24 animate-pulse rounded-full bg-slate-200" />
+              <span className="h-5 w-20 animate-pulse rounded-full bg-slate-200 [animation-delay:150ms]" />
+            </div>
+          ) : eligiblePrograms.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {eligiblePrograms.map((p) => (
+                <ProgBadge key={p.program_name} prog={p} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs italic text-slate-400">No matching programs</p>
+          )}
+        </div>
+      </div>
+
+      {distanceStr && (
+        <div className="border-t border-slate-100 bg-slate-50 px-5 py-2 text-xs text-slate-500">
+          {distanceStr}
         </div>
       )}
-    </button>
+    </div>
   );
 }

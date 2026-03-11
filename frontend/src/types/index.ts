@@ -40,6 +40,7 @@ export interface MatchResponse {
 // ---------------------------------------------------------------------------
 
 export interface CensusData {
+  // FFIEC / geocoder fields
   tract_income_level?: string;
   msa_code?: string;
   msa_name?: string;
@@ -48,14 +49,15 @@ export interface CensusData {
   tract_code?: string;
   tract_minority_pct?: number;
   majority_aa_hp?: boolean;
-  population?: number;
-  median_family_income?: number;
-  tract_median_income?: number;
-  demographics_total?: number;
-  demographics_hispanic?: number;
-  demographics_black?: number;
-  demographics_asian?: number;
-  demographics_white?: number;
+  ffiec_mfi?: number;        // FFIEC MSA median family income
+  tract_mfi?: number;        // Tract median family income
+  tract_to_msa_ratio?: number; // tract_mfi / ffiec_mfi * 100
+  // ACS demographics (field names match backend census.py output exactly)
+  total_population?: number;
+  hispanic_population?: number;
+  black_population?: number;
+  asian_population?: number;
+  white_nh_population?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,13 @@ export interface RentCastListing {
   lastSeenDate?: string;
   stateFips?: string;
   countyFips?: string;
+  mlsNumber?: string;
+
+  // Contact / listing details from RentCast
+  hoa?: { fee?: number };
+  listingAgent?: { name?: string; phone?: string; email?: string; website?: string };
+  listingOffice?: { name?: string; phone?: string; email?: string };
+  builder?: { name?: string; phone?: string; development?: string; website?: string };
 
   // Server-attached after matching
   distance?: number;
@@ -173,6 +182,19 @@ export interface HealthResponse {
   status: string;
   api_configured: boolean;
   places_configured: boolean;
+  python_service?: "healthy" | "unavailable";
+}
+
+// ---------------------------------------------------------------------------
+// County info (returned by Python service /api/county-info)
+// ---------------------------------------------------------------------------
+
+export interface CountyInfo {
+  state: string;
+  county: string;
+  lat: number;
+  lng: number;
+  radius?: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -13,51 +13,43 @@ export default function Pagination({
 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
-  // Build page number window: show at most 5 pages centered on current
   const pages: (number | "...")[] = [];
   const maxVisible = 5;
   let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
   let end = Math.min(totalPages, start + maxVisible - 1);
-  if (end - start + 1 < maxVisible) {
-    start = Math.max(1, end - maxVisible + 1);
-  }
+  if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
 
-  if (start > 1) {
-    pages.push(1);
-    if (start > 2) pages.push("...");
-  }
+  if (start > 1) { pages.push(1); if (start > 2) pages.push("..."); }
   for (let i = start; i <= end; i++) pages.push(i);
   if (end < totalPages) {
     if (end < totalPages - 1) pages.push("...");
     pages.push(totalPages);
   }
 
-  const btnBase =
-    "inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors";
-  const btnActive = "bg-blue-600 text-white";
-  const btnInactive = "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300";
-  const btnDisabled = "text-gray-400 cursor-not-allowed";
-
   return (
-    <nav className="flex items-center justify-center gap-1" aria-label="Pagination">
+    <nav className="flex items-center justify-center gap-1 py-4" aria-label="Pagination">
       <button
-        className={`${btnBase} ${currentPage === 1 ? btnDisabled : btnInactive}`}
+        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
-        &laquo; Prev
+        ← Prev
       </button>
 
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`ellipsis-${i}`} className="px-2 text-gray-400">
-            ...
+          <span key={`el-${i}`} className="inline-flex h-9 w-9 items-center justify-center text-sm text-slate-400">
+            …
           </span>
         ) : (
           <button
             key={p}
-            className={`${btnBase} ${p === currentPage ? btnActive : btnInactive}`}
-            onClick={() => onPageChange(p)}
+            onClick={() => onPageChange(p as number)}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+              p === currentPage
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
           >
             {p}
           </button>
@@ -65,11 +57,11 @@ export default function Pagination({
       )}
 
       <button
-        className={`${btnBase} ${currentPage === totalPages ? btnDisabled : btnInactive}`}
+        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >
-        Next &raquo;
+        Next →
       </button>
     </nav>
   );

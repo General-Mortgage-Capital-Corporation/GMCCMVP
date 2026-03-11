@@ -51,6 +51,7 @@ export function formatPhone(phone: string | null | undefined): string {
 // ---------------------------------------------------------------------------
 
 export function renderSimpleMarkdown(text: string): string {
+  if (!text) return "";
   let escaped = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -110,9 +111,10 @@ export function listingPassesChipFilters(
     mmct: () => minorityPct != null && minorityPct > 50,
     lmi: () => incomeLevel === "low" || incomeLevel === "moderate",
     aahp: () => {
-      const black = census.demographics_black ?? 0;
-      const hispanic = census.demographics_hispanic ?? 0;
-      const total = census.demographics_total ?? 1;
+      const black = census.black_population ?? 0;
+      const hispanic = census.hispanic_population ?? 0;
+      const total = census.total_population ?? 0;
+      if (total === 0) return false;
       return (black + hispanic) / total > 0.5;
     },
     under500k: () => price > 0 && price < 500000,
