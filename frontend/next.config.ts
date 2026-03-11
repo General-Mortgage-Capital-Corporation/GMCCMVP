@@ -1,15 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Proxy API requests to Flask backend during development
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
-      },
-    ];
-  },
+  // All /api/* routes are handled by Next.js App Router route handlers
+  // (frontend/src/app/api/**). No proxy rewrites needed.
 };
 
 export default nextConfig;
