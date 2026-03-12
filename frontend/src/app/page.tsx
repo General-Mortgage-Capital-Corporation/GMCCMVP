@@ -9,6 +9,7 @@ import ProgramSelector from "@/components/program/ProgramSelector";
 import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
 import MarketingTable from "@/components/marketing/MarketingTable";
 import MarketingFilters from "@/components/marketing/MarketingFilters";
+import CRACheckTab from "@/components/cra/CRACheckTab";
 import PropertyModal from "@/components/PropertyModal";
 import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -30,12 +31,12 @@ import type { ChipFilter } from "@/lib/utils";
 import type { SortBy } from "@/components/property/PropertyGrid";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
-type ActiveTab = "find" | "program" | "marketing";
+type ActiveTab = "find" | "program" | "marketing" | "cra";
 
 const PER_PAGE = 12;
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("find");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
   const [programLocations, setProgramLocations] = useState<ProgramLocationEntry[]>([]);
@@ -259,14 +260,18 @@ export default function Home() {
       ? findSearch.listings.length > 0 || findSearch.loading
       : activeTab === "program"
         ? progListings.length > 0 || progLoading
-        : mkListings.length > 0 || mkLoading;
+        : activeTab === "marketing"
+          ? mkListings.length > 0 || mkLoading
+          : false;
 
   const currentError =
     activeTab === "find"
       ? findSearch.error
       : activeTab === "program"
         ? progError
-        : mkError;
+        : activeTab === "marketing"
+          ? mkError
+          : null;
 
   const showFilterBar = activeTab !== "marketing" && hasResults;
 
@@ -301,9 +306,10 @@ export default function Home() {
             <nav className="flex px-2">
               {(
                 [
-                  ["find", "Find Properties"],
-                  ["program", "Search by Program"],
+                  ["cra", "CRA Address Fast Check"],
                   ["marketing", "Massive Marketing"],
+                  ["find", "Marketing/GPS Radius Check"],
+                  ["program", "Market by Program Check"],
                 ] as [ActiveTab, string][]
               ).map(([tab, label]) => (
                 <button
@@ -345,6 +351,7 @@ export default function Home() {
                 loading={mkLoading}
               />
             )}
+            {activeTab === "cra" && <CRACheckTab />}
           </div>
         </div>
 

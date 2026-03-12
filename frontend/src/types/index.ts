@@ -45,7 +45,9 @@ export interface CensusData {
   msa_code?: string;
   msa_name?: string;
   state_code?: string;
+  state_name?: string;
   county_code?: string;
+  county_name?: string;
   tract_code?: string;
   tract_minority_pct?: number;
   majority_aa_hp?: boolean;
