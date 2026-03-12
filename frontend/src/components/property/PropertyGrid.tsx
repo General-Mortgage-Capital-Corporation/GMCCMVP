@@ -62,7 +62,8 @@ function SkeletonCard() {
 }
 
 export default function PropertyGrid({ listings, loading, onCardClick, sortBy }: PropertyGridProps) {
-  if (loading) {
+  // Show skeletons only when loading with no results yet
+  if (loading && listings.length === 0) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}

@@ -20,6 +20,7 @@ export function useSearch() {
   const [loading, setLoading] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
   const searchCtrl = useRef<AbortController | null>(null);
@@ -34,6 +35,7 @@ export function useSearch() {
     setMatchLoading(false);
     setListings([]);
     setError(null);
+    setNotice(null);
     setTotal(0);
 
     try {
@@ -59,6 +61,7 @@ export function useSearch() {
       // Show listings immediately — matchData undefined = "checking..." skeleton
       setListings(result.listings);
       setTotal(result.total);
+      if (result.message) setNotice(result.message);
 
       if (result.listings.length === 0) return;
 
@@ -114,8 +117,9 @@ export function useSearch() {
     setLoading(false);
     setMatchLoading(false);
     setError(null);
+    setNotice(null);
     setTotal(0);
   }, []);
 
-  return { listings, loading, matchLoading, error, total, search, reset };
+  return { listings, loading, matchLoading, error, notice, total, search, reset };
 }

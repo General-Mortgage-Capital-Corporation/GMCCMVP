@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import SearchForm from "@/components/search/SearchForm";
 import FilterChips from "@/components/search/FilterChips";
@@ -19,8 +19,9 @@ import { usePagination } from "@/hooks/usePagination";
 import {
   fetchPrograms,
   fetchProgramLocations,
-  programSearch,
-  marketingSearch,
+  programSearchStream,
+  marketingSearchStream,
+  ApiError,
 } from "@/lib/api";
 import { listingPassesChipFilters, formatPrice } from "@/lib/utils";
 
@@ -69,6 +70,7 @@ export default function Home() {
   const [mkListings, setMkListings] = useState<RentCastListing[]>([]);
   const [mkLoading, setMkLoading] = useState(false);
   const [mkError, setMkError] = useState<string | null>(null);
+  const [mkProgress, setMkProgress] = useState<{ processed: number; total: number } | null>(null);
   const [mkSortCol, setMkSortCol] = useState<MkSortColumn>("price");
   const [mkSortDir, setMkSortDir] = useState<MkSortDir>("desc");
   const [mkProgramFilter, setMkProgramFilter] = useState("");
@@ -88,6 +90,9 @@ export default function Home() {
       return true;
     });
   }, [mkListings, chipFilters, mkProgramFilter, mkTypeFilter]);
+
+  // Shared abort controller — cancels any running program/marketing stream
+  const activeSearchCtrl = useRef<AbortController | null>(null);
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,21 +158,34 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
+    activeSearchCtrl.current?.abort();
+    const ctrl = new AbortController();
+    activeSearchCtrl.current = ctrl;
+
     setProgError(null);
     setProgLoading(true);
     setProgListings([]);
     setChipFilters(new Set());
     try {
-      const result = await programSearch(params);
-      if (!result.success) {
-        setProgError(result.error ?? "Search failed");
-      } else {
-        setProgListings(result.listings);
+      for await (const event of programSearchStream(params, ctrl.signal)) {
+        if (event.type === "batch") {
+          if (event.listings.length > 0) {
+            setProgListings((prev) => [...prev, ...event.listings]);
+          }
+        } else if (event.type === "done") {
+          break;
+        } else if (event.type === "error") {
+          setProgError(event.error);
+          break;
+        }
       }
-    } catch {
-      setProgError("Search failed. Please try again.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setProgError(
+        err instanceof ApiError ? err.message : "Search failed. Please try again.",
+      );
     } finally {
-      setProgLoading(false);
+      if (activeSearchCtrl.current === ctrl) setProgLoading(false);
     }
   }
 
@@ -175,23 +193,43 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
+    activeSearchCtrl.current?.abort();
+    const ctrl = new AbortController();
+    activeSearchCtrl.current = ctrl;
+
     setMkError(null);
     setMkLoading(true);
     setMkListings([]);
+    setMkProgress(null);
     setMkProgramFilter("");
     setMkTypeFilter("");
     setChipFilters(new Set());
     try {
-      const result = await marketingSearch(params);
-      if (!result.success) {
-        setMkError(result.error ?? "Search failed");
-      } else {
-        setMkListings(result.listings);
+      for await (const event of marketingSearchStream(params, ctrl.signal)) {
+        if (event.type === "start") {
+          setMkProgress({ processed: 0, total: event.total_in_county });
+        } else if (event.type === "batch") {
+          setMkListings((prev) => [...prev, ...event.listings]);
+          setMkProgress((prev) =>
+            prev ? { ...prev, processed: event.processed } : null,
+          );
+        } else if (event.type === "done") {
+          break;
+        } else if (event.type === "error") {
+          setMkError(event.error);
+          break;
+        }
       }
-    } catch {
-      setMkError("Search failed. Please try again.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setMkError(
+        err instanceof ApiError ? err.message : "Search failed. Please try again.",
+      );
     } finally {
-      setMkLoading(false);
+      if (activeSearchCtrl.current === ctrl) {
+        setMkLoading(false);
+        setMkProgress(null);
+      }
     }
   }
 
@@ -317,6 +355,13 @@ export default function Home() {
           </div>
         )}
 
+        {/* Notice banner (e.g. "not an active listing, showing nearby") */}
+        {activeTab === "find" && findSearch.notice && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            {findSearch.notice}
+          </div>
+        )}
+
         {/* ── Results section ── */}
         {hasResults && (
           <>
@@ -344,7 +389,7 @@ export default function Home() {
             )}
 
             {/* Marketing filters */}
-            {activeTab === "marketing" && !mkLoading && mkListings.length > 0 && (
+            {activeTab === "marketing" && mkListings.length > 0 && (
               <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                 <MarketingFilters
                   listings={mkListings}
@@ -368,11 +413,18 @@ export default function Home() {
                 />
 
                 <div className="ml-auto flex items-center gap-3">
-                  {/* Matching eligibility indicator */}
+                  {/* Matching eligibility indicator (Find tab) */}
                   {activeTab === "find" && findSearch.matchLoading && (
                     <div className="flex items-center gap-1.5 text-xs text-blue-600">
                       <LoadingSpinner size="sm" />
                       <span>Checking eligibility…</span>
+                    </div>
+                  )}
+                  {/* Streaming progress indicator (Program tab) */}
+                  {activeTab === "program" && progLoading && progListings.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-blue-600">
+                      <LoadingSpinner size="sm" />
+                      <span>Finding more matches…</span>
                     </div>
                   )}
 
@@ -437,11 +489,16 @@ export default function Home() {
             {activeTab === "marketing" && (
               <>
                 {mkLoading && (
-                  <div className="flex justify-center py-16">
-                    <LoadingSpinner size="lg" label="Loading properties..." />
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <LoadingSpinner size="lg" />
+                    <p className="text-sm text-gray-500">
+                      {mkProgress
+                        ? `Matching ${mkProgress.processed.toLocaleString()} / ${mkProgress.total.toLocaleString()} properties…`
+                        : "Fetching properties…"}
+                    </p>
                   </div>
                 )}
-                {!mkLoading && mkListings.length > 0 && (
+                {mkListings.length > 0 && (
                   <MarketingTable
                     listings={filteredMkListings}
                     sortColumn={mkSortCol}

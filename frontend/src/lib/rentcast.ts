@@ -3,6 +3,8 @@
  * Used by Next.js API routes (search, program-search, marketing-search).
  */
 
+import type { CountyInfo } from "@/types";
+
 export const RENTCAST_BASE = "https://api.rentcast.io/v1/listings/sale";
 export const MAX_LIMIT = 500;
 
@@ -84,10 +86,10 @@ export type Listing = Record<string, unknown> & {
   distance?: number;
 };
 
-export async function rentcastFetch(
+async function rentcastPage(
   params: URLSearchParams,
   apiKey: string,
-): Promise<Listing[]> {
+): Promise<{ listings: Listing[]; res: Response }> {
   const res = await fetch(`${RENTCAST_BASE}?${params}`, {
     headers: { accept: "application/json", "X-Api-Key": apiKey },
     signal: AbortSignal.timeout(30_000),
@@ -102,7 +104,76 @@ export async function rentcastFetch(
   }
 
   const data = await res.json();
-  return Array.isArray(data) ? (data as Listing[]) : [];
+  return { listings: Array.isArray(data) ? (data as Listing[]) : [], res };
+}
+
+/** Single-page fetch (up to MAX_LIMIT). Used by the address-search route. */
+export async function rentcastFetch(
+  params: URLSearchParams,
+  apiKey: string,
+): Promise<Listing[]> {
+  const { listings } = await rentcastPage(params, apiKey);
+  return listings;
+}
+
+const MAX_PAGES = 20; // safety cap: 10,000 listings per county sweep
+
+/**
+ * Paginated fetch — collects ALL matching listings using offset pagination.
+ * First request uses `includeTotalCount=true` to get the total, then all
+ * remaining pages are fetched in parallel for maximum speed.
+ * Safe for county-wide sweeps (marketing-search, program-search).
+ */
+export async function rentcastFetchAll(
+  params: URLSearchParams,
+  apiKey: string,
+): Promise<Listing[]> {
+  // Page 0: establish total count
+  const firstParams = new URLSearchParams(params);
+  firstParams.set("limit", "500");
+  firstParams.set("offset", "0");
+  firstParams.set("includeTotalCount", "true");
+
+  const { listings: first, res: firstRes } = await rentcastPage(firstParams, apiKey);
+
+  const tc = firstRes.headers.get("X-Total-Count");
+  const totalCount = tc ? parseInt(tc, 10) : null;
+
+  // Nothing more to fetch
+  if (!totalCount || totalCount <= 500 || first.length < 500) return first;
+
+  // How many additional pages do we need?
+  const extraPages = Math.min(Math.ceil((totalCount - 500) / 500), MAX_PAGES - 1);
+  if (extraPages === 0) return first;
+
+  // Fetch all remaining pages in parallel
+  const pagePromises = Array.from({ length: extraPages }, (_, i) => {
+    const pageParams = new URLSearchParams(params);
+    pageParams.set("limit", "500");
+    pageParams.set("offset", String((i + 1) * 500));
+    return rentcastPage(pageParams, apiKey).then(({ listings }) => listings);
+  });
+
+  const pages = await Promise.all(pagePromises);
+  return [first, ...pages].flat();
+}
+
+// ---------------------------------------------------------------------------
+// Build county-wide RentCast search params
+// ---------------------------------------------------------------------------
+
+/** Builds URLSearchParams for a county-wide active-listing sweep. */
+export function buildCountySearchParams(countyInfo: CountyInfo, city?: string): URLSearchParams {
+  const params = new URLSearchParams({ status: "Active" });
+  if (city) {
+    params.set("city", city);
+    params.set("state", countyInfo.state);
+  } else {
+    params.set("latitude", String(countyInfo.lat));
+    params.set("longitude", String(countyInfo.lng));
+    params.set("radius", String(countyInfo.radius ?? 25));
+  }
+  return params;
 }
 
 // ---------------------------------------------------------------------------

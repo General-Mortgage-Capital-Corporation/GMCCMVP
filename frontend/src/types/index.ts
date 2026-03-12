@@ -198,6 +198,22 @@ export interface CountyInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Streaming events for marketing-search and program-search routes
+// ---------------------------------------------------------------------------
+
+export type MarketingStreamEvent =
+  | { type: "start"; total_fetched: number; total_in_county: number }
+  | { type: "batch"; listings: RentCastListing[]; processed: number }
+  | { type: "done" }
+  | { type: "error"; error: string };
+
+export type ProgramStreamEvent =
+  | { type: "start"; total_in_county: number }
+  | { type: "batch"; listings: RentCastListing[]; processed: number }
+  | { type: "done"; total_matched: number }
+  | { type: "error"; error: string };
+
+// ---------------------------------------------------------------------------
 // Autocomplete
 // ---------------------------------------------------------------------------
 

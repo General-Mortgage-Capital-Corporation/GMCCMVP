@@ -145,7 +145,7 @@ def match_batch_endpoint():
                 "census_data": census_data,
             }
 
-        max_workers = min(len(listings), 8)
+        max_workers = min(len(listings), 16)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(listings)}
             results = [None] * len(listings)

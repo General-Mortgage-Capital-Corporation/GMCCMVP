@@ -1,27 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
-import { pyGet, pyPost, PythonServiceError } from "@/lib/python-client";
+import { resolveCountyInfo, CountyLookupError } from "@/lib/python-client";
 import {
-  rentcastFetch,
+  rentcastFetchAll,
   filterByCountyFips,
+  buildCountySearchParams,
   RentCastError,
-  MAX_LIMIT,
   type Listing,
 } from "@/lib/rentcast";
-import type {
-  CountyInfo,
-  MatchBatchResponse,
-  OverallStatus,
-} from "@/types";
+import { runMatchWaves } from "@/lib/match-stream";
 
 export const runtime = "nodejs";
 
 const API_KEY = process.env.RENTCAST_API_KEY ?? "";
-const BATCH_CHUNK_SIZE = 50;
 
 /**
  * Search listings in a county and match against a specific program.
- * RentCast key stays in Next.js env; matching is delegated to Python service.
+ * Streams NDJSON events: start → batch… → done (or error).
+ * Only eligible / potentially eligible listings are included in batch events.
  */
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);
@@ -51,134 +47,78 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Resolve county info (lat/lng/state) from Python service
-  let countyInfo: CountyInfo;
+  // Resolve county info (fast, before streaming starts)
+  let countyInfo: Awaited<ReturnType<typeof resolveCountyInfo>>;
   try {
-    const result = await pyGet<{
-      success: boolean;
-      info: CountyInfo;
-      error?: string;
-    }>(`/api/county-info?fips=${encodeURIComponent(countyFips)}`);
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.error ?? `Unknown county FIPS: ${countyFips}`,
-        },
-        { status: 400 },
-      );
-    }
-    countyInfo = result.info;
+    countyInfo = await resolveCountyInfo(countyFips);
   } catch (err) {
-    if (err instanceof PythonServiceError) {
-      return NextResponse.json(
-        { success: false, error: err.message },
-        { status: err.status },
-      );
-    }
-    return NextResponse.json(
-      { success: false, error: "Failed to resolve county information." },
-      { status: 502 },
-    );
+    const e = err instanceof CountyLookupError ? err : new CountyLookupError("Failed to resolve county information.", 502);
+    return NextResponse.json({ success: false, error: e.message }, { status: e.status });
   }
 
-  // Fetch listings from RentCast
-  const params = new URLSearchParams({
-    status: "Active",
-    limit: String(MAX_LIMIT),
+  const rentcastParams = buildCountySearchParams(countyInfo, city || undefined);
+  const clientSignal = req.signal;
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let closed = false;
+      const emit = (data: object) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+        } catch { closed = true; }
+      };
+
+      try {
+        let allListings: Listing[];
+        try {
+          allListings = await rentcastFetchAll(rentcastParams, API_KEY);
+        } catch (err) {
+          emit({ type: "error", error: err instanceof RentCastError ? err.message : "Connection error." });
+          return;
+        }
+
+        if (clientSignal.aborted) return;
+
+        const filtered = filterByCountyFips(allListings, countyFips);
+        emit({ type: "start", total_in_county: filtered.length });
+
+        if (filtered.length === 0) {
+          emit({ type: "done", total_matched: 0 });
+          return;
+        }
+
+        let totalMatched = 0;
+        const { aborted } = await runMatchWaves(filtered, clientSignal, (chunk, batchResult, processed) => {
+          // Only emit eligible / potentially eligible for this program
+          const matched: Listing[] = [];
+          for (let k = 0; k < chunk.length; k++) {
+            const r = batchResult?.results[k];
+            if (!r) continue;
+            const progResult = r.programs.find((p) => p.program_name === programName);
+            if (!progResult || progResult.status === "Ineligible") continue;
+            matched.push({ ...chunk[k], matchData: { programs: [progResult] }, censusData: r.census_data });
+          }
+          totalMatched += matched.length;
+          emit({ type: "batch", listings: matched, processed });
+        });
+
+        if (!aborted) emit({ type: "done", total_matched: totalMatched });
+      } catch {
+        emit({ type: "error", error: "Matching service unavailable." });
+      } finally {
+        closed = true;
+        try { controller.close(); } catch { /* already closed */ }
+      }
+    },
   });
-  if (city) {
-    params.set("city", city);
-    params.set("state", countyInfo.state);
-  } else {
-    params.set("latitude", String(countyInfo.lat));
-    params.set("longitude", String(countyInfo.lng));
-    params.set("radius", String(countyInfo.radius ?? 25));
-  }
 
-  let allListings: Listing[];
-  try {
-    allListings = await rentcastFetch(params, API_KEY);
-  } catch (err) {
-    if (err instanceof RentCastError) {
-      return NextResponse.json(
-        { success: false, error: err.message },
-        { status: err.status },
-      );
-    }
-    return NextResponse.json(
-      { success: false, error: "Connection error. Please try again." },
-      { status: 500 },
-    );
-  }
-
-  const filtered = filterByCountyFips(allListings, countyFips);
-
-  if (filtered.length === 0) {
-    return NextResponse.json({
-      success: true,
-      listings: [],
-      total_searched: 0,
-      total_matched: 0,
-    });
-  }
-
-  // Match all county listings via Python service, chunking at BATCH_CHUNK_SIZE
-  const allResults: MatchBatchResponse["results"] = [];
-  try {
-    for (let i = 0; i < filtered.length; i += BATCH_CHUNK_SIZE) {
-      const chunk = filtered.slice(i, i + BATCH_CHUNK_SIZE);
-      const chunkResult = await pyPost<MatchBatchResponse>(
-        "/api/match-batch",
-        chunk,
-      );
-      allResults.push(...chunkResult.results);
-    }
-  } catch (err) {
-    if (err instanceof PythonServiceError) {
-      return NextResponse.json(
-        { success: false, error: err.message },
-        { status: err.status },
-      );
-    }
-    return NextResponse.json(
-      { success: false, error: "Matching service unavailable." },
-      { status: 502 },
-    );
-  }
-
-  // Keep only Eligible / Potentially Eligible for the target program,
-  // using a separate sort-key array to avoid mutating listing objects.
-  const statusOrder: Record<OverallStatus, number> = {
-    Eligible: 0,
-    "Potentially Eligible": 1,
-    Ineligible: 2,
-  };
-
-  const matchedPairs: Array<{ listing: Listing; status: OverallStatus }> = [];
-
-  for (let i = 0; i < filtered.length; i++) {
-    const r = allResults[i];
-    if (!r) continue;
-    const progResult = r.programs.find((p) => p.program_name === programName);
-    if (!progResult || progResult.status === "Ineligible") continue;
-
-    matchedPairs.push({
-      listing: {
-        ...filtered[i],
-        matchData: { programs: [progResult] },
-        censusData: r.census_data,
-      },
-      status: progResult.status,
-    });
-  }
-
-  matchedPairs.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-
-  return NextResponse.json({
-    success: true,
-    listings: matchedPairs.map(({ listing }) => listing),
-    total_searched: filtered.length,
-    total_matched: matchedPairs.length,
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

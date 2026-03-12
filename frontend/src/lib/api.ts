@@ -11,11 +11,11 @@ import type {
   MatchSingleResponse,
   ExplainResponse,
   ProgramLocationsResponse,
-  ProgramSearchResponse,
-  MarketingSearchResponse,
   AutocompleteResponse,
   HealthResponse,
   RentCastListing,
+  MarketingStreamEvent,
+  ProgramStreamEvent,
 } from "@/types";
 
 class ApiError extends Error {
@@ -117,36 +117,67 @@ export async function fetchProgramLocations(
   });
 }
 
-export async function programSearch(
-  params: {
-    program: string;
-    countyFips: string;
-    city?: string;
-  },
+/** Reads a Response body as newline-delimited JSON, yielding each parsed object. */
+async function* readNdjson<T>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
+  const reader = res.body!.getReader();
+  const onAbort = () => reader.cancel().catch(() => {});
+  signal?.addEventListener("abort", onAbort, { once: true });
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done || signal?.aborted) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.trim()) yield JSON.parse(line) as T;
+      }
+    }
+    if (!signal?.aborted && buffer.trim()) yield JSON.parse(buffer) as T;
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+    reader.releaseLock();
+  }
+}
+
+export async function* programSearchStream(
+  params: { program: string; countyFips: string; city?: string },
   signal?: AbortSignal,
-): Promise<ProgramSearchResponse> {
+): AsyncGenerator<ProgramStreamEvent> {
   const sp = new URLSearchParams();
   sp.set("program", params.program);
   sp.set("county_fips", params.countyFips);
   if (params.city) sp.set("city", params.city);
-  return fetchJson<ProgramSearchResponse>(`/api/program-search?${sp}`, {
-    signal,
-  });
+  const res = await fetch(`/api/program-search?${sp}`, { signal });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? `Request failed (${res.status})`,
+      res.status,
+    );
+  }
+  yield* readNdjson<ProgramStreamEvent>(res, signal);
 }
 
-export async function marketingSearch(
-  params: {
-    countyFips: string;
-    city?: string;
-  },
+export async function* marketingSearchStream(
+  params: { countyFips: string; city?: string },
   signal?: AbortSignal,
-): Promise<MarketingSearchResponse> {
+): AsyncGenerator<MarketingStreamEvent> {
   const sp = new URLSearchParams();
   sp.set("county_fips", params.countyFips);
   if (params.city) sp.set("city", params.city);
-  return fetchJson<MarketingSearchResponse>(`/api/marketing-search?${sp}`, {
-    signal,
-  });
+  const res = await fetch(`/api/marketing-search?${sp}`, { signal });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? `Request failed (${res.status})`,
+      res.status,
+    );
+  }
+  yield* readNdjson<MarketingStreamEvent>(res, signal);
 }
 
 export async function fetchAutocomplete(

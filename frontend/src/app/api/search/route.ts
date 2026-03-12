@@ -54,64 +54,73 @@ export async function GET(req: NextRequest) {
 
   try {
     if (searchType === "specific") {
-      // Attempt exact address match first
-      const exactParams = new URLSearchParams({
-        status: "Active",
-        limit: String(MAX_LIMIT),
-        address: query,
-      });
-      const exactData = await rentcastFetch(exactParams, API_KEY);
-
-      if (exactData.length > 0) {
-        const searchNorm = normalizeAddress(query);
-        for (const listing of exactData) {
-          const addrNorm = normalizeAddress(listing.formattedAddress ?? "");
-          if (
-            searchNorm.includes(addrNorm) ||
-            addrNorm.includes(searchNorm) ||
-            addrNorm === searchNorm
-          ) {
-            return NextResponse.json({
-              success: true,
-              listings: [listing],
-              total: 1,
-              exact_match: true,
-              message: null,
-            });
-          }
+      // Build params for a radius search — use precise lat/lng when available
+      // (avoids RentCast re-geocoding the address string, which can differ from Google)
+      const buildSpecificParams = (radiusMiles: number): URLSearchParams => {
+        const p = new URLSearchParams({
+          status: "Active",
+          limit: String(MAX_LIMIT),
+          radius: String(radiusMiles),
+        });
+        if (searchLat != null && searchLng != null) {
+          p.set("latitude", String(searchLat));
+          p.set("longitude", String(searchLng));
+        } else {
+          p.set("address", query);
         }
+        return p;
+      };
+
+      // Try 1-mile first; widen to 5 miles if nothing found
+      let nearbyData = await rentcastFetch(buildSpecificParams(1), API_KEY);
+      if (nearbyData.length === 0) {
+        nearbyData = await rentcastFetch(buildSpecificParams(5), API_KEY);
       }
 
-      // Fallback: 1-mile radius around the query address
-      const nearbyParams = new URLSearchParams({
-        status: "Active",
-        limit: String(MAX_LIMIT),
-        address: query,
-        radius: "1",
-      });
-      const nearbyData = await rentcastFetch(nearbyParams, API_KEY);
-
-      if (nearbyData.length > 0) {
-        const centerLat = searchLat ?? nearbyData[0].latitude ?? null;
-        const centerLon = searchLng ?? nearbyData[0].longitude ?? null;
-        if (centerLat != null && centerLon != null) {
-          attachDistancesAndSort(nearbyData, centerLat, centerLon);
-        }
+      if (nearbyData.length === 0) {
         return NextResponse.json({
           success: true,
-          listings: nearbyData,
-          total: nearbyData.length,
+          listings: [],
+          total: 0,
           exact_match: false,
-          message: `No exact match found for "${query}". Showing ${nearbyData.length} properties within 1 mile.`,
+          message: `No active listings found near "${query}".`,
+        });
+      }
+
+      // Sort by distance from search center
+      const centerLat = searchLat ?? nearbyData[0].latitude ?? null;
+      const centerLon = searchLng ?? nearbyData[0].longitude ?? null;
+      if (centerLat != null && centerLon != null) {
+        attachDistancesAndSort(nearbyData, centerLat, centerLon);
+      }
+
+      // Check if any result is an address match (exact listing found)
+      const searchNorm = normalizeAddress(query);
+      const exactMatch = nearbyData.find((l) => {
+        const addrNorm = normalizeAddress(l.formattedAddress ?? "");
+        return (
+          searchNorm.includes(addrNorm) ||
+          addrNorm.includes(searchNorm) ||
+          addrNorm === searchNorm
+        );
+      });
+
+      if (exactMatch) {
+        return NextResponse.json({
+          success: true,
+          listings: [exactMatch],
+          total: 1,
+          exact_match: true,
+          message: null,
         });
       }
 
       return NextResponse.json({
         success: true,
-        listings: [],
-        total: 0,
+        listings: nearbyData,
+        total: nearbyData.length,
         exact_match: false,
-        message: `No properties found at or near "${query}".`,
+        message: `"${query}" is not an active listing. Showing ${nearbyData.length} nearby properties.`,
       });
     } else {
       // Area / zip search
