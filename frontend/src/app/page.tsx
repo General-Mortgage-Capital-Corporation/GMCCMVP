@@ -522,7 +522,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-gray-200 bg-white py-4 text-center text-xs text-gray-400">
-        Powered by RentCast API &bull; FFIEC Census Data &bull; GMCC Program Matching
+        Listing data provided by RentCast API &bull; Census data from FFIEC &bull; GMCC Program Matching
       </footer>
 
       {/* Modal */}
