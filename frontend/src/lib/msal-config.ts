@@ -21,3 +21,8 @@ export const msalConfig: Configuration = {
 export const loginRequest = {
   scopes: ["User.Read"],
 };
+
+// Scopes needed to send email via Microsoft Graph
+export const emailRequest = {
+  scopes: ["Mail.Send"],
+};

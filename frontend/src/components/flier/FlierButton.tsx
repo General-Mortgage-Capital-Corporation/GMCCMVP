@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import EmailModal from "./EmailModal";
 
 const PROGRAM_PRODUCT_IDS: Record<string, string> = {
   "GMCC Jumbo CRA": "jumbo-cra",
@@ -38,6 +39,7 @@ export default function FlierButton({
   const [loadingAction, setLoadingAction] = useState<"preview" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const productId = PROGRAM_PRODUCT_IDS[programName];
   if (!productId) return null;
@@ -172,9 +174,10 @@ export default function FlierButton({
         </button>
 
         <button
-          disabled
-          className={`${btnBase} cursor-not-allowed bg-gray-50 text-gray-400`}
-          title="Coming soon"
+          onClick={() => setEmailOpen(true)}
+          disabled={!!loadingAction}
+          className={`${btnBase} bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}
+          title="Email flier"
         >
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
             <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
@@ -207,6 +210,19 @@ export default function FlierButton({
 
         {error && <span className="ml-1 text-xs text-red-600">{error}</span>}
       </div>
+
+      {/* Email Modal */}
+      {emailOpen && (
+        <EmailModal
+          programName={programName}
+          productId={productId}
+          propertyAddress={propertyAddress}
+          listingPrice={listingPrice}
+          realtorInfo={realtorInfo}
+          onClose={() => setEmailOpen(false)}
+          fetchPdf={fetchPdf}
+        />
+      )}
 
       {/* PDF Preview Modal */}
       {previewUrl && (

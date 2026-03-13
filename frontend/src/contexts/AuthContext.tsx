@@ -18,6 +18,8 @@ interface AuthContextValue {
   signOut: () => void;
   /** Returns a valid (non-expired) Firebase ID token, refreshing silently if needed. */
   getIdToken: () => Promise<string | null>;
+  /** Returns an MSAL access token for the given Graph scopes (e.g. ["Mail.Send"]). */
+  getMsalAccessToken: (scopes: string[]) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -97,6 +99,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, []);
 
+  const getMsalAccessToken = useCallback(async (scopes: string[]): Promise<string | null> => {
+    try {
+      const msal = await getMsal();
+      const accounts = msal.getAllAccounts();
+      if (accounts.length === 0) return null;
+      try {
+        const result = await msal.acquireTokenSilent({ scopes, account: accounts[0] });
+        return result.accessToken;
+      } catch {
+        // New scope not yet consented — fall back to popup
+        const result = await msal.acquireTokenPopup({ scopes });
+        return result.accessToken;
+      }
+    } catch {
+      return null;
+    }
+  }, []);
+
   const getIdToken = useCallback(async (): Promise<string | null> => {
     if (!user) return null;
     if (user.expiresAt > Date.now() + EXPIRY_BUFFER_MS) return user.idToken;
@@ -122,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, getIdToken }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, getIdToken, getMsalAccessToken }}>
       {children}
     </AuthContext.Provider>
   );
