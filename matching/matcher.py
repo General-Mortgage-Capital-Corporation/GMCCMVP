@@ -31,6 +31,8 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Ocean",
     "GMCC Celebrity Jumbo",
     "GMCC Massive",
+    "GMCC Universe",
+    "GMCC Buy Without Sell First",
 }
 
 # Programs whose eligibility criteria are still pending formalisation.

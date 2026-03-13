@@ -14,7 +14,9 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
   // Secondary programs (shown only in modal under "Additional Program Matches")
   // Hermes, Ocean, Celebrity Jumbo have no fliers yet — omitted so buttons don't render
-  "GMCC Massive":             { productId: "massive" },
+  "GMCC Massive":              { productId: "massive" },
+  "GMCC Universe":             { productId: "universe" },
+  "GMCC Buy Without Sell First": { productId: "buy-without-sell-first" },
 };
 
 export interface RealtorInfo {

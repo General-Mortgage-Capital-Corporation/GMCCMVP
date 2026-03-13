@@ -1,0 +1,83 @@
+{
+  "program_name": "GMCC Universe",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "Broker channel only — not available for in-house underwriting.",
+    "CRA eligibility required: property in LMI census tract (FFIEC) OR borrower income <= 80% of AMI.",
+    "Two qualification paths: DTA (no income needed, DTA <= 60%) or DTI (full doc, max 55% purchase/R/T, 43% cash-out).",
+    "Available in select counties in CA, NV, WA, TX, GA, MA, NY. Focus areas: LA County, Orange County CA, 5 NYC boroughs.",
+    "Texas: cash-out refi NOT allowed.",
+    "1-4 units allowed. Gift funds allowed for primary, 2nd home, and investment.",
+    "Below 660 FICO: reduce max LTV by 5% (70% purchase/R/T, 55% cash-out)."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Universe CRA - DTA (No Income)",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA", "NV", "WA", "TX", "GA", "MA", "NY"],
+      "min_loan_amount": null,
+      "max_loan_amount": null,
+      "max_ltv": 75.0,
+      "max_cltv": null,
+      "min_fico": 660,
+      "min_reserves_months": 36,
+      "max_dti": null,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [
+        "Select counties only in each state",
+        "TX: cash-out refi not allowed"
+      ],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": true,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "cra_note": "LMI tract per FFIEC OR borrower income <= 80% of AMI (Fannie Mae AMI lookup tool)",
+        "qualification_path": "DTA (no income): DTA = Total Debts / Total Assets <= 60%. Employment info still required.",
+        "dta_max": "60%",
+        "reserves_detail": "36 months total; 18 months must be liquid",
+        "cash_out_ltv": "60% max for cash-out",
+        "gift_funds": "Allowed including investment purchase",
+        "broker_only": true
+      }
+    },
+    {
+      "tier_name": "Universe CRA - DTI (Full Doc)",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA", "NV", "WA", "TX", "GA", "MA", "NY"],
+      "min_loan_amount": null,
+      "max_loan_amount": null,
+      "max_ltv": 75.0,
+      "max_cltv": null,
+      "min_fico": 660,
+      "min_reserves_months": 0,
+      "max_dti": 55.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [
+        "Select counties only in each state",
+        "TX: cash-out refi not allowed"
+      ],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": true,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "cra_note": "LMI tract per FFIEC OR borrower income <= 80% of AMI (Fannie Mae AMI lookup tool)",
+        "qualification_path": "DTI full doc: salaried = 1 paystub + W2/WVOE; self-employed = 1yr tax return + YTD P&L",
+        "dti_cashout_max": "43% for cash-out transactions",
+        "reserves_purchase": "No reserve needed for purchase",
+        "reserves_rt_cashout": "3 months PITIA for R/T or cash-out",
+        "cash_out_ltv": "60% max for cash-out",
+        "broker_only": true
+      }
+    }
+  ]
+}

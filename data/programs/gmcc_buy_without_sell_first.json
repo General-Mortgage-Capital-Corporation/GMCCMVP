@@ -1,0 +1,44 @@
+{
+  "program_name": "GMCC Buy Without Sell First",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "Feature that excludes departing primary residence PITIA from DTI when buying a new home.",
+    "Available through select investors: Cronus Jumbo, Onyx Expanded Prime Plus, Ultimate Aspire, Easy Choice.",
+    "Departing home must be listed for sale on MLS (or letter of intent to list within 90 days).",
+    "Most investors require 20-30% equity in departing home (exterior appraisal within 6 months).",
+    "Additional reserves on departing PITIA: 6-24 months depending on investor and market time.",
+    "Primary residence purchase only."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Buy Without Sell First",
+      "transaction_types": ["Purchase"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence"],
+      "eligible_states": [],
+      "min_loan_amount": 150000,
+      "max_loan_amount": null,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": 6,
+      "max_dti": 55.0,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "departing_home_requirement": "Must be listed for sale (MLS listing) or letter of intent to list within 90 days",
+        "equity_requirement": "20-30% equity in departing home (per investor)",
+        "additional_reserves": "6-24 months PITIA on departing home (varies by investor and appraisal market time)",
+        "supported_investors": ["Cronus Jumbo", "Onyx Expanded Prime Plus", "Ultimate Aspire", "Easy Choice"],
+        "income_docs": "Full doc, bank statement, CPA P&L, or WVOE accepted",
+        "departing_equity_as_downpayment": "Some investors allow using departing home equity as down payment"
+      }
+    }
+  ]
+}
