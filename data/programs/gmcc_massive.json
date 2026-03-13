@@ -1,0 +1,52 @@
+{
+  "program_name": "GMCC Massive",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "Asset Qualifier / No-Ratio program. No income needed on 1003 — qualification is purely asset-based.",
+    "Available in 49 states. Ineligible: Orange County NY (FIPS 36071) and City of Baltimore MD (FIPS 24510).",
+    "Texas: purchase and R/T refi allowed; cash-out refi NOT allowed (effective 09-10-2025).",
+    "DTA (Debt-to-Asset ratio) required: Total Debts / Total Assets <= 60%.",
+    "Residual income calculation required effective 01-23-2026.",
+    "No NOO/Investment — Primary and 2nd home only.",
+    "Non-warrantable condo allowed (max 60% LTV).",
+    "No tradelines required if borrower has 3 FICO scores."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Massive - Asset Qualifier",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home"],
+      "eligible_states": [],
+      "min_loan_amount": 150000,
+      "max_loan_amount": 3000000,
+      "max_ltv": 70.0,
+      "max_cltv": null,
+      "min_fico": 700,
+      "min_reserves_months": 12,
+      "max_dti": null,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [
+        "Ineligible: Orange County NY (FIPS 36071)",
+        "Ineligible: City of Baltimore MD (FIPS 24510)",
+        "TX: purchase and R/T refi only — cash-out refi not allowed"
+      ],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "income_doc": "No income required — asset qualifier only",
+        "dta_max": "60% (Total Debts / Total Assets)",
+        "residual_income": "Required effective 01-23-2026",
+        "cash_out_max": "$1.5M",
+        "foreign_national": "2nd home only; need US bank account with ACH; max 2 acres",
+        "gift_funds": "Allowed after min own-funds: 5% primary, 10% 2nd home, 15% FN. Cannot be used for reserves.",
+        "non_warrantable_condo": "Allowed up to 60% LTV with condo cert",
+        "ineligible_tx_cashout": true
+      }
+    }
+  ]
+}

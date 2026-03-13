@@ -30,6 +30,7 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Hermes",
     "GMCC Ocean",
     "GMCC Celebrity Jumbo",
+    "GMCC Massive",
 }
 
 # Programs whose eligibility criteria are still pending formalisation.
