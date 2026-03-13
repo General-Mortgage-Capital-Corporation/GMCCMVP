@@ -44,7 +44,7 @@ export default function Home() {
 
   // Shared chip filters + sort
   const [chipFilters, setChipFilters] = useState<Set<ChipFilter>>(new Set());
-  const [sortBy, setSortBy] = useState<SortBy>("distance");
+  const [sortBy, setSortBy] = useState<SortBy>("days-asc");
 
   // ── Find Properties tab ──────────────────────────────────────────────────
   const findSearch = useSearch();
@@ -133,7 +133,7 @@ export default function Home() {
   function handleTabChange(tab: ActiveTab) {
     setActiveTab(tab);
     setChipFilters(new Set());
-    setSortBy("distance");
+    setSortBy("days-asc");
   }
 
   async function handleFindSearch(params: {
@@ -446,10 +446,11 @@ export default function Home() {
                     onChange={(e) => setSortBy(e.target.value as SortBy)}
                     className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="distance">Sort: Distance</option>
+                    <option value="days-asc">Sort: Days on Market ↑</option>
+                    <option value="days-desc">Sort: Days on Market ↓</option>
                     <option value="price-asc">Sort: Price ↑</option>
                     <option value="price-desc">Sort: Price ↓</option>
-                    <option value="days-asc">Sort: Newest</option>
+                    <option value="distance">Sort: Distance</option>
                     <option value="best-match">Sort: Best Match</option>
                   </select>
                 </div>

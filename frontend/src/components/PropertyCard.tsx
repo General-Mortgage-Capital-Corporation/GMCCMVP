@@ -1,36 +1,17 @@
 "use client";
 
-import type { RentCastListing, ProgramResult } from "@/types";
+import type { RentCastListing } from "@/types";
 import { formatPrice, formatDistance } from "@/lib/utils";
+import ProgBadge from "@/components/ProgBadge";
 
 interface PropertyCardProps {
   listing: RentCastListing;
   onClick?: () => void;
 }
 
-function getEligiblePrograms(listing: RentCastListing): ProgramResult[] {
+function getEligiblePrograms(listing: RentCastListing) {
   if (!listing.matchData?.programs) return [];
   return listing.matchData.programs.filter((p) => p.status !== "Ineligible");
-}
-
-function ProgBadge({ prog }: { prog: ProgramResult }) {
-  const isBeta =
-    prog.program_name.toLowerCase().includes("diamond") ||
-    prog.program_name.toLowerCase().includes("beta");
-  const colors =
-    prog.status === "Eligible"
-      ? "bg-emerald-50 text-emerald-800"
-      : "bg-amber-50 text-amber-800";
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${colors}`}>
-      {prog.program_name}
-      {isBeta && (
-        <span className="rounded bg-violet-600 px-1 text-[9px] font-bold uppercase leading-4 tracking-wide text-white">
-          β
-        </span>
-      )}
-    </span>
-  );
 }
 
 export default function PropertyCard({ listing, onClick }: PropertyCardProps) {
