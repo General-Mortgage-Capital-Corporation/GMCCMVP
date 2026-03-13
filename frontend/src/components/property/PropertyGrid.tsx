@@ -189,6 +189,8 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
 
 export default function PropertyGrid({ listings, loading, onCardClick, sortBy }: PropertyGridProps) {
   const [view, setView] = useState<ViewMode>("list");
+  // Must be called before any early returns to satisfy Rules of Hooks
+  const sorted = useMemo(() => sortListings(listings, sortBy), [listings, sortBy]);
 
   // Show skeletons only when loading with no results yet
   if (loading && listings.length === 0) {
@@ -227,8 +229,6 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy }:
       </div>
     );
   }
-
-  const sorted = useMemo(() => sortListings(listings, sortBy), [listings, sortBy]);
 
   return (
     <div>
