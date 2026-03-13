@@ -14,9 +14,9 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
   // Secondary programs (shown only in modal under "Additional Program Matches")
   // Hermes, Ocean, Celebrity Jumbo have no fliers yet — omitted so buttons don't render
-  "GMCC Massive":              { productId: "massive" },
-  "GMCC Universe":             { productId: "universe" },
-  "GMCC Buy Without Sell First": { productId: "buy-without-sell-first" },
+  "GMCC Massive":              { productId: "massive", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B69FD90A8-BA34-4567-9C72-672A2EC19394%7D&file=GMCC%20Massive%20-%20NON%20Qm.pptx&action=edit&mobileredirect=true" },
+  "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true" },
+  "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
 };
 
 export interface RealtorInfo {
