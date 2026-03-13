@@ -22,6 +22,20 @@ from matching.models import (
 )
 from matching.property_types import PROPERTY_TYPE_UNITS, PROPERTY_TYPE_UNIT_RANGES, RENTCAST_TO_PROGRAM
 
+# Programs matched via JSON that appear only in the property modal under
+# "Additional Program Matches" — hidden from card badges, chip filters, and
+# best-match scoring.  Add new secondary program names here as they are
+# formalised into data/programs/ JSON files.
+SECONDARY_PROGRAM_NAMES: set[str] = {
+    "GMCC Hermes",
+    "GMCC Ocean",
+    "GMCC Celebrity Jumbo",
+}
+
+# Programs whose eligibility criteria are still pending formalisation.
+# Append these as Potentially Eligible placeholders until a JSON file exists.
+SECONDARY_PROGRAMS_PENDING: list[dict] = []
+
 
 @lru_cache(maxsize=1)
 def load_programs() -> tuple[ProgramRules, ...]:
@@ -280,6 +294,38 @@ def check_eligible_msa(
     )
 
 
+def check_eligible_state(
+    state: str | None, tier: EligibilityTier
+) -> CriterionResult:
+    """Check if listing's state is in the tier's eligible state list."""
+    if not tier.eligible_states:
+        return CriterionResult(
+            criterion="eligible_state",
+            status=CriterionStatus.PASS,
+            detail="No state restrictions for this tier",
+        )
+
+    if not state:
+        return CriterionResult(
+            criterion="eligible_state",
+            status=CriterionStatus.UNVERIFIED,
+            detail="State not available to check eligibility",
+        )
+
+    if state.upper().strip() in tier.eligible_states:
+        return CriterionResult(
+            criterion="eligible_state",
+            status=CriterionStatus.PASS,
+            detail=f"State {state} is in the eligible state list",
+        )
+
+    return CriterionResult(
+        criterion="eligible_state",
+        status=CriterionStatus.FAIL,
+        detail=f"State {state} is not in the eligible state list ({', '.join(tier.eligible_states)})",
+    )
+
+
 def check_dmmct(
     majority_aa_hp: bool | None, tier: EligibilityTier
 ) -> CriterionResult:
@@ -427,6 +473,7 @@ def match_tier(listing: ListingInput, tier: EligibilityTier) -> TierResult:
     criteria = [
         check_property_type(listing.property_type, tier),
         check_loan_amount(listing.price, tier),
+        check_eligible_state(listing.state, tier),
         check_eligible_county(listing.county_fips, listing.latitude, listing.longitude, tier),
         check_eligible_msa(listing.census_msa_code, tier),
         check_eligible_tract(listing.census_tract_fips, tier),
@@ -555,6 +602,29 @@ def match_listing(listing: ListingInput) -> list[ProgramResult]:
                 status=program_status,
                 matching_tiers=tier_results,  # include all tiers for UI detail
                 best_tier=best_tier,
+                is_secondary=program.program_name in SECONDARY_PROGRAM_NAMES,
+            )
+        )
+
+    # Append secondary programs whose criteria haven't been formalised yet.
+    pending_criterion = CriterionResult(
+        criterion="eligibility_criteria",
+        status=CriterionStatus.UNVERIFIED,
+        detail="Eligibility criteria under review — contact GMCC for details",
+    )
+    pending_tier = TierResult(
+        tier_name="Pending Criteria",
+        status=OverallStatus.POTENTIALLY_ELIGIBLE,
+        criteria=[pending_criterion],
+    )
+    for prog in SECONDARY_PROGRAMS_PENDING:
+        results.append(
+            ProgramResult(
+                program_name=prog["name"],
+                status=OverallStatus.POTENTIALLY_ELIGIBLE,
+                matching_tiers=[pending_tier],
+                best_tier="Pending Criteria",
+                is_secondary=True,
             )
         )
 

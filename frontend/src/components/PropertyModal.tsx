@@ -474,8 +474,9 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
   const programs: ProgramResult[] = listing.matchData?.programs ?? [];
   const census = listing.censusData;
-  const eligible = programs.filter((p) => p.status !== "Ineligible");
-  const ineligible = programs.filter((p) => p.status === "Ineligible");
+  const eligible = programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+  const ineligible = programs.filter((p) => p.status === "Ineligible" && !p.is_secondary);
+  const secondary = programs.filter((p) => p.is_secondary);
 
   const agent = listing.listingAgent ?? {};
   const office = listing.listingOffice ?? {};
@@ -628,6 +629,27 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
               {ineligible.length > 0 && (
                 <div className={eligible.length > 0 ? "mt-4" : ""}>
                   <IneligiblePrograms programs={ineligible} />
+                </div>
+              )}
+
+              {secondary.length > 0 && (
+                <div className="mt-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-gray-700">Additional Program Matches</h3>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-500">
+                      {secondary.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {secondary.map((prog) => (
+                      <ProgramCard
+                        key={prog.program_name}
+                        program={prog}
+                        listing={listing}
+                        realtorInfo={realtorInfo}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

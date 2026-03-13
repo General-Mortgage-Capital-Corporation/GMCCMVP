@@ -1,0 +1,90 @@
+{
+  "program_name": "GMCC Hermes",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "In-house underwriting. No tax documents required.",
+    "4 income doc options: Alternative Doc (WVOE/P&L), ABIO/VVOE, 3-mo personal bank statement, 6-mo business bank statement.",
+    "Multiple ADUs allowed; units + ADU cannot exceed 4 total.",
+    "100% gift funds allowed including investment purchase."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Hermes - California",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA"],
+      "min_loan_amount": null,
+      "max_loan_amount": 4000000,
+      "max_ltv": 75.0,
+      "max_cltv": null,
+      "min_fico": 680,
+      "min_reserves_months": 2,
+      "max_dti": 43.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "doc_types": ["Alternative Doc", "ABIO/VVOE", "3-mo Bank Statement", "6-mo Business Bank Statement"],
+        "foreign_national": "Alternative Doc only (no ABIO, no bank statement)"
+      }
+    },
+    {
+      "tier_name": "Hermes - Multi-State",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["AZ", "CO", "DC", "GA", "IL", "NJ", "NV", "NY", "TX", "VA", "WA"],
+      "min_loan_amount": null,
+      "max_loan_amount": 2500000,
+      "max_ltv": 75.0,
+      "max_cltv": null,
+      "min_fico": 680,
+      "min_reserves_months": 2,
+      "max_dti": 43.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "doc_types": ["Alternative Doc", "ABIO/VVOE", "3-mo Bank Statement", "6-mo Business Bank Statement"],
+        "foreign_national": "Alternative Doc only (no ABIO, no bank statement)"
+      }
+    },
+    {
+      "tier_name": "Hermes CRA - LMI Tract",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA", "CO", "DC", "GA", "IL", "NJ", "NY", "TX", "VA", "WA"],
+      "min_loan_amount": null,
+      "max_loan_amount": 1500000,
+      "max_ltv": 80.0,
+      "max_cltv": null,
+      "min_fico": 680,
+      "min_reserves_months": 2,
+      "max_dti": 50.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": true,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "cra_note": "LMI tract per FFIEC OR borrower income <= 80% of area median income",
+        "no_vvoe": true
+      }
+    }
+  ]
+}

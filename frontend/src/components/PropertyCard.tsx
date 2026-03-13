@@ -11,7 +11,9 @@ interface PropertyCardProps {
 
 function getEligiblePrograms(listing: RentCastListing) {
   if (!listing.matchData?.programs) return [];
-  return listing.matchData.programs.filter((p) => p.status !== "Ineligible");
+  return listing.matchData.programs.filter(
+    (p) => p.status !== "Ineligible" && !p.is_secondary,
+  );
 }
 
 export default function PropertyCard({ listing, onClick }: PropertyCardProps) {

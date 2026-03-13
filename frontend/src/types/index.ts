@@ -28,6 +28,7 @@ export interface ProgramResult {
   status: OverallStatus;
   matching_tiers: TierResult[];
   best_tier: string | null;
+  is_secondary?: boolean;
 }
 
 export interface MatchResponse {

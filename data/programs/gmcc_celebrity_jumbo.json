@@ -1,0 +1,71 @@
+{
+  "program_name": "GMCC Celebrity Jumbo",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "Broker loan. Requires DU run.",
+    "Asset Depletion income allowed: eligible assets divided by 240 months.",
+    "Non-Occupying Co-Borrower allowed.",
+    "Rural property OK (no agricultural zoning; no working farm). Max 10 acres.",
+    "Unlimited cash out if LTV < 70%; otherwise max $250K cash out.",
+    "20 max financed properties.",
+    "Use Celebrity-approved AMC (not GMCC).",
+    "No declining market adjustment for Bay Area."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Celebrity Jumbo - Purchase & R/T",
+      "transaction_types": ["Purchase", "Rate/Term Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA", "MA", "NC", "SC", "VA"],
+      "min_loan_amount": null,
+      "max_loan_amount": 3000000,
+      "max_ltv": 80.0,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": 45.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "income_types": ["W2/Paystub", "Self-Employed (2yr tax returns)", "Asset Depletion"],
+        "asset_depletion": "Eligible assets / 240 months = monthly income. Borrower must be 59.5+ for retirement funds.",
+        "interest_only": "Available; IO period 10 years on primary/2nd home",
+        "no_rsu_income": true,
+        "gift_funds": "100% allowed for down payment and closing costs on primary and 2nd home"
+      }
+    },
+    {
+      "tier_name": "Celebrity Jumbo - Cash Out",
+      "transaction_types": ["Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD"],
+      "occupancy_types": ["Primary Residence", "Second Home"],
+      "eligible_states": ["CA", "MA", "NC", "SC", "VA"],
+      "min_loan_amount": null,
+      "max_loan_amount": 3000000,
+      "max_ltv": 80.0,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": 45.0,
+      "unit_count_limits": [1, 2],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "cash_out_note": "Unlimited cash out if LTV < 70%; otherwise capped at $250K. Cash out not available for investment properties.",
+        "flip_restriction": "Seller must have held title >90 days from purchase contract date"
+      }
+    }
+  ]
+}

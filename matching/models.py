@@ -44,6 +44,7 @@ class ProgramResult(BaseModel):
     status: OverallStatus
     matching_tiers: list[TierResult]
     best_tier: str | None
+    is_secondary: bool = False  # True = show only in modal, not in card badges / filters
 
 
 class ListingInput(BaseModel):

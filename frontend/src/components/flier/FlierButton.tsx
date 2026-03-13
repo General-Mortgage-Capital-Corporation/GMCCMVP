@@ -12,6 +12,10 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC Grandslam":          { productId: "grandslam", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
   "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
   "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
+  // Secondary programs (shown only in modal under "Additional Program Matches")
+  "GMCC Hermes":              { productId: "hermes" },
+  "GMCC Ocean":               { productId: "ocean" },
+  "GMCC Celebrity Jumbo":     { productId: "celebrity-jumbo" },
 };
 
 export interface RealtorInfo {

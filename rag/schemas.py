@@ -62,6 +62,10 @@ class EligibilityTier(BaseModel):
         default_factory=list,
         description="Allowed 5-digit county FIPS codes, e.g., ['06085', '06001']. Empty = no restriction.",
     )
+    eligible_states: list[str] = Field(
+        default_factory=list,
+        description="Allowed 2-letter state abbreviations, e.g., ['CA', 'TX']. Empty = no restriction. Use when program is available in all counties of listed states.",
+    )
     requires_lmi_tract: bool = Field(
         default=False,
         description="If True, property must be in a FFIEC-designated low-to-moderate income census tract.",

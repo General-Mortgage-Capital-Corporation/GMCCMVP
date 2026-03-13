@@ -34,7 +34,10 @@ function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastList
       return s.sort((a, b) => {
         const score = (l: RentCastListing) =>
           (l.matchData?.programs ?? []).reduce(
-            (acc, p) => acc + (p.status === "Eligible" ? 2 : p.status === "Potentially Eligible" ? 1 : 0),
+            (acc, p) =>
+              p.is_secondary
+                ? acc
+                : acc + (p.status === "Eligible" ? 2 : p.status === "Potentially Eligible" ? 1 : 0),
             0,
           );
         return score(b) - score(a);
@@ -45,7 +48,9 @@ function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastList
 
 
 function PropertyListRow({ listing, onClick }: { listing: RentCastListing; onClick: () => void }) {
-  const eligible = (listing.matchData?.programs ?? []).filter((p) => p.status !== "Ineligible");
+  const eligible = (listing.matchData?.programs ?? []).filter(
+    (p) => p.status !== "Ineligible" && !p.is_secondary,
+  );
   const hasMatchData = listing.matchData !== undefined;
   const distanceStr = formatDistance(listing.distance);
 

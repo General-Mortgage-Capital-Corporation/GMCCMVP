@@ -1,0 +1,40 @@
+{
+  "program_name": "GMCC Ocean",
+  "qm_status": "Non-QM",
+  "general_notes": [
+    "In-house underwriting. No tax documents required.",
+    "3 income doc options: WVOE (wage earner), CPA-prepared P&L, or borrower-prepared P&L.",
+    "Max 10 financed investment properties.",
+    "Private landlord VOR accepted — no proof of rent payment required.",
+    "Available in CA, TX, NV. CA has 8 eligible counties with higher limits ($5M, 75% LTV) as of 02-03-2026."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Ocean - CA/TX/NV",
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Second Home", "Investment"],
+      "eligible_states": ["CA", "TX", "NV"],
+      "min_loan_amount": null,
+      "max_loan_amount": 5000000,
+      "max_ltv": 75.0,
+      "max_cltv": null,
+      "min_fico": 680,
+      "min_reserves_months": 3,
+      "max_dti": 43.0,
+      "unit_count_limits": [1, 2, 3, 4],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "doc_types": ["WVOE", "CPA P&L", "Borrower P&L"],
+        "foreign_national": "No EAD card holder. Eligible VISA types: B1, B2, H2, H3, I, J, K, ESTA.",
+        "cash_out_seasoning": "Current mortgage must be seasoned 12 months; 6 months title seasoning"
+      }
+    }
+  ]
+}
