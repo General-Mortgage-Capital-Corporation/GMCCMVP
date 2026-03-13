@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     realtorPhone,
     realtorEmail,
     realtorNmls,
+    realtorCompany,
     branch,
     slogan,
   } = body as Record<string, string | undefined>;
@@ -44,13 +45,14 @@ export async function POST(req: NextRequest) {
             },
           }
         : {}),
-      ...(realtorName || realtorPhone || realtorEmail || realtorNmls
+      ...(realtorName || realtorPhone || realtorEmail || realtorNmls || realtorCompany
         ? {
             realtor: {
               ...(realtorName ? { name: realtorName } : {}),
               ...(realtorPhone ? { phoneNumber: realtorPhone } : {}),
               ...(realtorEmail ? { email: realtorEmail } : {}),
               ...(realtorNmls ? { nmls: realtorNmls } : {}),
+              ...(realtorCompany ? { company: realtorCompany } : {}),
             },
           }
         : {}),
