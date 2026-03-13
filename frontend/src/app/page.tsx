@@ -10,6 +10,7 @@ import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
 import MarketingTable from "@/components/marketing/MarketingTable";
 import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
+import SignInButton from "@/components/auth/SignInButton";
 import PropertyModal from "@/components/PropertyModal";
 import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -295,6 +296,7 @@ export default function Home() {
               Sale Listings
             </span>
           </div>
+          <SignInButton />
         </div>
       </header>
 

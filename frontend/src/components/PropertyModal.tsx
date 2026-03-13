@@ -18,6 +18,7 @@ import {
 } from "@/lib/utils";
 import { getExplanation } from "@/lib/api";
 import LoadingSpinner from "./LoadingSpinner";
+import FlierButton from "@/components/flier/FlierButton";
 
 // ---------------------------------------------------------------------------
 // Criterion status icons
@@ -329,6 +330,11 @@ function ProgramCard({
           )}
           {tier && <CriteriaGrid criteria={tier.criteria} />}
           <TalkingPoints program={program} listing={listing} />
+          <FlierButton
+            programName={program.program_name}
+            propertyAddress={listing.formattedAddress}
+            listingPrice={listing.price}
+          />
         </div>
       )}
     </div>
