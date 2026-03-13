@@ -5,13 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmailModal from "./EmailModal";
 
-const PROGRAM_PRODUCT_IDS: Record<string, string> = {
-  "GMCC Jumbo CRA": "jumbo-cra",
-  "GMCC Diamond": "diamond-community-lending",
-  "GMCC Fabulous Jumbo": "fabulous",
-  "GMCC Grandslam": "grandslam",
-  "GMCC $10K Grant": "celebrity-10k",
-  "GMCC Special Conforming": "conforming-special",
+const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string }> = {
+  "GMCC Jumbo CRA":          { productId: "jumbo-cra", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
+  "GMCC Diamond":            { productId: "diamond-community-lending", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20CRA%20programs.pptx?d=w8ff4ac9ad1cc4de08b6c4262a0a60302&csf=1&web=1&e=ZN2Si0" },
+  "GMCC Fabulous Jumbo":     { productId: "fabulous", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20Fabulous%20-%20AUS%20jumbo.pptx?d=wbd3caa7c5f294a2695e36a1555480b9b&csf=1&web=1&e=WF6PIU" },
+  "GMCC Grandslam":          { productId: "grandslam", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
+  "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
+  "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
 };
 
 export interface RealtorInfo {
@@ -41,8 +41,9 @@ export default function FlierButton({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
 
-  const productId = PROGRAM_PRODUCT_IDS[programName];
-  if (!productId) return null;
+  const config = PROGRAM_CONFIG[programName];
+  if (!config) return null;
+  const { productId, guidelineUrl } = config;
 
   async function fetchPdf(): Promise<Blob | null> {
     setError(null);
@@ -187,9 +188,10 @@ export default function FlierButton({
         </button>
 
         <button
-          disabled
-          className={`${btnBase} cursor-not-allowed bg-gray-50 text-gray-400`}
-          title="Coming soon"
+          onClick={() => guidelineUrl && window.open(guidelineUrl, "_blank", "noopener,noreferrer")}
+          disabled={!guidelineUrl}
+          className={`${btnBase} ${guidelineUrl ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "cursor-not-allowed bg-gray-50 text-gray-400"}`}
+          title={guidelineUrl ? "View program guideline" : "Guideline coming soon"}
         >
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
             <path
