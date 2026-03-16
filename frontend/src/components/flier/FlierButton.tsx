@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmailModal from "./EmailModal";
@@ -13,10 +13,12 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
   "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
   // Secondary programs (shown only in modal under "Additional Program Matches")
-  // Hermes, Ocean, Celebrity Jumbo have no fliers yet — omitted so buttons don't render
+  // Celebrity Jumbo has no flier yet — omitted so buttons don't render
   "GMCC Massive":              { productId: "massive", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B69FD90A8-BA34-4567-9C72-672A2EC19394%7D&file=GMCC%20Massive%20-%20NON%20Qm.pptx&action=edit&mobileredirect=true" },
   "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true" },
   "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
+  "GMCC Ocean":                { productId: "ocean", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Ocean%2002-06-2026%20v4.pptx?d=w1c903e89e42b47518d6a8329783a3ece&csf=1&web=1&e=zhf5fT" },
+  "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
 };
 
 export interface RealtorInfo {
@@ -45,6 +47,13 @@ export default function FlierButton({
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+
+  // Revoke blob URL on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const config = PROGRAM_CONFIG[programName];
   if (!config) return null;
