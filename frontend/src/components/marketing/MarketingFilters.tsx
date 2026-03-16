@@ -27,7 +27,7 @@ export default function MarketingFilters({
     new Set(
       listings
         .flatMap((l) => l.matchData?.programs ?? [])
-        .filter((p) => p.status !== "Ineligible")
+        .filter((p) => p.status !== "Ineligible" && !p.is_secondary)
         .map((p) => p.program_name),
     ),
   );

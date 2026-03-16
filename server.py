@@ -23,7 +23,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 from matching.models import ListingInput
-from matching.matcher import match_listing, load_programs
+from matching.matcher import match_listing, load_programs, SECONDARY_PROGRAM_NAMES
 from matching.census import get_census_data
 from matching.explain import explain_match
 from rag.config import PROGRAMS_DIR
@@ -98,7 +98,7 @@ def health_check():
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
     programs = load_programs()
-    return jsonify({"programs": [p.program_name for p in programs]})
+    return jsonify({"programs": [p.program_name for p in programs if p.program_name not in SECONDARY_PROGRAM_NAMES]})
 
 
 @app.route("/api/match", methods=["POST"])
@@ -200,6 +200,8 @@ def program_locations():
 
     result = []
     for program in programs:
+        if program.program_name in SECONDARY_PROGRAM_NAMES:
+            continue
         all_fips: set[str] = set()
         for tier in program.tiers:
             all_fips.update(tier.eligible_county_fips)
