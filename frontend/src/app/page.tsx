@@ -73,25 +73,28 @@ export default function Home() {
   const [mkLoading, setMkLoading] = useState(false);
   const [mkError, setMkError] = useState<string | null>(null);
   const [mkProgress, setMkProgress] = useState<{ processed: number; total: number } | null>(null);
-  const [mkSortCol, setMkSortCol] = useState<MkSortColumn>("price");
-  const [mkSortDir, setMkSortDir] = useState<MkSortDir>("desc");
-  const [mkProgramFilter, setMkProgramFilter] = useState("");
-  const [mkTypeFilter, setMkTypeFilter] = useState("");
+  const [mkSortCol, setMkSortCol] = useState<MkSortColumn>("days");
+  const [mkSortDir, setMkSortDir] = useState<MkSortDir>("asc");
+  const [mkProgramFilters, setMkProgramFilters] = useState<string[]>([]);
+  const [mkTypeFilters, setMkTypeFilters] = useState<string[]>([]);
 
   const filteredMkListings = useMemo(() => {
     return mkListings.filter((l) => {
       if (!listingPassesChipFilters(l, chipFilters)) return false;
       if (
-        mkProgramFilter &&
-        !l.matchData?.programs.some(
-          (p) => p.program_name === mkProgramFilter && p.status !== "Ineligible",
+        mkProgramFilters.length > 0 &&
+        !mkProgramFilters.some((name) =>
+          l.matchData?.programs.some(
+            (p) => p.program_name === name && p.status !== "Ineligible",
+          ),
         )
       )
         return false;
-      if (mkTypeFilter && l.propertyType !== mkTypeFilter) return false;
+      if (mkTypeFilters.length > 0 && !mkTypeFilters.includes(l.propertyType ?? ""))
+        return false;
       return true;
     });
-  }, [mkListings, chipFilters, mkProgramFilter, mkTypeFilter]);
+  }, [mkListings, chipFilters, mkProgramFilters, mkTypeFilters]);
 
   // Shared abort controller — cancels any running program/marketing stream
   const activeSearchCtrl = useRef<AbortController | null>(null);
@@ -203,8 +206,8 @@ export default function Home() {
     setMkLoading(true);
     setMkListings([]);
     setMkProgress(null);
-    setMkProgramFilter("");
-    setMkTypeFilter("");
+    setMkProgramFilters([]);
+    setMkTypeFilters([]);
     setChipFilters(new Set());
     try {
       for await (const event of marketingSearchStream(params, ctrl.signal)) {
@@ -402,11 +405,11 @@ export default function Home() {
               <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                 <MarketingFilters
                   listings={mkListings}
-                  programFilter={mkProgramFilter}
-                  typeFilter={mkTypeFilter}
+                  programFilters={mkProgramFilters}
+                  typeFilters={mkTypeFilters}
                   chipFilters={chipFilters}
-                  onProgramFilter={setMkProgramFilter}
-                  onTypeFilter={setMkTypeFilter}
+                  onProgramFilters={setMkProgramFilters}
+                  onTypeFilters={setMkTypeFilters}
                   onChipFilter={setChipFilters}
                 />
               </div>
@@ -415,6 +418,7 @@ export default function Home() {
             {/* Filter + sort bar (find / program tabs) */}
             {showFilterBar && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</span>
                 <FilterChips
                   active={chipFilters}
                   onChange={setChipFilters}
@@ -465,6 +469,7 @@ export default function Home() {
                   loading={findSearch.loading}
                   onCardClick={openModal}
                   sortBy={sortBy}
+                  onSortChange={setSortBy}
                 />
                 {findPagination.totalPages > 1 && (
                   <Pagination

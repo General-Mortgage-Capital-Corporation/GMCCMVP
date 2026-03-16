@@ -21,6 +21,7 @@ interface PropertyGridProps {
   loading: boolean;
   onCardClick: (listing: RentCastListing) => void;
   sortBy: SortBy;
+  onSortChange?: (sortBy: SortBy) => void;
 }
 
 function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastListing[] {
@@ -46,6 +47,8 @@ function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastList
   }
 }
 
+// Columns: Days | Address | Programs | Price | Dist
+const LIST_COLS = "90px 280px auto 130px 72px";
 
 function PropertyListRow({ listing, onClick }: { listing: RentCastListing; onClick: () => void }) {
   const eligible = (listing.matchData?.programs ?? []).filter(
@@ -66,9 +69,9 @@ function PropertyListRow({ listing, onClick }: { listing: RentCastListing; onCli
       className="grid cursor-pointer items-center gap-x-4 border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50"
       style={{ gridTemplateColumns: LIST_COLS }}
     >
-      {/* Price */}
-      <span className="text-sm font-bold text-slate-900 tabular-nums">
-        {formatPrice(listing.price)}
+      {/* Days on market */}
+      <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-amber-700">
+        {listing.daysOnMarket != null ? `${listing.daysOnMarket}d` : "—"}
       </span>
 
       {/* Address + details */}
@@ -99,9 +102,9 @@ function PropertyListRow({ listing, onClick }: { listing: RentCastListing; onCli
         )}
       </div>
 
-      {/* Days on market */}
-      <span className="whitespace-nowrap text-[0.68rem] text-amber-700">
-        {listing.daysOnMarket != null ? `${listing.daysOnMarket}d` : ""}
+      {/* Price */}
+      <span className="text-sm font-bold text-slate-900 tabular-nums">
+        {formatPrice(listing.price)}
       </span>
 
       {/* Distance */}
@@ -135,19 +138,17 @@ function SkeletonCard() {
   );
 }
 
-const LIST_COLS = "144px 280px auto 60px 72px";
-
 function SkeletonRow() {
   return (
     <div className="grid items-center gap-x-4 border-b border-slate-100 px-4 py-3"
       style={{ gridTemplateColumns: LIST_COLS }}>
-      <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
+      <div className="h-4 w-8 animate-pulse rounded bg-slate-200" />
       <div className="space-y-1.5">
         <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
         <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100 [animation-delay:75ms]" />
       </div>
       <div className="h-4 w-20 animate-pulse rounded-full bg-slate-200" />
-      <div className="h-3 w-6 animate-pulse rounded bg-slate-100" />
+      <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
       <div className="h-3 w-10 animate-pulse rounded bg-slate-100" />
     </div>
   );
@@ -187,10 +188,36 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
   );
 }
 
-export default function PropertyGrid({ listings, loading, onCardClick, sortBy }: PropertyGridProps) {
+function SortArrow({ active, dir }: { active: boolean; dir: "asc" | "desc" | null }) {
+  if (!active) return <span className="ml-1 opacity-30">⇅</span>;
+  return <span className="ml-1 opacity-70">{dir === "asc" ? "▲" : "▼"}</span>;
+}
+
+export default function PropertyGrid({ listings, loading, onCardClick, sortBy, onSortChange }: PropertyGridProps) {
   const [view, setView] = useState<ViewMode>("list");
   // Must be called before any early returns to satisfy Rules of Hooks
   const sorted = useMemo(() => sortListings(listings, sortBy), [listings, sortBy]);
+
+  function handleColSort(col: "days" | "price" | "programs" | "distance") {
+    if (!onSortChange) return;
+    if (col === "days") {
+      onSortChange(sortBy === "days-asc" ? "days-desc" : "days-asc");
+    } else if (col === "price") {
+      onSortChange(sortBy === "price-asc" ? "price-desc" : "price-asc");
+    } else if (col === "programs") {
+      onSortChange("best-match");
+    } else {
+      onSortChange("distance");
+    }
+  }
+
+  const daysDir = sortBy === "days-asc" ? "asc" : sortBy === "days-desc" ? "desc" : null;
+  const priceDir = sortBy === "price-asc" ? "asc" : sortBy === "price-desc" ? "desc" : null;
+
+  const colHeaderClass = (active: boolean) =>
+    `text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 ${
+      onSortChange ? "cursor-pointer select-none hover:text-slate-600" : ""
+    } ${active ? "text-blue-500" : ""}`;
 
   // Show skeletons only when loading with no results yet
   if (loading && listings.length === 0) {
@@ -208,7 +235,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy }:
             <div style={{ minWidth: 680 }}>
               <div className="grid border-b border-slate-200 bg-slate-50 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400"
                 style={{ gridTemplateColumns: LIST_COLS }}>
-                <span>Price</span><span>Address</span><span>Programs</span><span>Days</span><span>Dist</span>
+                <span>Days on Market</span><span>Address</span><span>Programs</span><span>Price</span><span>Dist</span>
               </div>
               {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
             </div>
@@ -252,14 +279,22 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy }:
           <div style={{ minWidth: 680 }}>
             {/* Column headers */}
             <div
-              className="grid border-b border-slate-200 bg-slate-50 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400"
+              className="grid border-b border-slate-200 bg-slate-50 px-4 py-2"
               style={{ gridTemplateColumns: LIST_COLS }}
             >
-              <span>Price</span>
-              <span>Address / Details</span>
-              <span>Programs</span>
-              <span>Days</span>
-              <span>Dist</span>
+              <span className={colHeaderClass(daysDir !== null)} onClick={() => handleColSort("days")}>
+                Days on Market<SortArrow active={daysDir !== null} dir={daysDir} />
+              </span>
+              <span className={colHeaderClass(false)}>Address / Details</span>
+              <span className={colHeaderClass(sortBy === "best-match")} onClick={() => handleColSort("programs")}>
+                Programs<SortArrow active={sortBy === "best-match"} dir={sortBy === "best-match" ? "desc" : null} />
+              </span>
+              <span className={colHeaderClass(priceDir !== null)} onClick={() => handleColSort("price")}>
+                Price<SortArrow active={priceDir !== null} dir={priceDir} />
+              </span>
+              <span className={colHeaderClass(sortBy === "distance")} onClick={() => handleColSort("distance")}>
+                Dist<SortArrow active={sortBy === "distance"} dir={sortBy === "distance" ? "asc" : null} />
+              </span>
             </div>
             {sorted.map((listing, i) => (
               <PropertyListRow

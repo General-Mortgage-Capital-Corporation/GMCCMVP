@@ -6,21 +6,21 @@ import type { ChipFilter } from "@/lib/utils";
 
 interface MarketingFiltersProps {
   listings: RentCastListing[];
-  programFilter: string;
-  typeFilter: string;
+  programFilters: string[];
+  typeFilters: string[];
   chipFilters: Set<ChipFilter>;
-  onProgramFilter: (p: string) => void;
-  onTypeFilter: (t: string) => void;
+  onProgramFilters: (p: string[]) => void;
+  onTypeFilters: (t: string[]) => void;
   onChipFilter: (c: Set<ChipFilter>) => void;
 }
 
 export default function MarketingFilters({
   listings,
-  programFilter,
-  typeFilter,
+  programFilters,
+  typeFilters,
   chipFilters,
-  onProgramFilter,
-  onTypeFilter,
+  onProgramFilters,
+  onTypeFilters,
   onChipFilter,
 }: MarketingFiltersProps) {
   const allPrograms = Array.from(
@@ -36,43 +36,69 @@ export default function MarketingFilters({
     new Set(listings.map((l) => l.propertyType).filter(Boolean)),
   ) as string[];
 
+  function toggleProgram(p: string) {
+    if (programFilters.includes(p)) {
+      onProgramFilters(programFilters.filter((x) => x !== p));
+    } else {
+      onProgramFilters([...programFilters, p]);
+    }
+  }
+
+  function toggleType(t: string) {
+    if (typeFilters.includes(t)) {
+      onTypeFilters(typeFilters.filter((x) => x !== t));
+    } else {
+      onTypeFilters([...typeFilters, t]);
+    }
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {allPrograms.length > 0 && (
-        <select
-          value={programFilter}
-          onChange={(e) => onProgramFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Programs</option>
-          {allPrograms.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      )}
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</p>
+      <div className="flex flex-wrap gap-x-8 gap-y-4">
+        {allPrograms.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-gray-600">Program</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {allPrograms.map((p) => (
+                <label key={p} className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={programFilters.includes(p)}
+                    onChange={() => toggleProgram(p)}
+                    className="h-3.5 w-3.5 rounded accent-blue-600"
+                  />
+                  <span className="text-xs text-gray-700">{p}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
-      {allTypes.length > 0 && (
-        <select
-          value={typeFilter}
-          onChange={(e) => onTypeFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Types</option>
-          {allTypes.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      )}
+        {allTypes.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-gray-600">Property Type</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {allTypes.map((t) => (
+                <label key={t} className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={typeFilters.includes(t)}
+                    onChange={() => toggleType(t)}
+                    className="h-3.5 w-3.5 rounded accent-blue-600"
+                  />
+                  <span className="text-xs text-gray-700">{t}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
-      <FilterChips
-        active={chipFilters}
-        onChange={onChipFilter}
-        showPriceRanges
-      />
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-gray-600">Tract / Price</p>
+          <FilterChips active={chipFilters} onChange={onChipFilter} showPriceRanges />
+        </div>
+      </div>
     </div>
   );
 }

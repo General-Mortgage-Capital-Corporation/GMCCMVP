@@ -135,12 +135,12 @@ export default function MarketingTable({
 
   const cols: { key: MkSortColumn; label: string }[] = [
     { key: "msa",       label: "MSA #" },
-    { key: "price",     label: "Price" },
+    { key: "days",      label: "Days on Market" },
     { key: "address",   label: "Active Listing Address" },
     { key: "programs",  label: "Matched Programs" },
     { key: "mmct",      label: "MMCT" },
     { key: "lmi",       label: "Income Level" },
-    { key: "days",      label: "Days on Market" },
+    { key: "price",     label: "Price" },
     { key: "agentName", label: "Agent" },
     { key: "agentEmail",label: "Email" },
     { key: "agentPhone",label: "Phone" },
@@ -195,7 +195,8 @@ export default function MarketingTable({
               const census = listing.censusData ?? {};
               const agent = listing.listingAgent ?? {};
               const progs = listing.matchData?.programs ?? [];
-              const eligible = progs.filter((p) => p.status !== "Ineligible");
+              const eligible = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+              const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
 
               const isMMCT = (census.tract_minority_pct ?? 0) > 50;
               const incomeLevel = census.tract_income_level ?? "N/A";
@@ -212,13 +213,13 @@ export default function MarketingTable({
                     {census.msa_code ?? "N/A"}
                   </td>
 
-                  {/* Price */}
-                  <td className="whitespace-nowrap px-3 py-2.5 font-medium text-gray-900">
-                    {formatPrice(listing.price)}
+                  {/* Days on Market */}
+                  <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-amber-700">
+                    {listing.daysOnMarket != null ? listing.daysOnMarket : "N/A"}
                   </td>
 
                   {/* Address */}
-                  <td className="max-w-[220px] truncate px-3 py-2.5 text-gray-800" title={listing.formattedAddress}>
+                  <td className="min-w-[180px] px-3 py-2.5 text-gray-800">
                     {listing.formattedAddress ?? "N/A"}
                   </td>
 
@@ -238,7 +239,16 @@ export default function MarketingTable({
                             {p.program_name}
                           </span>
                         ))}
+                        {secondaryMatchCount > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                            +{secondaryMatchCount} secondary
+                          </span>
+                        )}
                       </div>
+                    ) : secondaryMatchCount > 0 ? (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                        {secondaryMatchCount} secondary
+                      </span>
                     ) : (
                       <span className="text-gray-400">None</span>
                     )}
@@ -266,9 +276,9 @@ export default function MarketingTable({
                     </span>
                   </td>
 
-                  {/* Days on Market */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {listing.daysOnMarket != null ? listing.daysOnMarket : "N/A"}
+                  {/* Price */}
+                  <td className="whitespace-nowrap px-3 py-2.5 font-medium text-gray-900">
+                    {formatPrice(listing.price)}
                   </td>
 
                   {/* Agent */}

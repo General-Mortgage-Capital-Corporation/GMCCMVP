@@ -640,16 +640,27 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       {secondary.length}
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    {secondary.map((prog) => (
-                      <ProgramCard
-                        key={prog.program_name}
-                        program={prog}
-                        listing={listing}
-                        realtorInfo={realtorInfo}
-                      />
-                    ))}
-                  </div>
+                  {(() => {
+                    const secEligible = secondary.filter((p) => p.status !== "Ineligible");
+                    const secIneligible = secondary.filter((p) => p.status === "Ineligible");
+                    return (
+                      <div className="space-y-2">
+                        {secEligible.map((prog) => (
+                          <ProgramCard
+                            key={prog.program_name}
+                            program={prog}
+                            listing={listing}
+                            realtorInfo={realtorInfo}
+                          />
+                        ))}
+                        {secIneligible.length > 0 && (
+                          <div className={secEligible.length > 0 ? "mt-3" : ""}>
+                            <IneligiblePrograms programs={secIneligible} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
