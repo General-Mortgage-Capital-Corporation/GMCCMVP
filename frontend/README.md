@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GMCC Frontend (Next.js)
 
-## Getting Started
+The Next.js frontend for the GMCC Property Search Dashboard. See the [root README](../README.md) for full architecture and deployment documentation.
 
-First, run the development server:
+## Local Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # fill in your keys
+npm run dev                         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The Python matching backend must also be running locally (`python server.py` from repo root) unless you point `PYTHON_SERVICE_URL` at the deployed backend.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/
+    page.tsx                  ← Main dashboard (tabs: CRA Check, Massive Marketing, GPS Radius, Market by Program)
+    api/                      ← Next.js API routes (server-side proxies)
+      search/                 ← RentCast property search
+      match/                  ← Proxy to Python matcher
+      marketing-search/       ← Full-county marketing search stream
+      program-search/         ← Program-specific county search stream
+      generate-flier/         ← Proxy to Firebase Cloud Function (PDF generation)
+      suggest-email/          ← Gemini email suggestion
+      autocomplete/           ← Google Places address autocomplete
+      cra-check/              ← CRA address fast-check
+  components/
+    property/PropertyGrid.tsx ← List/card view for GPS radius results
+    marketing/                ← Massive Marketing tab components
+    program/                  ← Market by Program tab components
+    cra/                      ← CRA Address Fast Check tab
+    flier/FlierButton.tsx     ← Preview/Download/Email/Guideline buttons
+    PropertyModal.tsx         ← Property detail modal with program matching
+    PropertyCard.tsx          ← Card view item
+  contexts/AuthContext.tsx    ← Firebase + Azure MSAL auth
+  lib/
+    api.ts                    ← API client functions
+    firebase-auth.ts          ← Firebase Auth helpers
+    utils.ts                  ← Formatting utilities, chip filter logic
+  types/index.ts              ← Shared TypeScript types
+```
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+See `.env.local.example` for all required variables with descriptions.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key Concepts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Primary vs Secondary programs**: Primary programs (6 total) appear as badges in search results and in filter dropdowns. Secondary programs appear only inside the property detail modal under "Additional Program Matches". The `is_secondary` flag comes from the Python matcher.
 
-## Deploy on Vercel
+**Flier generation**: Handled by Firebase Cloud Functions (`fillPdfFlier`). Users must be signed in via Firebase Auth. Program-to-productId mapping lives in `flier/FlierButton.tsx` — add `guidelineUrl` to unlock the Guideline button for a program.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Matching**: The Python service returns `ProgramResult[]` with `status: "Eligible" | "Potentially Eligible" | "Ineligible"` and `is_secondary: boolean`. The frontend never re-derives eligibility — it only renders what the backend returns.
