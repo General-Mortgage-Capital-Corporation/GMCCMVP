@@ -1,5 +1,8 @@
 "use client";
 
+// Set to false to disable the hero photo in the property modal.
+const SHOW_PROPERTY_PHOTO = false;
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   RentCastListing,
@@ -438,8 +441,18 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     nmls: "",
     company: "",
   });
+  const [photoErr, setPhotoErr] = useState(false);
 
-  // Reset realtor info whenever a new listing is opened
+  // Build the photo URL from the listing's address + coordinates
+  const photoUrl = listing
+    ? `/api/place-photo?${new URLSearchParams([
+        ...(listing.formattedAddress ? [["address", listing.formattedAddress]] : []),
+        ...(listing.latitude != null ? [["lat", String(listing.latitude)]] : []),
+        ...(listing.longitude != null ? [["lng", String(listing.longitude)]] : []),
+      ]).toString()}`
+    : null;
+
+  // Reset realtor info and photo state whenever a new listing is opened
   useEffect(() => {
     if (!listing) return;
     const agent = listing.listingAgent ?? {};
@@ -452,6 +465,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
       company: office.name ?? "",
     });
     setEditRealtorOpen(false);
+    setPhotoErr(false);
   }, [listing?.id]);
 
   useEffect(() => {
@@ -547,6 +561,18 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
         </button>
 
         <div className="max-h-[90vh] overflow-y-auto rounded-xl">
+          {/* ── Hero photo ── */}
+          {SHOW_PROPERTY_PHOTO && photoUrl && !photoErr && (
+            <div className="h-52 w-full overflow-hidden rounded-t-xl bg-gray-200">
+              <img
+                src={photoUrl}
+                alt={listing.formattedAddress ?? "Property photo"}
+                className="h-full w-full object-cover"
+                onError={() => setPhotoErr(true)}
+              />
+            </div>
+          )}
+
           <div className="space-y-5 p-6">
             {/* ── Header ── */}
             <div className="pr-8">

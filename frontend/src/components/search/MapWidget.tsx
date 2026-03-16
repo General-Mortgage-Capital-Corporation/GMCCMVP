@@ -72,6 +72,7 @@ export default function MapWidget({
         strokeColor: "#3b82f6",
         strokeOpacity: 0.4,
         strokeWeight: 1.5,
+        clickable: false,
       });
     },
     [radius, searchType],
@@ -178,7 +179,7 @@ export default function MapWidget({
     <div className="mt-3">
       <div
         ref={divRef}
-        className="h-52 w-full rounded-lg border border-gray-200 bg-gray-100"
+        className="h-72 w-full rounded-lg border border-gray-200 bg-gray-100"
       />
       <p className="mt-1 text-center text-xs text-gray-400">
         Click map to pin location · Drag marker to adjust
