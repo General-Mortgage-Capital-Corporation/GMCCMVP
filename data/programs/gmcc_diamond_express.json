@@ -21,12 +21,7 @@
       "min_fico": 680,
       "min_reserves_months": 6,
       "max_dti": 43,
-      "unit_count_limits": [
-        {"property_type": "SFR", "max_units": 1},
-        {"property_type": "Condo", "max_units": 1},
-        {"property_type": "PUD", "max_units": 1},
-        {"property_type": "2-4 Units", "max_units": 4}
-      ],
+      "unit_count_limits": [1, 2, 3, 4],
       "location_restrictions": [],
       "eligible_county_fips": [],
       "requires_lmi_tract": false,
