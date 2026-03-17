@@ -310,7 +310,17 @@ function ProgramCard({
         <div className="border-t border-gray-100 px-4 pb-4 pt-3">
           {isDiamond && (
             <div className="mb-3 rounded-md border border-violet-200 bg-violet-50 p-2.5 text-xs text-violet-700">
-              Beta — Tract eligibility list may be outdated. Please verify before proceeding.
+              Beta — Tract eligibility list may be outdated.{" "}
+              <a
+                href="https://hub.collateralanalytics.com/correspondentsearch"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline hover:text-violet-900"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Double-check this property&apos;s eligibility here
+              </a>{" "}
+              before proceeding.
             </div>
           )}
           {tier && <CriteriaGrid criteria={tier.criteria} />}
