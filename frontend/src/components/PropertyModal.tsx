@@ -4,6 +4,7 @@
 const SHOW_PROPERTY_PHOTO = false;
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import type {
   RentCastListing,
   ProgramResult,
@@ -227,7 +228,7 @@ function TalkingPoints({
       {explanation && (
         <div
           className="mt-2 rounded-lg bg-gray-50 p-3 text-[0.875rem] leading-relaxed text-gray-700"
-          dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(explanation) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderSimpleMarkdown(explanation)) }}
         />
       )}
     </div>

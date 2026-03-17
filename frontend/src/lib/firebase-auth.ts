@@ -1,4 +1,4 @@
-const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
+const CLOUD_FUNCTIONS_BASE = process.env.NEXT_PUBLIC_CLOUD_FUNCTIONS_URL ?? "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 export interface FirebaseUser {

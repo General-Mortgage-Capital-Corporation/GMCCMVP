@@ -80,7 +80,11 @@ export default function FlierButton({
   async function fetchPdf(): Promise<Blob | null> {
     setError(null);
     try {
-      if (!user) await signIn();
+      let email = user?.email;
+      if (!email) {
+        const freshUser = await signIn();
+        email = freshUser.email;
+      }
       const idToken = await getIdToken();
       if (!idToken) {
         setError("Session expired. Please sign in again.");
@@ -89,7 +93,7 @@ export default function FlierButton({
 
       const body: Record<string, string | undefined> = {
         productId,
-        userId: user!.email,
+        userId: email,
         ...(propertyAddress ? { address: propertyAddress } : {}),
         ...(listingPrice ? { listingPrice: String(listingPrice) } : {}),
         ...(realtorInfo.name ? { realtorName: realtorInfo.name } : {}),

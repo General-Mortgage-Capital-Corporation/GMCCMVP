@@ -82,10 +82,11 @@ export async function POST(req: NextRequest) {
     }
 
     const pdfBytes = await res.arrayBuffer();
+    const safeProductId = (productId ?? "flyer").replace(/[^a-zA-Z0-9-]/g, "");
     return new Response(pdfBytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${productId}-flier.pdf"`,
+        "Content-Disposition": `attachment; filename="${safeProductId}-flier.pdf"`,
       },
     });
   } catch (err) {

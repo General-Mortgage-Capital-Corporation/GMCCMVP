@@ -31,7 +31,11 @@ from rag.config import PROGRAMS_DIR
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    "http://localhost:3000",
+    "https://gmccmvp-two.vercel.app",
+    os.environ.get("FRONTEND_ORIGIN", ""),
+])
 
 # ---------------------------------------------------------------------------
 # Data helpers (loaded once at startup)

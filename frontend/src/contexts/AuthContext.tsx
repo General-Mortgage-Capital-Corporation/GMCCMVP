@@ -14,7 +14,7 @@ import { msalConfig, loginRequest } from "@/lib/msal-config";
 interface AuthContextValue {
   user: FirebaseUser | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signIn: () => Promise<FirebaseUser>;
   signOut: () => void;
   /** Returns a valid (non-expired) Firebase ID token, refreshing silently if needed. */
   getIdToken: () => Promise<string | null>;
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (): Promise<FirebaseUser> => {
     setLoading(true);
     try {
       const msal = await getMsal();
@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+      return firebaseUser;
     } catch (err) {
       console.error("Sign-in failed:", err);
       throw err;

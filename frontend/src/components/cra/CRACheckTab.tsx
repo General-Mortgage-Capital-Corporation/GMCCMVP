@@ -191,12 +191,9 @@ export default function CRACheckTab() {
 
             {/* Right — income thresholds */}
             <div className="divide-y divide-gray-100">
-              <Row label="80% AMI"  value={ami(mfi, 0.8)} />
-              <Row label="100% AMI" value={ami(mfi, 1.0)} />
-              <Row label="150% AMI" value={ami(mfi, 1.5)} />
-              <Row label="80% MFI"  value={ami(mfi, 0.8)} />
-              <Row label="100% MFI" value={ami(mfi, 1.0)} />
-              <Row label="150% MFI" value={ami(mfi, 1.5)} />
+              <Row label="80% of Median Income"  value={ami(mfi, 0.8)} />
+              <Row label="100% of Median Income" value={ami(mfi, 1.0)} />
+              <Row label="150% of Median Income" value={ami(mfi, 1.5)} />
             </div>
           </div>
         </div>
