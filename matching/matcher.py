@@ -30,6 +30,7 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Hermes",
     "GMCC Ocean",
     "GMCC Celebrity Jumbo",
+    "GMCC Celebrity Forgivable $15K",
     "GMCC Massive",
     "GMCC Universe",
     "GMCC Buy Without Sell First",

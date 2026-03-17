@@ -19,6 +19,7 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
   "GMCC Ocean":                { productId: "ocean", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Ocean%2002-06-2026%20v4.pptx?d=w1c903e89e42b47518d6a8329783a3ece&csf=1&web=1&e=zhf5fT" },
   "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
+  "GMCC Celebrity Forgivable $15K": { productId: "forgivable-15k", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%20Forgivable%20loan.pptx?d=w285e6457f8de42059865678d47c1b6a7&csf=1&web=1&e=omhTuc" },
 };
 
 export interface RealtorInfo {
