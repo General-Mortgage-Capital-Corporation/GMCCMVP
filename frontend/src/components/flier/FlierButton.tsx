@@ -20,6 +20,8 @@ const PROGRAM_CONFIG: Record<string, { productId: string; guidelineUrl?: string 
   "GMCC Ocean":                { productId: "ocean", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Ocean%2002-06-2026%20v4.pptx?d=w1c903e89e42b47518d6a8329783a3ece&csf=1&web=1&e=zhf5fT" },
   "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
   "GMCC Celebrity Forgivable $15K": { productId: "forgivable-15k", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%20Forgivable%20loan.pptx?d=w285e6457f8de42059865678d47c1b6a7&csf=1&web=1&e=omhTuc" },
+  // No flier yet — guideline button only
+  "GMCC Community Opportunity":    { productId: "community-opportunity", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/GMCC%20Celebrity%20-%20Community%20program.pptx?d=wa3ccdd5bb1b348088858ee48b5faa8ce&csf=1&web=1&e=mc3fue" },
 };
 
 export interface RealtorInfo {

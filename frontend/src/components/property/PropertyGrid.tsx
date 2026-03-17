@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import PropertyCard from "@/components/PropertyCard";
 import ProgBadge from "@/components/ProgBadge";
 import type { RentCastListing } from "@/types";
@@ -24,7 +24,7 @@ interface PropertyGridProps {
   onSortChange?: (sortBy: SortBy) => void;
 }
 
-function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastListing[] {
+export function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastListing[] {
   const s = [...listings];
   switch (sortBy) {
     case "price-asc":  return s.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
@@ -33,14 +33,15 @@ function sortListings(listings: RentCastListing[], sortBy: SortBy): RentCastList
     case "days-desc":  return s.sort((a, b) => (b.daysOnMarket ?? 0) - (a.daysOnMarket ?? 0));
     case "best-match":
       return s.sort((a, b) => {
-        const score = (l: RentCastListing) =>
-          (l.matchData?.programs ?? []).reduce(
-            (acc, p) =>
-              p.is_secondary
-                ? acc
-                : acc + (p.status === "Eligible" ? 2 : p.status === "Potentially Eligible" ? 1 : 0),
-            0,
-          );
+        const score = (l: RentCastListing) => {
+          if (!l.matchData) return -1; // still loading — sort last
+          return l.matchData.programs.reduce((acc, p) => {
+            if (p.is_secondary) return acc;
+            if (p.status === "Eligible") return acc + 10;
+            if (p.status === "Potentially Eligible") return acc + 1;
+            return acc;
+          }, 0);
+        };
         return score(b) - score(a);
       });
     default: return s.sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
@@ -195,8 +196,8 @@ function SortArrow({ active, dir }: { active: boolean; dir: "asc" | "desc" | nul
 
 export default function PropertyGrid({ listings, loading, onCardClick, sortBy, onSortChange }: PropertyGridProps) {
   const [view, setView] = useState<ViewMode>("list");
-  // Must be called before any early returns to satisfy Rules of Hooks
-  const sorted = useMemo(() => sortListings(listings, sortBy), [listings, sortBy]);
+  // listings are pre-sorted by page.tsx before pagination; no need to re-sort here
+  const sorted = listings;
 
   function handleColSort(col: "days" | "price" | "programs" | "distance") {
     if (!onSortChange) return;

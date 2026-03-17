@@ -30,6 +30,7 @@ import { listingPassesChipFilters, formatPrice } from "@/lib/utils";
 import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 import type { SortBy } from "@/components/property/PropertyGrid";
+import { sortListings } from "@/components/property/PropertyGrid";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
 type ActiveTab = "find" | "program" | "marketing" | "cra";
@@ -50,8 +51,11 @@ export default function Home() {
   const findSearch = useSearch();
 
   const filteredFindListings = useMemo(
-    () => findSearch.listings.filter((l) => listingPassesChipFilters(l, chipFilters)),
-    [findSearch.listings, chipFilters],
+    () => sortListings(
+      findSearch.listings.filter((l) => listingPassesChipFilters(l, chipFilters)),
+      sortBy,
+    ),
+    [findSearch.listings, chipFilters, sortBy],
   );
 
   const findPagination = usePagination(filteredFindListings, PER_PAGE);
@@ -62,8 +66,11 @@ export default function Home() {
   const [progError, setProgError] = useState<string | null>(null);
 
   const filteredProgListings = useMemo(
-    () => progListings.filter((l) => listingPassesChipFilters(l, chipFilters)),
-    [progListings, chipFilters],
+    () => sortListings(
+      progListings.filter((l) => listingPassesChipFilters(l, chipFilters)),
+      sortBy,
+    ),
+    [progListings, chipFilters, sortBy],
   );
 
   const progPagination = usePagination(filteredProgListings, PER_PAGE);
