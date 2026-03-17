@@ -23,12 +23,13 @@ const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string
   "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
   "GMCC Celebrity Forgivable $15K": { productId: "forgivable-15k", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%20Forgivable%20loan.pptx?d=w285e6457f8de42059865678d47c1b6a7&csf=1&web=1&e=omhTuc" },
   "GMCC Radiant":              { productId: "radiant", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Radiant%20AU%20Program%2012-26-2025.pptx?d=wc61f3d43cbd349f789ef9641cde9eb22&csf=1&web=1&e=hykKqt" },
-  // No flyer yet — guideline button only
-  "GMCC Community Opportunity":    { guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/GMCC%20Celebrity%20-%20Community%20program.pptx?d=wa3ccdd5bb1b348088858ee48b5faa8ce&csf=1&web=1&e=mc3fue" },
+  "GMCC Diamond Express":          { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Diamond%20-%20Jumbo%20AUS%20.pptx?d=w390ee9388a094613a6bfbd6e8983d2e9&csf=1&web=1&e=JpDwhW" },
   "GMCC Bank Statement Self Employed": { productId: "bank-statement", guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC DSCR Rental Flow":         { productId: "dscr", guidelineUrl: GMCC_PPT_FOLDER },
+
+  // No flyer yet — guideline button only
+  "GMCC Community Opportunity":    { guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/GMCC%20Celebrity%20-%20Community%20program.pptx?d=wa3ccdd5bb1b348088858ee48b5faa8ce&csf=1&web=1&e=mc3fue" },
   "GMCC WVOE P&L":                 { guidelineUrl: GMCC_PPT_FOLDER },
-  "GMCC Diamond Express":          { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/Marketing/fillable%20flyers/FLYER%20-%20DIAMOND%20EXPRESS/DIAMOND%20-%20Flyer%20(Jumbo%20Express%20).pdf?csf=1&web=1&e=XS7l4G" },
 };
 
 /** Returns true if this program has a flyer that can be generated. */
