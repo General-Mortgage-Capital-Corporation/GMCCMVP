@@ -35,6 +35,10 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Massive",
     "GMCC Universe",
     "GMCC Buy Without Sell First",
+    "GMCC Radiant",
+    "GMCC Bank Statement Self Employed",
+    "GMCC WVOE P&L",
+    "GMCC DSCR Rental Flow",
 }
 
 # Programs whose eligibility criteria are still pending formalisation.

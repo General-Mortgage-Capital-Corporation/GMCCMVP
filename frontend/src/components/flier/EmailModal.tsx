@@ -49,7 +49,7 @@ function autoPropertyBody(
     `  • Program: ${programName}`,
     ...(realtorName ? [`  • Listing Agent: ${realtorName}`] : []),
     "",
-    "The program flier is attached for quick reference.",
+    "The program flyer is attached for quick reference.",
   ].join("\n");
 }
 
@@ -89,7 +89,7 @@ export default function EmailModal({
     if (tab === "myself") {
       setToEmail(user?.email ?? "");
       setToName(loName);
-      setSubject(`Property Flier: ${propertyAddress ?? programName}`);
+      setSubject(`Property Flyer: ${propertyAddress ?? programName}`);
       setBody(autoPropertyBody(programName, propertyAddress ?? "", listingPrice, realtorName));
     } else if (tab === "realtor") {
       setToEmail(realtorEmail);
@@ -162,7 +162,7 @@ export default function EmailModal({
       if (!pdfBlob) return; // fetchPdf sets its own error
 
       const base64Pdf = await blobToBase64(pdfBlob);
-      const fileName = `${productId}-flier.pdf`;
+      const fileName = `${productId}-flyer.pdf`;
 
       // Build Graph sendMail payload
       const message: Record<string, unknown> = {
@@ -228,7 +228,7 @@ export default function EmailModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
           <span className="text-sm font-semibold text-gray-800">
-            Email Flier — {programName}
+            Email Flyer — {programName}
           </span>
           <button
             onClick={onClose}
@@ -391,7 +391,7 @@ export default function EmailModal({
                     <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
                     <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
-                  <span>{productId}-flier.pdf will be attached</span>
+                  <span>{productId}-flyer.pdf will be attached</span>
                 </div>
 
                 {error && (

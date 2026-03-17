@@ -1,0 +1,49 @@
+{
+  "program_name": "GMCC DSCR Rental Flow",
+  "qm_status": "Non-QM",
+  "tiers": [
+    {
+      "tier_name": "DSCR Rental Flow",
+      "transaction_types": ["Purchase", "Rate/Term Refinance", "Cash-Out Refinance"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Investment Property"],
+      "eligible_states": [
+        "AL", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI",
+        "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA",
+        "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM",
+        "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD",
+        "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+      ],
+      "min_loan_amount": null,
+      "max_loan_amount": null,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "description": "GMCC DSCR Rental Flow — qualify investment property loans based on rental income (DSCR ≥ 1.0x or 1.25x depending on investor) rather than personal income. No personal income or employment documentation required. Available in all 49 GMCC-licensed states (excludes AK).",
+        "income_docs": "No personal income docs. Qualification based on Debt Service Coverage Ratio (rental income / PITIA).",
+        "occupancy": "Investment property only. Subject property must be (or will be) a rental.",
+        "dscr_requirement": "Typically DSCR ≥ 1.0x (breakeven) or ≥ 1.25x depending on investor and LTV.",
+        "see_guidelines": "Refer to GMCC training materials for current LTV, FICO, and reserve requirements."
+      }
+    }
+  ],
+  "general_notes": [
+    "GMCC DSCR Rental Flow — Non-QM investment property program qualifying on rental income (DSCR), not personal income.",
+    "No personal income or employment documentation required.",
+    "Qualification based on Debt Service Coverage Ratio: rental income / PITIA (typically ≥ 1.0x or ≥ 1.25x).",
+    "Available in all 49 GMCC-licensed states (excludes Alaska). Investment property only.",
+    "Purchase, rate/term refi, and cash-out refi. SFR, condo, PUD, 2-4 units.",
+    "Specific LTV, FICO, reserves, and DSCR minimums vary by investor — refer to GMCC guidelines."
+  ]
+}

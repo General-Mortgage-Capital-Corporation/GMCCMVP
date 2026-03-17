@@ -17,11 +17,12 @@ import {
   formatCurrency,
   formatPct,
   formatPhone,
+  formatPhoneInput,
   renderSimpleMarkdown,
 } from "@/lib/utils";
 import { getExplanation } from "@/lib/api";
 import LoadingSpinner from "./LoadingSpinner";
-import FlierButton, { type RealtorInfo } from "@/components/flier/FlierButton";
+import FlierButton, { type RealtorInfo, programHasFlyer } from "@/components/flier/FlierButton";
 
 // ---------------------------------------------------------------------------
 // Criterion status icons
@@ -240,10 +241,12 @@ function ProgramCard({
   program,
   listing,
   realtorInfo,
+  propertyImage,
 }: {
   program: ProgramResult;
   listing: RentCastListing;
   realtorInfo: RealtorInfo;
+  propertyImage?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -285,12 +288,13 @@ function ProgramCard({
           {program.status}
         </span>
 
-        {/* Flier action buttons */}
+        {/* Flyer action buttons */}
         <FlierButton
           programName={program.program_name}
           propertyAddress={listing.formattedAddress}
           listingPrice={listing.price}
           realtorInfo={realtorInfo}
+          propertyImage={propertyImage}
         />
 
         {/* Expand chevron */}
@@ -401,16 +405,20 @@ function EditRealtorPanel({
 }) {
   const fields: { key: keyof RealtorInfo; label: string; placeholder: string }[] = [
     { key: "name", label: "Name", placeholder: "Realtor name" },
-    { key: "phone", label: "Phone", placeholder: "Phone number" },
+    { key: "phone", label: "Phone", placeholder: "(xxx) xxx-xxxx" },
     { key: "email", label: "Email", placeholder: "Email address" },
     { key: "nmls", label: "NMLS #", placeholder: "NMLS license number" },
     { key: "company", label: "Company", placeholder: "Brokerage / company" },
   ];
 
+  function handleChange(key: keyof RealtorInfo, raw: string) {
+    onChange({ ...realtorInfo, [key]: key === "phone" ? formatPhoneInput(raw) : raw });
+  }
+
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <p className="mb-3 text-xs text-amber-700">
-        Auto-filled from listing agent data. Edit or clear fields as needed before generating a flier.
+        Auto-filled from listing agent data. Edit or clear fields as needed before generating a flyer.
       </p>
       <div className="grid grid-cols-2 gap-2">
         {fields.map(({ key, label, placeholder }) => (
@@ -422,7 +430,7 @@ function EditRealtorPanel({
               type="text"
               value={realtorInfo[key]}
               placeholder={placeholder}
-              onChange={(e) => onChange({ ...realtorInfo, [key]: e.target.value })}
+              onChange={(e) => handleChange(key, e.target.value)}
               className="rounded border border-amber-200 bg-white px-2 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
             />
           </div>
@@ -443,7 +451,10 @@ interface PropertyModalProps {
 
 export default function PropertyModal({ listing, onClose }: PropertyModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const uploadImgRef = useRef<HTMLInputElement>(null);
   const [editRealtorOpen, setEditRealtorOpen] = useState(false);
+  const [propertyImage, setPropertyImage] = useState<string | undefined>(undefined);
+  const [fileUploadError, setFileUploadError] = useState<string | undefined>(undefined);
   const [realtorInfo, setRealtorInfo] = useState<RealtorInfo>({
     name: "",
     phone: "",
@@ -469,13 +480,15 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     const office = listing.listingOffice ?? {};
     setRealtorInfo({
       name: agent.name ?? "",
-      phone: agent.phone ?? "",
+      phone: formatPhoneInput(agent.phone ?? ""),
       email: agent.email ?? "",
       nmls: "",
       company: office.name ?? "",
     });
     setEditRealtorOpen(false);
     setPhotoErr(false);
+    setPropertyImage(undefined);
+    setFileUploadError(undefined);
   }, [listing?.id]);
 
   useEffect(() => {
@@ -615,20 +628,74 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                   Matching Programs
                 </span>
                 {eligible.length > 0 && (
-                  <button
-                    onClick={() => setEditRealtorOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                      <path
-                        d="M11 2l3 3-9 9H2v-3L11 2z"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    {editRealtorOpen ? "Hide Realtor Info" : "Edit Realtor Info"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Property image upload */}
+                    <input
+                      ref={uploadImgRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) {
+                          setFileUploadError("Image must be under 2 MB.");
+                          return;
+                        }
+                        setFileUploadError(undefined);
+                        const reader = new FileReader();
+                        reader.onload = () => setPropertyImage(reader.result as string);
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    {propertyImage ? (
+                      <div className="flex items-center gap-1">
+                        <img src={propertyImage} alt="Property" className="h-7 w-10 rounded object-cover ring-1 ring-gray-300" />
+                        <button
+                          onClick={() => setPropertyImage(undefined)}
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300"
+                          title="Remove image"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
+                            <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <button
+                          onClick={() => uploadImgRef.current?.click()}
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                          title="Upload property photo for flyer"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                            <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                            <circle cx="5.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                            <path d="M1 11l4-3 3 2.5 2.5-2 4.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                          </svg>
+                          Upload Property Photo for Flyer
+                        </button>
+                        {fileUploadError && (
+                          <span className="text-[0.7rem] text-red-500">{fileUploadError}</span>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setEditRealtorOpen((v) => !v)}
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                        <path
+                          d="M11 2l3 3-9 9H2v-3L11 2z"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {editRealtorOpen ? "Hide Realtor Info" : "Edit Realtor Info"}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -657,7 +724,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       program={prog}
                       listing={listing}
                       realtorInfo={realtorInfo}
-                                />
+                      propertyImage={propertyImage}
+                    />
                   ))}
                 </div>
               )}
@@ -677,7 +745,9 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                     </span>
                   </div>
                   {(() => {
-                    const secEligible = secondary.filter((p) => p.status !== "Ineligible");
+                    const secEligible = secondary
+                      .filter((p) => p.status !== "Ineligible")
+                      .sort((a, b) => Number(programHasFlyer(b.program_name)) - Number(programHasFlyer(a.program_name)));
                     const secIneligible = secondary.filter((p) => p.status === "Ineligible");
                     return (
                       <div className="space-y-2">
@@ -687,6 +757,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                             program={prog}
                             listing={listing}
                             realtorInfo={realtorInfo}
+                            propertyImage={propertyImage}
                           />
                         ))}
                         {secIneligible.length > 0 && (

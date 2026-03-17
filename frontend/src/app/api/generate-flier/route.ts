@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     userId,
     address,
     listingPrice,
+    propertyImage,
     realtorName,
     realtorPhone,
     realtorEmail,
@@ -37,11 +38,12 @@ export async function POST(req: NextRequest) {
         ...(branch ? { branch } : {}),
         ...(slogan ? { slogan } : {}),
       },
-      ...(address || listingPrice
+      ...(address || listingPrice || propertyImage
         ? {
             property: {
               ...(address ? { address } : {}),
               ...(listingPrice ? { listingPrice: String(listingPrice) } : {}),
+              ...(propertyImage ? { photo: propertyImage } : {}),
             },
           }
         : {}),

@@ -1,0 +1,47 @@
+{
+  "program_name": "GMCC Bank Statement Self Employed",
+  "qm_status": "Non-QM",
+  "tiers": [
+    {
+      "tier_name": "Bank Statement Self Employed",
+      "transaction_types": ["Purchase", "Rate/Term Refinance", "Cash-Out Refinance"],
+      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
+      "occupancy_types": ["Primary Residence", "Investment Property", "Second Home"],
+      "eligible_states": [
+        "AL", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI",
+        "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA",
+        "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM",
+        "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD",
+        "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+      ],
+      "min_loan_amount": null,
+      "max_loan_amount": null,
+      "max_ltv": null,
+      "max_cltv": null,
+      "min_fico": null,
+      "min_reserves_months": null,
+      "max_dti": null,
+      "unit_count_limits": [],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "description": "GMCC Bank Statement Self Employed — qualify self-employed borrowers using 12 or 24 months personal or business bank statements instead of tax returns. Available in all 49 GMCC-licensed states (excludes AK).",
+        "income_docs": "12 or 24 months personal or business bank statements. No tax returns required.",
+        "borrower_type": "Self-employed borrowers (business owners, sole proprietors, freelancers).",
+        "see_guidelines": "Refer to GMCC training materials for current LTV, FICO, and reserve requirements."
+      }
+    }
+  ],
+  "general_notes": [
+    "GMCC Bank Statement Self Employed — Non-QM program for self-employed borrowers.",
+    "Qualifies income using 12 or 24 months of personal or business bank statements instead of tax returns.",
+    "Available in all 49 GMCC-licensed states (excludes Alaska).",
+    "Purchase, rate/term refi, and cash-out refi. Primary, investment, and second home eligible.",
+    "Specific LTV, FICO, reserves, and DTI limits vary by investor — refer to GMCC guidelines."
+  ]
+}
