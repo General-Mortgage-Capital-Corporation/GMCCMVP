@@ -15,7 +15,7 @@ const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string
   "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
   "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
   // Secondary programs (shown only in modal under "Additional Program Matches")
-  // Celebrity Jumbo has no flyer yet — omitted so buttons don't render
+  "GMCC Celebrity Jumbo":      { guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Celebrity%20Jumbo%20with%20Asset%20Depletion%20Updated%20on%2007-07-2024%20(1).pptx?d=wb9ce8eb4c48e4179a06c304cb549bb3a&csf=1&web=1&e=4pRUIh" },
   "GMCC Massive":              { productId: "massive", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B69FD90A8-BA34-4567-9C72-672A2EC19394%7D&file=GMCC%20Massive%20-%20NON%20Qm.pptx&action=edit&mobileredirect=true" },
   "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true" },
   "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
@@ -28,6 +28,7 @@ const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string
   "GMCC Bank Statement Self Employed": { productId: "bank-statement", guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC DSCR Rental Flow":         { productId: "dscr", guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC WVOE P&L":                 { guidelineUrl: GMCC_PPT_FOLDER },
+  "GMCC Diamond Express":          { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/Marketing/fillable%20flyers/FLYER%20-%20DIAMOND%20EXPRESS/DIAMOND%20-%20Flyer%20(Jumbo%20Express%20).pdf?csf=1&web=1&e=XS7l4G" },
 };
 
 /** Returns true if this program has a flyer that can be generated. */

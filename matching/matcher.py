@@ -39,6 +39,7 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Bank Statement Self Employed",
     "GMCC WVOE P&L",
     "GMCC DSCR Rental Flow",
+    "GMCC Diamond Express",
 }
 
 # Programs whose eligibility criteria are still pending formalisation.
