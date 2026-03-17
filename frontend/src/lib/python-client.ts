@@ -31,7 +31,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export async function pyGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    signal: signal ?? AbortSignal.timeout(30_000),
+    signal: signal ?? AbortSignal.timeout(60_000),
     cache: "no-store",
     headers: { accept: "application/json" },
   });
@@ -79,7 +79,7 @@ export async function pyPost<T>(
     method: "POST",
     headers: { "Content-Type": "application/json", accept: "application/json" },
     body: JSON.stringify(body),
-    signal: signal ?? AbortSignal.timeout(60_000),
+    signal: signal ?? AbortSignal.timeout(120_000),
     cache: "no-store",
   });
   return handleResponse<T>(res);
