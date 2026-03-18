@@ -83,7 +83,7 @@ export default function MarketingSearchForm({
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
           required
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           <option value="">Select state...</option>
           {stateOptions.map((s) => (
@@ -108,7 +108,7 @@ export default function MarketingSearchForm({
           }}
           disabled={!selectedState}
           required
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-40"
         >
           <option value="">Select county...</option>
           {countyOptions.map((c) => (
@@ -129,7 +129,7 @@ export default function MarketingSearchForm({
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="">All cities</option>
             {cityOptions.map((city) => (
@@ -144,7 +144,7 @@ export default function MarketingSearchForm({
       <button
         type="submit"
         disabled={loading || !selectedCounty}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
       >
         {loading ? "Loading..." : "Load Properties"}
       </button>

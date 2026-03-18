@@ -53,7 +53,7 @@ export default function SignInButton() {
           <rect x="0" y="8.5" width="7.5" height="7.5" fill="#00A4EF"/>
           <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900"/>
         </svg>
-        Sign in with Microsoft
+        Sign in with Outlook
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>

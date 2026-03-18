@@ -94,7 +94,7 @@ export default function SearchForm({
             onChange={(e) =>
               setSearchType(e.target.value as "area" | "specific")
             }
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="area">Area Search</option>
             <option value="specific">Exact Address</option>
@@ -105,7 +105,7 @@ export default function SearchForm({
         <div>
           <label className="mb-1 flex items-center justify-between text-sm font-medium text-gray-700">
             <span>Radius</span>
-            <span className="font-normal text-blue-600">{radius} mi</span>
+            <span className="font-normal text-red-600">{radius} mi</span>
           </label>
           <input
             type="range"
@@ -114,7 +114,7 @@ export default function SearchForm({
             value={radius}
             onChange={(e) => setRadius(Number(e.target.value))}
             disabled={searchType === "specific"}
-            className="w-full accent-blue-600 disabled:opacity-40"
+            className="w-full accent-red-600 disabled:opacity-40"
           />
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function SearchForm({
                 onClick={() => toggleProgram(prog)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   selectedPrograms.includes(prog)
-                    ? "bg-blue-600 text-white"
+                    ? "bg-red-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -148,7 +148,7 @@ export default function SearchForm({
       <button
         type="submit"
         disabled={loading || !query.trim()}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
       >
         {loading ? "Searching..." : "Search Properties"}
       </button>

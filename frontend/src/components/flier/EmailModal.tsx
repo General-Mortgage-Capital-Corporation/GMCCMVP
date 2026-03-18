@@ -249,7 +249,7 @@ export default function EmailModal({
                 onClick={() => setTab(id)}
                 className={`mr-4 border-b-2 pb-2 text-xs font-medium transition-colors ${
                   tab === id
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-red-600 text-red-600"
                     : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
               >
@@ -287,7 +287,7 @@ export default function EmailModal({
                         value={toName}
                         onChange={(e) => setToName(e.target.value)}
                         placeholder={tab === "realtor" ? "Realtor name" : "Borrower name"}
-                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                       />
                     </div>
                   )}
@@ -301,7 +301,7 @@ export default function EmailModal({
                       onChange={(e) => setToEmail(e.target.value)}
                       readOnly={tab === "myself"}
                       placeholder="recipient@example.com"
-                      className={`w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                      className={`w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
                         tab === "myself" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
@@ -316,7 +316,7 @@ export default function EmailModal({
                         value={ccEmail}
                         onChange={(e) => setCcEmail(e.target.value)}
                         placeholder="cc@example.com"
-                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                       />
                     </div>
                   )}
@@ -329,7 +329,7 @@ export default function EmailModal({
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
                       placeholder="Email subject"
-                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                     />
                   </div>
                   <div>
@@ -341,7 +341,7 @@ export default function EmailModal({
                       onChange={(e) => setBody(e.target.value)}
                       rows={6}
                       placeholder="Email body..."
-                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
+                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
                     />
                   </div>
                 </div>
@@ -411,7 +411,7 @@ export default function EmailModal({
                   <button
                     onClick={handleSend}
                     disabled={sending}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {sending && <LoadingSpinner size="sm" />}
                     {sending ? "Sending…" : "Send Email"}

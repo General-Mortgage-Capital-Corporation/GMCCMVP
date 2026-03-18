@@ -88,13 +88,6 @@ Both services are deployed on Vercel from the same repo but as separate projects
 
 The frontend `PYTHON_SERVICE_URL` must point at the deployed Python backend URL (e.g. `https://your-python-project.vercel.app`).
 
-### Transferring to a GitHub organization
-
-When transferring the repo:
-1. Transfer on GitHub (Settings → Transfer)
-2. In the Vercel dashboard, go to each project → Settings → Git → Disconnect → Reconnect to the new org/repo path
-3. All environment variables, custom domains, and deployment history are preserved
-
 ---
 
 ## Programs

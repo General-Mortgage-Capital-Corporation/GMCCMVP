@@ -16,7 +16,7 @@ export default function LoadingSpinner({
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className={`animate-spin rounded-full border-gray-300 border-t-blue-600 ${SIZES[size]}`}
+        className={`animate-spin rounded-full border-gray-300 border-t-red-600 ${SIZES[size]}`}
         role="status"
         aria-label={label ?? "Loading"}
       />

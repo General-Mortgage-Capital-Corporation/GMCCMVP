@@ -108,7 +108,7 @@ export default function CRACheckTab() {
         <button
           type="submit"
           disabled={loading || !address.trim()}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
         >
           {loading && <LoadingSpinner size="sm" />}
           {loading ? "Checking…" : "Check"}

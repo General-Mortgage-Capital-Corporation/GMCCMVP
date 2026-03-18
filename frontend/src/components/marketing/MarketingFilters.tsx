@@ -66,7 +66,7 @@ export default function MarketingFilters({
                     type="checkbox"
                     checked={programFilters.includes(p)}
                     onChange={() => toggleProgram(p)}
-                    className="h-3.5 w-3.5 rounded accent-blue-600"
+                    className="h-3.5 w-3.5 rounded accent-red-600"
                   />
                   <span className="text-xs text-gray-700">{p}</span>
                 </label>
@@ -85,7 +85,7 @@ export default function MarketingFilters({
                     type="checkbox"
                     checked={typeFilters.includes(t)}
                     onChange={() => toggleType(t)}
-                    className="h-3.5 w-3.5 rounded accent-blue-600"
+                    className="h-3.5 w-3.5 rounded accent-red-600"
                   />
                   <span className="text-xs text-gray-700">{t}</span>
                 </label>

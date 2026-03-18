@@ -49,7 +49,7 @@ export default function FilterChips({
           onClick={() => toggle(id)}
           className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
             active.has(id)
-              ? "bg-blue-600 text-white"
+              ? "bg-red-600 text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >

@@ -82,7 +82,7 @@ function PropertyListRow({ listing, onClick }: { listing: RentCastListing; onCli
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           {listing.propertyType && (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[0.68rem] font-medium text-blue-700">
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.68rem] font-medium text-red-700">
               {listing.propertyType}
             </span>
           )}
@@ -218,7 +218,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
   const colHeaderClass = (active: boolean) =>
     `text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 ${
       onSortChange ? "cursor-pointer select-none hover:text-slate-600" : ""
-    } ${active ? "text-blue-500" : ""}`;
+    } ${active ? "text-red-500" : ""}`;
 
   // Show skeletons only when loading with no results yet
   if (loading && listings.length === 0) {

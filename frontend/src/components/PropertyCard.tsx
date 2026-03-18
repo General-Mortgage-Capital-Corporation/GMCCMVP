@@ -48,7 +48,7 @@ export default function PropertyCard({ listing, onClick }: PropertyCardProps) {
         {/* Property meta */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {listing.propertyType && (
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
               {listing.propertyType}
             </span>
           )}
