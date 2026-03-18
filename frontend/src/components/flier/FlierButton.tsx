@@ -9,7 +9,7 @@ const GMCC_PPT_FOLDER = "https://netorgft1191593.sharepoint.com/sites/LOTraining
 
 const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string }> = {
   "GMCC Jumbo CRA":          { productId: "jumbo-cra", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
-  "GMCC Diamond":            { productId: "diamond-community-lending", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20CRA%20programs.pptx?d=w8ff4ac9ad1cc4de08b6c4262a0a60302&csf=1&web=1&e=ZN2Si0" },
+  "GMCC Diamond CRA":        { productId: "diamond-community-lending", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20CRA%20programs.pptx?d=w8ff4ac9ad1cc4de08b6c4262a0a60302&csf=1&web=1&e=ZN2Si0" },
   "GMCC Fabulous Jumbo":     { productId: "fabulous", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20Fabulous%20-%20AUS%20jumbo.pptx?d=wbd3caa7c5f294a2695e36a1555480b9b&csf=1&web=1&e=WF6PIU" },
   "GMCC Grandslam":          { productId: "grandslam", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
   "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },

@@ -387,7 +387,7 @@ function updateCardPrograms(index, programs) {
     } else {
         programsArea.innerHTML = eligible.map(p => {
             const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-            const beta = p.program_name === 'GMCC Diamond' ? ' <span class="beta-tag">Beta</span>' : '';
+            const beta = p.program_name === 'GMCC Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
             return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
         }).join('');
     }
@@ -433,7 +433,7 @@ function createProgramCard(program, listing) {
     const body = document.createElement('div');
     body.className = 'program-card-body';
     body.style.display = 'none';
-    const betaNotice = program.program_name === 'GMCC Diamond'
+    const betaNotice = program.program_name === 'GMCC Diamond CRA'
         ? `<div class="diamond-beta-notice">Beta — Tract eligibility list may be outdated. Please verify at <a href="https://hub.collateralanalytics.com/correspondentsearch" target="_blank" rel="noopener">Collateral Analytics</a> before proceeding.</div>`
         : '';
 
@@ -857,7 +857,7 @@ function createPropertyCard(listing, index) {
         } else {
             programsHtml = eligible.map(p => {
                 const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-                const beta = p.program_name === 'GMCC Diamond' ? ' <span class="beta-tag">Beta</span>' : '';
+                const beta = p.program_name === 'GMCC Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
                 return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
             }).join('');
         }
@@ -1894,7 +1894,7 @@ function renderMarketingPage() {
         const programBadges = eligible.length > 0
             ? eligible.map(p => {
                 const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-                const beta = p.program_name === 'GMCC Diamond' ? ' <span class="beta-tag">Beta</span>' : '';
+                const beta = p.program_name === 'GMCC Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
                 return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
             }).join(' ')
             : '<span class="prog-none">None</span>';

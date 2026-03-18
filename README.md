@@ -96,7 +96,7 @@ Program eligibility rules live in `data/programs/` as JSON files. Each file defi
 
 **Primary programs** (shown as badges in search results and filter dropdowns):
 - GMCC Jumbo CRA
-- GMCC Diamond
+- GMCC Diamond CRA
 - GMCC Fabulous Jumbo
 - GMCC Grandslam
 - GMCC $10K Grant
