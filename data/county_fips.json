@@ -11015,5 +11015,37 @@
       "Putnam",
       "Danielson"
     ]
+  },
+  "13013": {
+    "state": "GA",
+    "county": "Barrow",
+    "lat": 34.01,
+    "lng": -83.72,
+    "cities": [
+      "Winder",
+      "Statham",
+      "Auburn",
+      "Bethlehem",
+      "Carl"
+    ]
+  },
+  "53061": {
+    "state": "WA",
+    "county": "Snohomish",
+    "lat": 48.05,
+    "lng": -121.75,
+    "cities": [
+      "Everett",
+      "Marysville",
+      "Lake Stevens",
+      "Lynnwood",
+      "Edmonds",
+      "Mountlake Terrace",
+      "Mukilteo",
+      "Snohomish",
+      "Monroe",
+      "Arlington",
+      "Stanwood"
+    ]
   }
 }

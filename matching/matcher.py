@@ -170,8 +170,11 @@ def check_eligible_county(
     lon: float | None,
     tier: EligibilityTier,
 ) -> CriterionResult:
-    """Check if listing county FIPS is in the tier's eligible county list."""
-    if not tier.eligible_county_fips:
+    """Check if listing county FIPS is in the tier's eligible/excluded county lists."""
+    has_inclusions = bool(tier.eligible_county_fips)
+    has_exclusions = bool(tier.excluded_county_fips)
+
+    if not has_inclusions and not has_exclusions:
         return CriterionResult(
             criterion="eligible_county",
             status=CriterionStatus.PASS,
@@ -193,17 +196,33 @@ def check_eligible_county(
 
     resolved_fips = resolved_fips.strip().zfill(5)
 
-    if resolved_fips in tier.eligible_county_fips:
+    # Check exclusion list first
+    if has_exclusions and resolved_fips in tier.excluded_county_fips:
         return CriterionResult(
             criterion="eligible_county",
-            status=CriterionStatus.PASS,
-            detail=f"County FIPS {resolved_fips} is in Cronus Assessment Area",
+            status=CriterionStatus.FAIL,
+            detail=f"County FIPS {resolved_fips} is in the excluded county list",
         )
 
+    # If there's an inclusion list, must be in it
+    if has_inclusions:
+        if resolved_fips in tier.eligible_county_fips:
+            return CriterionResult(
+                criterion="eligible_county",
+                status=CriterionStatus.PASS,
+                detail=f"County FIPS {resolved_fips} is in the eligible county list",
+            )
+        return CriterionResult(
+            criterion="eligible_county",
+            status=CriterionStatus.FAIL,
+            detail=f"County FIPS {resolved_fips} is not in the eligible county list",
+        )
+
+    # Only exclusions, and we passed them
     return CriterionResult(
         criterion="eligible_county",
-        status=CriterionStatus.FAIL,
-        detail=f"County FIPS {resolved_fips} is not in the eligible county list",
+        status=CriterionStatus.PASS,
+        detail=f"County FIPS {resolved_fips} is not excluded",
     )
 
 
@@ -558,9 +577,12 @@ def _tier_quick_passes(tier, mapped_type, price, county_fips, inferred_units, un
         if price < tier.min_loan_amount:
             return False
 
-    # County
-    if county_fips and tier.eligible_county_fips:
-        if county_fips.strip().zfill(5) not in tier.eligible_county_fips:
+    # County — check exclusions and inclusions
+    if county_fips:
+        fips5 = county_fips.strip().zfill(5)
+        if tier.excluded_county_fips and fips5 in tier.excluded_county_fips:
+            return False
+        if tier.eligible_county_fips and fips5 not in tier.eligible_county_fips:
             return False
 
     # Unit count

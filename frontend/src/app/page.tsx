@@ -15,6 +15,7 @@ import PropertyModal from "@/components/PropertyModal";
 import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { useSearch } from "@/hooks/useSearch";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -38,6 +39,8 @@ type ActiveTab = "find" | "program" | "marketing" | "cra";
 const PER_PAGE = 12;
 
 export default function Home() {
+  const { user, signIn } = useAuth();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
@@ -103,8 +106,9 @@ export default function Home() {
     });
   }, [mkListings, chipFilters, mkProgramFilters, mkTypeFilters]);
 
-  // Shared abort controller — cancels any running program/marketing stream
-  const activeSearchCtrl = useRef<AbortController | null>(null);
+  // Separate abort controllers per tab so they don't interfere
+  const progSearchCtrl = useRef<AbortController | null>(null);
+  const mkSearchCtrl = useRef<AbortController | null>(null);
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,9 +174,9 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
-    activeSearchCtrl.current?.abort();
+    progSearchCtrl.current?.abort();
     const ctrl = new AbortController();
-    activeSearchCtrl.current = ctrl;
+    progSearchCtrl.current = ctrl;
 
     setProgError(null);
     setProgLoading(true);
@@ -197,7 +201,7 @@ export default function Home() {
         err instanceof ApiError ? err.message : "Search failed. Please try again.",
       );
     } finally {
-      if (activeSearchCtrl.current === ctrl) setProgLoading(false);
+      if (progSearchCtrl.current === ctrl) setProgLoading(false);
     }
   }
 
@@ -205,9 +209,9 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
-    activeSearchCtrl.current?.abort();
+    mkSearchCtrl.current?.abort();
     const ctrl = new AbortController();
-    activeSearchCtrl.current = ctrl;
+    mkSearchCtrl.current = ctrl;
 
     setMkError(null);
     setMkLoading(true);
@@ -238,7 +242,7 @@ export default function Home() {
         err instanceof ApiError ? err.message : "Search failed. Please try again.",
       );
     } finally {
-      if (activeSearchCtrl.current === ctrl) {
+      if (mkSearchCtrl.current === ctrl) {
         setMkLoading(false);
         setMkProgress(null);
       }
@@ -299,16 +303,45 @@ export default function Home() {
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
+            <img src="/gmcc-logo.png" alt="GMCC" className="h-8 w-8" />
             <h1 className="text-xl font-bold tracking-tight text-gray-900">
               GMCC Property Search
             </h1>
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
               Sale Listings
             </span>
           </div>
           <SignInButton />
         </div>
       </header>
+
+      {/* Sign-in nudge banner */}
+      {!user && !bannerDismissed && (
+        <div className="border-b border-red-100 bg-red-50">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+            <p className="text-sm text-red-700">
+              <span className="font-medium">Sign in with Outlook</span> to email flyers and save your work.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { signIn().catch(() => {}); }}
+                className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                Sign in
+              </button>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="text-red-400 hover:text-red-600 transition-colors"
+                aria-label="Dismiss"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-6">
         {/* ── Search card ── */}
@@ -330,7 +363,7 @@ export default function Home() {
                   onClick={() => handleTabChange(tab)}
                   className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                     activeTab === tab
-                      ? "border-blue-600 text-blue-600"
+                      ? "border-red-600 text-red-600"
                       : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
@@ -376,7 +409,7 @@ export default function Home() {
 
         {/* Notice banner (e.g. "not an active listing, showing nearby") */}
         {activeTab === "find" && findSearch.notice && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {findSearch.notice}
           </div>
         )}
@@ -435,14 +468,14 @@ export default function Home() {
                 <div className="ml-auto flex items-center gap-3">
                   {/* Matching eligibility indicator (Find tab) */}
                   {activeTab === "find" && findSearch.matchLoading && (
-                    <div className="flex items-center gap-1.5 text-xs text-blue-600">
+                    <div className="flex items-center gap-1.5 text-xs text-red-600">
                       <LoadingSpinner size="sm" />
                       <span>Checking eligibility…</span>
                     </div>
                   )}
                   {/* Streaming progress indicator (Program tab) */}
                   {activeTab === "program" && progLoading && progListings.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-blue-600">
+                    <div className="flex items-center gap-1.5 text-xs text-red-600">
                       <LoadingSpinner size="sm" />
                       <span>Finding more matches…</span>
                     </div>
@@ -455,7 +488,7 @@ export default function Home() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
                     <option value="days-asc">Sort: Days on Market ↑</option>
                     <option value="days-desc">Sort: Days on Market ↓</option>

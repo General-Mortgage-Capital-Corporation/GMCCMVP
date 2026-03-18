@@ -32,6 +32,7 @@
         "TX: purchase and R/T refi only — cash-out refi not allowed"
       ],
       "eligible_county_fips": [],
+      "excluded_county_fips": ["36071", "24510"],
       "requires_lmi_tract": false,
       "eligible_msa_codes": [],
       "requires_dmmct": false,
@@ -45,7 +46,14 @@
         "foreign_national": "2nd home only; need US bank account with ACH; max 2 acres",
         "gift_funds": "Allowed after min own-funds: 5% primary, 10% 2nd home, 15% FN. Cannot be used for reserves.",
         "non_warrantable_condo": "Allowed up to 60% LTV with condo cert",
-        "ineligible_tx_cashout": true
+        "ineligible_tx_cashout": true,
+        "no_rural": true,
+        "loan_term": "30-year fixed only",
+        "declining_market_ltv_reduction": "5% when > 65% LTV",
+        "credit_event_seasoning_years": 6,
+        "delayed_financing": "Treated as cash-out transaction",
+        "fl_china_fn_npra_ineligible": true,
+        "tx_china_fn_ineligible": true
       }
     }
   ]

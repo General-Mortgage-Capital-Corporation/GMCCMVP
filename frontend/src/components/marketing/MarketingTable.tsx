@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { formatPrice, formatPhone } from "@/lib/utils";
 import type { RentCastListing } from "@/types";
 
@@ -32,6 +32,111 @@ interface MarketingTableProps {
 }
 
 const PER_PAGE = 50;
+
+const FLYER_URL = "https://mlo.joingmcc.com/marketing/flyers";
+const DIAMOND_DISCLAIMER =
+  "IMPORTANT: GMCC Diamond CRA eligibility shown is preliminary. Census tract and property eligibility must be verified. Verify at: https://hub.collateralanalytics.com/correspondentsearch";
+
+function escCsv(val: string): string {
+  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
+}
+
+function buildCsv(listings: RentCastListing[]): string {
+  const headers = [
+    "Address",
+    "City",
+    "State",
+    "Zip",
+    "County",
+    "Property Type",
+    "Price",
+    "Days on Market",
+    "MSA Code",
+    "Income Level",
+    "MMCT (>50% Minority)",
+    "Matched Programs",
+    "Program Statuses",
+    "Agent Name",
+    "Agent Email",
+    "Agent Phone",
+    "Agent Website",
+    "Listing Office",
+    "Office Phone",
+    "Builder Name",
+    "Builder Phone",
+    "Bedrooms",
+    "Bathrooms",
+    "Sq Ft",
+    "Year Built",
+    "Listed Date",
+  ];
+
+  const rows = listings.map((l) => {
+    const census = l.censusData ?? {};
+    const agent = l.listingAgent ?? {};
+    const office = l.listingOffice ?? {};
+    const builder = l.builder ?? {};
+    const progs = l.matchData?.programs ?? [];
+    const matched = progs.filter((p) => p.status !== "Ineligible");
+    const programNames = matched.map((p) => p.program_name).join("; ");
+    const programStatuses = matched.map((p) => `${p.program_name}: ${p.status}`).join("; ");
+    const isMMCT = (census.tract_minority_pct ?? 0) > 50;
+
+    return [
+      l.formattedAddress ?? "",
+      l.city ?? "",
+      l.state ?? "",
+      l.zipCode ?? "",
+      l.county ?? "",
+      l.propertyType ?? "",
+      l.price != null ? `$${l.price.toLocaleString()}` : "",
+      l.daysOnMarket != null ? String(l.daysOnMarket) : "",
+      census.msa_code ?? "",
+      census.tract_income_level ?? "",
+      isMMCT ? "Yes" : "No",
+      programNames,
+      programStatuses,
+      agent.name ?? "",
+      agent.email ?? "",
+      agent.phone ?? "",
+      agent.website ?? "",
+      office.name ?? "",
+      office.phone ?? "",
+      builder.name ?? "",
+      builder.phone ?? "",
+      l.bedrooms != null ? String(l.bedrooms) : "",
+      l.bathrooms != null ? String(l.bathrooms) : "",
+      l.squareFootage != null ? String(l.squareFootage) : "",
+      l.yearBuilt != null ? String(l.yearBuilt) : "",
+      l.listedDate ?? "",
+    ].map(escCsv);
+  });
+
+  const lines = [
+    headers.map(escCsv).join(","),
+    ...rows.map((r) => r.join(",")),
+    "", // blank line before footer notes
+    escCsv(DIAMOND_DISCLAIMER),
+    escCsv(`Generate flyers at: ${FLYER_URL}`),
+    escCsv(`Generated on ${new Date().toLocaleDateString()} via GMCC Property Search`),
+  ];
+
+  return lines.join("\n");
+}
+
+function downloadCsv(listings: RentCastListing[]) {
+  const csv = buildCsv(listings);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gmcc-marketing-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function getSortValue(listing: RentCastListing, col: MkSortColumn): string | number {
   const census = listing.censusData ?? {};
@@ -82,7 +187,7 @@ function SortHeader({
   return (
     <th
       className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide transition-colors hover:text-gray-900 ${
-        active ? "text-blue-600" : "text-gray-500"
+        active ? "text-red-600" : "text-gray-500"
       }`}
       onClick={() => onSort(col)}
     >
@@ -94,6 +199,14 @@ function SortHeader({
   );
 }
 
+function listingKey(listing: RentCastListing): string {
+  // Use address-based key for stability across re-sorts (id may be missing)
+  if (listing.id) return listing.id;
+  const addr = listing.formattedAddress ?? listing.addressLine1 ?? "";
+  const zip = listing.zipCode ?? "";
+  return `mk-${addr}-${zip}`;
+}
+
 export default function MarketingTable({
   listings,
   sortColumn,
@@ -102,12 +215,36 @@ export default function MarketingTable({
   onRowClick,
 }: MarketingTableProps) {
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Reset selection and page when listings change (new search)
+  const prevListingsRef = useRef(listings);
+  useEffect(() => {
+    if (prevListingsRef.current !== listings) {
+      prevListingsRef.current = listings;
+      setSelected(new Set());
+      setPage(1);
+    }
+  }, [listings]);
+
+  const toggleOne = useCallback((key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   if (listings.length === 0) {
     return <div className="py-16 text-center text-gray-400">No properties found.</div>;
   }
 
   const sorted = sortListings(listings, sortColumn, sortDir);
+
+  // Build a stable key map for sorted listings
+  const sortedKeys = sorted.map((l) => listingKey(l));
 
   const eligibleCount = listings.filter((l) =>
     (l.matchData?.programs ?? []).some((p) => p.status === "Eligible"),
@@ -122,6 +259,37 @@ export default function MarketingTable({
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * PER_PAGE;
   const pageListings = sorted.slice(start, start + PER_PAGE);
+  const pageKeys = sortedKeys.slice(start, start + PER_PAGE);
+
+  // Select-all logic: toggle all on current page
+  const allPageSelected = pageKeys.length > 0 && pageKeys.every((k) => selected.has(k));
+  const somePageSelected = pageKeys.some((k) => selected.has(k));
+
+  function togglePage() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        pageKeys.forEach((k) => next.delete(k));
+      } else {
+        pageKeys.forEach((k) => next.add(k));
+      }
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelected(new Set(sortedKeys));
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  function handleExport() {
+    const toExport = sorted.filter((_, i) => selected.has(sortedKeys[i]));
+    if (toExport.length === 0) return;
+    downloadCsv(toExport);
+  }
 
   // Page range for pagination display
   const pages: (number | "...")[] = [];
@@ -171,6 +339,41 @@ export default function MarketingTable({
         <span className="text-gray-500">
           <strong>{noMatchCount}</strong> no match
         </span>
+
+        {/* Selection actions */}
+        <div className="ml-auto flex items-center gap-2">
+          {selected.size > 0 && (
+            <>
+              <span className="text-xs text-gray-500">
+                <strong>{selected.size}</strong> selected
+              </span>
+              <button
+                onClick={clearSelection}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+              {selected.size < sorted.length && (
+                <button
+                  onClick={selectAll}
+                  className="text-xs text-red-600 hover:text-red-700 transition-colors"
+                >
+                  Select all {sorted.length}
+                </button>
+              )}
+            </>
+          )}
+          <button
+            onClick={handleExport}
+            disabled={selected.size === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2M8 2v9M5 8l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Export CSV{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -178,6 +381,17 @@ export default function MarketingTable({
         <table className="w-full text-sm">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
+              {/* Checkbox header */}
+              <th className="w-10 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  ref={(el) => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
+                  onChange={togglePage}
+                  className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                  title={allPageSelected ? "Deselect page" : "Select page"}
+                />
+              </th>
               {cols.map((c) => (
                 <SortHeader
                   key={c.key}
@@ -192,6 +406,8 @@ export default function MarketingTable({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {pageListings.map((listing, i) => {
+              const key = pageKeys[i];
+              const isSelected = selected.has(key);
               const census = listing.censusData ?? {};
               const agent = listing.listingAgent ?? {};
               const progs = listing.matchData?.programs ?? [];
@@ -204,13 +420,25 @@ export default function MarketingTable({
 
               return (
                 <tr
-                  key={listing.id ?? `mk-${start + i}`}
+                  key={key}
                   onClick={() => onRowClick(listing)}
-                  className="cursor-pointer transition-colors hover:bg-blue-50"
+                  className={`cursor-pointer transition-colors ${
+                    isSelected ? "bg-red-50/60" : "hover:bg-red-50"
+                  }`}
                 >
+                  {/* Checkbox */}
+                  <td className="px-3 py-2.5" onClick={(e) => toggleOne(key, e)}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                    />
+                  </td>
+
                   {/* MSA # */}
                   <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {census.msa_code ?? "N/A"}
+                    {census.msa_code ?? "Rural"}
                   </td>
 
                   {/* Days on Market */}

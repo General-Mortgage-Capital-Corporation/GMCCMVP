@@ -62,6 +62,10 @@ class EligibilityTier(BaseModel):
         default_factory=list,
         description="Allowed 5-digit county FIPS codes, e.g., ['06085', '06001']. Empty = no restriction.",
     )
+    excluded_county_fips: list[str] = Field(
+        default_factory=list,
+        description="Excluded 5-digit county FIPS codes, e.g., ['36071']. Property in these counties is ineligible.",
+    )
     eligible_states: list[str] = Field(
         default_factory=list,
         description="Allowed 2-letter state abbreviations, e.g., ['CA', 'TX']. Empty = no restriction. Use when program is available in all counties of listed states.",

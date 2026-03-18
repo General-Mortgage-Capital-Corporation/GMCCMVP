@@ -126,8 +126,8 @@ function CensusPanel({ census }: { census: CensusData }) {
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3">
         {[
-          { label: "MSA/MD Code", value: census.msa_code ?? "N/A" },
-          { label: "MSA Name", value: census.msa_name ?? "N/A" },
+          { label: "MSA/MD Code", value: census.msa_code ?? "Non-Metro" },
+          { label: "MSA Name", value: census.msa_name && census.msa_name !== "N/A" ? census.msa_name : "Rural / Non-Metropolitan" },
           { label: "Tract Income Level", value: incomeLevel },
           { label: "Tract Minority %", value: formatPct(minorityPct) },
           { label: "Majority AA/HP", value: majorityText },
@@ -214,13 +214,13 @@ function TalkingPoints({
       {!explanation && !loading && (
         <button
           onClick={handleExplain}
-          className="inline-flex items-center gap-1.5 rounded-md border border-transparent bg-blue-50 px-3 py-1.5 text-[0.8125rem] font-medium text-blue-600 transition-colors hover:border-blue-300"
+          className="inline-flex items-center gap-1.5 rounded-md border border-transparent bg-red-50 px-3 py-1.5 text-[0.8125rem] font-medium text-red-600 transition-colors hover:border-red-300"
         >
           Get Talking Points
         </button>
       )}
       {loading && (
-        <div className="flex items-center gap-2 text-xs text-blue-600">
+        <div className="flex items-center gap-2 text-xs text-red-600">
           <LoadingSpinner size="sm" />
           <span>Loading...</span>
         </div>
@@ -532,7 +532,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           {agent.website && (
             <div>
               Website:{" "}
-              <a href={agent.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href={agent.website} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
                 {agent.website}
               </a>
             </div>
@@ -550,7 +550,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           {builder.website && (
             <div>
               Website:{" "}
-              <a href={builder.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href={builder.website} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
                 {builder.website}
               </a>
             </div>

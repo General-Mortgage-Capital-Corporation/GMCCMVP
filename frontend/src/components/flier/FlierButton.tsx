@@ -81,11 +81,16 @@ export default function FlierButton({
     setError(null);
     try {
       let email = user?.email;
+      let idToken: string | null = null;
       if (!email) {
+        // Just signed in — use the returned user's token directly
+        // (getIdToken closure still has stale user=null at this point)
         const freshUser = await signIn();
         email = freshUser.email;
+        idToken = freshUser.idToken;
+      } else {
+        idToken = await getIdToken();
       }
-      const idToken = await getIdToken();
       if (!idToken) {
         setError("Session expired. Please sign in again.");
         return null;
@@ -173,7 +178,7 @@ export default function FlierButton({
             <button
               onClick={handlePreview}
               disabled={!!loadingAction}
-              className={`${btnBase} bg-blue-50 text-blue-700 hover:bg-blue-100`}
+              className={`${btnBase} bg-red-50 text-red-700 hover:bg-red-100`}
               title="Preview flyer"
             >
               {loadingAction === "preview" ? (

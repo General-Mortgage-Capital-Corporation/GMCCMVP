@@ -32,9 +32,9 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app, origins=[
-    r"https://gmccmvp-two(-.+)?\.vercel\.app",
-    "http://localhost:3000",
-    os.environ.get("FRONTEND_ORIGIN", ""),
+    r"^https://gmccmvp-two(-.+)?\.vercel\.app$",
+    r"^http://localhost:3000$",
+    *([os.environ["FRONTEND_ORIGIN"]] if os.environ.get("FRONTEND_ORIGIN") else []),
 ])
 
 # ---------------------------------------------------------------------------
@@ -150,6 +150,7 @@ def match_batch_endpoint():
             }
 
         max_workers = min(len(listings), 16)
+        errors = 0
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(listings)}
             results = [None] * len(listings)
@@ -157,10 +158,12 @@ def match_batch_endpoint():
                 idx = futures[future]
                 try:
                     results[idx] = future.result()
-                except Exception:
-                    results[idx] = None
+                except Exception as exc:
+                    errors += 1
+                    results[idx] = {"error": str(exc), "programs": [], "census_data": None}
 
-        return jsonify({"success": True, "results": results})
+        return jsonify({"success": errors == 0, "results": results,
+                         **({"errors": errors} if errors else {})})
     except Exception:
         return jsonify({"success": False, "error": "Batch matching error. Please try again."}), 500
 

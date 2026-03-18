@@ -4,7 +4,7 @@
   "tiers": [
     {
       "tier_name": "Diamond Express",
-      "transaction_types": ["Purchase", "Rate/Term Refinance", "Cash-Out Refinance"],
+      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
       "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
       "occupancy_types": ["Primary Residence", "Investment Property", "Second Home"],
       "eligible_states": [
