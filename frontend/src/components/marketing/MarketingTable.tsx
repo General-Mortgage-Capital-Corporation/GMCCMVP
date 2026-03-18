@@ -1,8 +1,31 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { formatPrice, formatPhone } from "@/lib/utils";
 import type { RentCastListing } from "@/types";
+
+// ---------------------------------------------------------------------------
+// Mobile detection hook using useSyncExternalStore for SSR safety
+// ---------------------------------------------------------------------------
+const MOBILE_QUERY = "(max-width: 768px)";
+
+function subscribeMobile(cb: () => void) {
+  const mql = window.matchMedia(MOBILE_QUERY);
+  mql.addEventListener("change", cb);
+  return () => mql.removeEventListener("change", cb);
+}
+
+function getSnapshotMobile() {
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function getServerSnapshotMobile() {
+  return false; // assume desktop on server
+}
+
+function useIsMobile() {
+  return useSyncExternalStore(subscribeMobile, getSnapshotMobile, getServerSnapshotMobile);
+}
 
 export type MkSortColumn =
   | "msa"
@@ -214,6 +237,7 @@ export default function MarketingTable({
   onSort,
   onRowClick,
 }: MarketingTableProps) {
+  const isMobile = useIsMobile();
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -322,28 +346,30 @@ export default function MarketingTable({
   return (
     <div className="space-y-3">
       {/* Summary bar */}
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm">
-        <span className="text-gray-600">
-          <strong>{sorted.length}</strong>{" "}
-          {sorted.length !== listings.length && (
-            <span className="text-gray-400">of {listings.length} </span>
-          )}
-          properties
-        </span>
-        <span className="text-emerald-700">
-          <strong>{eligibleCount}</strong> eligible
-        </span>
-        <span className="text-amber-700">
-          <strong>{potentialCount}</strong> potentially eligible
-        </span>
-        <span className="text-gray-500">
-          <strong>{noMatchCount}</strong> no match
-        </span>
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm md:flex-row md:flex-wrap md:items-center md:gap-4">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          <span className="text-gray-600">
+            <strong>{sorted.length}</strong>{" "}
+            {sorted.length !== listings.length && (
+              <span className="text-gray-400">of {listings.length} </span>
+            )}
+            properties
+          </span>
+          <span className="text-emerald-700">
+            <strong>{eligibleCount}</strong> eligible
+          </span>
+          <span className="text-amber-700">
+            <strong>{potentialCount}</strong> potentially eligible
+          </span>
+          <span className="text-gray-500">
+            <strong>{noMatchCount}</strong> no match
+          </span>
+        </div>
 
         {/* Selection actions */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-col gap-2 md:ml-auto md:flex-row md:items-center">
           {selected.size > 0 && (
-            <>
+            <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">
                 <strong>{selected.size}</strong> selected
               </span>
@@ -361,12 +387,12 @@ export default function MarketingTable({
                   Select all {sorted.length}
                 </button>
               )}
-            </>
+            </div>
           )}
           <button
             onClick={handleExport}
             disabled={selected.size === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed md:w-auto"
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2M8 2v9M5 8l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -376,184 +402,312 @@ export default function MarketingTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              {/* Checkbox header */}
-              <th className="w-10 px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={allPageSelected}
-                  ref={(el) => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
-                  onChange={togglePage}
-                  className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
-                  title={allPageSelected ? "Deselect page" : "Select page"}
-                />
-              </th>
-              {cols.map((c) => (
-                <SortHeader
-                  key={c.key}
-                  col={c.key}
-                  label={c.label}
-                  sortColumn={sortColumn}
-                  sortDir={sortDir}
-                  onSort={(col) => { onSort(col); setPage(1); }}
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {pageListings.map((listing, i) => {
-              const key = pageKeys[i];
-              const isSelected = selected.has(key);
-              const census = listing.censusData ?? {};
-              const agent = listing.listingAgent ?? {};
-              const progs = listing.matchData?.programs ?? [];
-              const eligible = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
-              const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
+      {/* Mobile sort dropdown */}
+      {isMobile && (
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-500">Sort by</label>
+          <select
+            value={sortColumn}
+            onChange={(e) => { onSort(e.target.value as MkSortColumn); setPage(1); }}
+            className="flex-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            {cols.map((c) => (
+              <option key={c.key} value={c.key}>{c.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => onSort(sortColumn)}
+            className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600"
+          >
+            {sortDir === "asc" ? "▲ Asc" : "▼ Desc"}
+          </button>
+        </div>
+      )}
 
-              const isMMCT = (census.tract_minority_pct ?? 0) > 50;
-              const incomeLevel = census.tract_income_level ?? "N/A";
-              const isLmi = ["low", "moderate"].includes(incomeLevel.toLowerCase());
+      {/* Mobile: card list / Desktop: table */}
+      {isMobile ? (
+        /* ── Mobile Card List ── */
+        <div className="space-y-2">
+          {pageListings.map((listing, i) => {
+            const key = pageKeys[i];
+            const isSelected = selected.has(key);
+            const census = listing.censusData ?? {};
+            const progs = listing.matchData?.programs ?? [];
+            const eligibleProgs = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+            const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
+            const isMMCT = (census.tract_minority_pct ?? 0) > 50;
+            const incomeLevel = census.tract_income_level ?? "N/A";
+            const isLmi = ["low", "moderate"].includes(incomeLevel.toLowerCase());
 
-              return (
-                <tr
-                  key={key}
-                  onClick={() => onRowClick(listing)}
-                  className={`cursor-pointer transition-colors ${
-                    isSelected ? "bg-red-50/60" : "hover:bg-red-50"
-                  }`}
+            return (
+              <div
+                key={key}
+                onClick={() => onRowClick(listing)}
+                className={`relative cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-colors ${
+                  isSelected ? "border-red-300 bg-red-50/60" : "border-gray-200"
+                }`}
+              >
+                {/* Checkbox top-right */}
+                <div
+                  className="absolute right-3 top-3"
+                  onClick={(e) => toggleOne(key, e)}
                 >
-                  {/* Checkbox */}
-                  <td className="px-3 py-2.5" onClick={(e) => toggleOne(key, e)}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly
-                      className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
-                    />
-                  </td>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    readOnly
+                    className="h-4 w-4 rounded accent-red-600 cursor-pointer"
+                  />
+                </div>
 
-                  {/* MSA # */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {census.msa_code ?? "Rural"}
-                  </td>
+                {/* Address */}
+                <div className="pr-8 text-sm font-semibold text-gray-900">
+                  {listing.formattedAddress ?? "N/A"}
+                </div>
 
-                  {/* Days on Market */}
-                  <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-amber-700">
-                    {listing.daysOnMarket != null ? listing.daysOnMarket : "N/A"}
-                  </td>
+                {/* Price + Type + DOM */}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <span className="font-medium text-gray-900">{formatPrice(listing.price)}</span>
+                  <span className="text-gray-500">{listing.propertyType ?? "N/A"}</span>
+                  {listing.daysOnMarket != null && (
+                    <span className="font-semibold text-amber-700">{listing.daysOnMarket}d</span>
+                  )}
+                </div>
 
-                  {/* Address */}
-                  <td className="min-w-[180px] px-3 py-2.5 text-gray-800">
-                    {listing.formattedAddress ?? "N/A"}
-                  </td>
-
-                  {/* Programs */}
-                  <td className="px-3 py-2.5">
-                    {eligible.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {eligible.map((p) => (
-                          <span
-                            key={p.program_name}
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                              p.status === "Eligible"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-700"
-                            }`}
-                          >
-                            {p.program_name}
-                          </span>
-                        ))}
-                        {secondaryMatchCount > 0 && (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                            +{secondaryMatchCount} secondary
-                          </span>
-                        )}
-                      </div>
-                    ) : secondaryMatchCount > 0 ? (
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                        {secondaryMatchCount} secondary
+                {/* Program badges */}
+                {listing._matchFailed ? (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                      Match unavailable
+                    </span>
+                  </div>
+                ) : (eligibleProgs.length > 0 || secondaryMatchCount > 0) ? (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {eligibleProgs.map((p) => (
+                      <span
+                        key={p.program_name}
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          p.status === "Eligible"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {p.program_name}
                       </span>
-                    ) : (
-                      <span className="text-gray-400">None</span>
+                    ))}
+                    {secondaryMatchCount > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                        +{secondaryMatchCount} secondary
+                      </span>
                     )}
-                  </td>
+                  </div>
+                ) : null}
 
-                  {/* MMCT */}
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {isMMCT ? "Yes" : "No"}
-                    </span>
-                  </td>
+                {/* Income Level + MMCT badges */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      isLmi ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {incomeLevel}
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {isMMCT ? "MMCT" : "Not MMCT"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── Desktop Table ── */
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50">
+              <tr>
+                {/* Checkbox header */}
+                <th className="w-10 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    ref={(el) => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
+                    onChange={togglePage}
+                    className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                    title={allPageSelected ? "Deselect page" : "Select page"}
+                  />
+                </th>
+                {cols.map((c) => (
+                  <SortHeader
+                    key={c.key}
+                    col={c.key}
+                    label={c.label}
+                    sortColumn={sortColumn}
+                    sortDir={sortDir}
+                    onSort={(col) => { onSort(col); setPage(1); }}
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pageListings.map((listing, i) => {
+                const key = pageKeys[i];
+                const isSelected = selected.has(key);
+                const census = listing.censusData ?? {};
+                const agent = listing.listingAgent ?? {};
+                const progs = listing.matchData?.programs ?? [];
+                const eligible = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+                const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
 
-                  {/* Income Level */}
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        isLmi ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {incomeLevel}
-                    </span>
-                  </td>
+                const isMMCT = (census.tract_minority_pct ?? 0) > 50;
+                const incomeLevel = census.tract_income_level ?? "N/A";
+                const isLmi = ["low", "moderate"].includes(incomeLevel.toLowerCase());
 
-                  {/* Price */}
-                  <td className="whitespace-nowrap px-3 py-2.5 font-medium text-gray-900">
-                    {formatPrice(listing.price)}
-                  </td>
+                return (
+                  <tr
+                    key={key}
+                    onClick={() => onRowClick(listing)}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected ? "bg-red-50/60" : "hover:bg-red-50"
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <td className="px-3 py-2.5" onClick={(e) => toggleOne(key, e)}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        readOnly
+                        className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                      />
+                    </td>
 
-                  {/* Agent */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-700">
-                    {agent.name ?? "N/A"}
-                  </td>
+                    {/* MSA # */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {census.msa_code ?? "Rural"}
+                    </td>
 
-                  {/* Email */}
-                  <td className="max-w-[160px] truncate px-3 py-2.5 text-gray-600" title={agent.email}>
-                    {agent.email ?? "N/A"}
-                  </td>
+                    {/* Days on Market */}
+                    <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-amber-700">
+                      {listing.daysOnMarket != null ? listing.daysOnMarket : "N/A"}
+                    </td>
 
-                  {/* Phone */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {agent.phone ? formatPhone(agent.phone) : "N/A"}
-                  </td>
+                    {/* Address */}
+                    <td className="min-w-[180px] px-3 py-2.5 text-gray-800">
+                      {listing.formattedAddress ?? "N/A"}
+                    </td>
 
-                  {/* State */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {listing.state ?? "N/A"}
-                  </td>
+                    {/* Programs */}
+                    <td className="px-3 py-2.5">
+                      {listing._matchFailed ? (
+                        <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                          Match unavailable
+                        </span>
+                      ) : eligible.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {eligible.map((p) => (
+                            <span
+                              key={p.program_name}
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                p.status === "Eligible"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {p.program_name}
+                            </span>
+                          ))}
+                          {secondaryMatchCount > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                              +{secondaryMatchCount} secondary
+                            </span>
+                          )}
+                        </div>
+                      ) : secondaryMatchCount > 0 ? (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                          {secondaryMatchCount} secondary
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">None</span>
+                      )}
+                    </td>
 
-                  {/* County */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {listing.county ?? "N/A"}
-                  </td>
+                    {/* MMCT */}
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {isMMCT ? "Yes" : "No"}
+                      </span>
+                    </td>
 
-                  {/* City */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {listing.city ?? "N/A"}
-                  </td>
+                    {/* Income Level */}
+                    <td className="whitespace-nowrap px-3 py-2.5">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          isLmi ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {incomeLevel}
+                      </span>
+                    </td>
 
-                  {/* Zip */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                    {listing.zipCode ?? "N/A"}
-                  </td>
+                    {/* Price */}
+                    <td className="whitespace-nowrap px-3 py-2.5 font-medium text-gray-900">
+                      {formatPrice(listing.price)}
+                    </td>
 
-                  {/* Type */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-500">
-                    {listing.propertyType ?? "N/A"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    {/* Agent */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-700">
+                      {agent.name ?? "N/A"}
+                    </td>
+
+                    {/* Email */}
+                    <td className="max-w-[160px] truncate px-3 py-2.5 text-gray-600" title={agent.email}>
+                      {agent.email ?? "N/A"}
+                    </td>
+
+                    {/* Phone */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {agent.phone ? formatPhone(agent.phone) : "N/A"}
+                    </td>
+
+                    {/* State */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {listing.state ?? "N/A"}
+                    </td>
+
+                    {/* County */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {listing.county ?? "N/A"}
+                    </td>
+
+                    {/* City */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {listing.city ?? "N/A"}
+                    </td>
+
+                    {/* Zip */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
+                      {listing.zipCode ?? "N/A"}
+                    </td>
+
+                    {/* Type */}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-gray-500">
+                      {listing.propertyType ?? "N/A"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

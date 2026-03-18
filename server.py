@@ -99,6 +99,15 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 
+@app.route("/api/cache-stats", methods=["GET"])
+def cache_stats():
+    try:
+        from matching.cache import get_cache_stats
+        return jsonify(get_cache_stats())
+    except Exception as exc:
+        return jsonify({"connected": False, "error": str(exc)})
+
+
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
     programs = load_programs()
@@ -130,7 +139,12 @@ def match_listing_endpoint():
 
 @app.route("/api/match-batch", methods=["POST"])
 def match_batch_endpoint():
-    """Match up to 50 listings in parallel."""
+    """Match up to 50 listings in parallel.
+
+    Deduplicates census lookups: listings sharing the same address (or lat/lng)
+    share a single get_census_data() call, eliminating ~80% of redundant
+    Census API calls within a batch.
+    """
     try:
         listings = request.get_json(silent=True)
         if not listings or not isinstance(listings, list):
@@ -140,8 +154,52 @@ def match_batch_endpoint():
         if len(listings) > MAX_BATCH_SIZE:
             return jsonify({"success": False, "error": f"Batch size exceeds limit of {MAX_BATCH_SIZE}."}), 400
 
-        def _process_one(listing_data):
-            census_data = get_census_data(listing_data)
+        # --- Dedup: group listings by address key ---
+        def _dedup_key(ld):
+            """Build a dedup key from address components or lat/lng."""
+            addr = ld.get("addressLine1", "").strip().lower()
+            city = ld.get("city", "").strip().lower()
+            state = ld.get("state", "").strip().upper()
+            if addr and city and state:
+                return f"addr:{addr}|{city}|{state}"
+            lat = ld.get("latitude")
+            lng = ld.get("longitude")
+            if lat is not None and lng is not None:
+                return f"coord:{lat}|{lng}"
+            # No usable dedup key — each gets its own census call
+            return f"idx:{id(ld)}"
+
+        # Map each listing index to its dedup key
+        listing_keys = [_dedup_key(ld) for ld in listings]
+
+        # Collect unique keys and a representative listing for each
+        unique_census: dict[str, dict] = {}  # key -> representative listing_data
+        for i, key in enumerate(listing_keys):
+            if key not in unique_census:
+                unique_census[key] = listings[i]
+
+        # --- Phase 1: fetch census data for unique addresses in parallel ---
+        census_cache: dict[str, dict | None] = {}
+
+        def _fetch_census(key, listing_data):
+            return key, get_census_data(listing_data)
+
+        max_workers = min(len(unique_census), 16)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            census_futures = {
+                pool.submit(_fetch_census, key, ld): key
+                for key, ld in unique_census.items()
+            }
+            for future in as_completed(census_futures):
+                try:
+                    key, census_data = future.result()
+                    census_cache[key] = census_data
+                except Exception:
+                    key = census_futures[future]
+                    census_cache[key] = None
+
+        # --- Phase 2: match all listings using cached census data ---
+        def _process_one(listing_data, census_data):
             listing = ListingInput.from_rentcast(listing_data, census_data)
             match_results = match_listing(listing)
             return {
@@ -149,10 +207,15 @@ def match_batch_endpoint():
                 "census_data": census_data,
             }
 
-        max_workers = min(len(listings), 16)
         errors = 0
+        max_workers = min(len(listings), 16)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {pool.submit(_process_one, ld): i for i, ld in enumerate(listings)}
+            futures = {}
+            for i, ld in enumerate(listings):
+                key = listing_keys[i]
+                cd = census_cache.get(key)
+                futures[pool.submit(_process_one, ld, cd)] = i
+
             results = [None] * len(listings)
             for future in as_completed(futures):
                 idx = futures[future]

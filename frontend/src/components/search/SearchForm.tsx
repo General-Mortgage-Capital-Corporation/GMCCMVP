@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import RecentSearches from "@/components/search/RecentSearches";
+import { saveRecentSearch, type RecentSearch } from "@/lib/recent-searches";
 import type { AutocompleteSuggestion } from "@/types";
 
 // Load MapWidget client-side only (Google Maps needs window)
@@ -30,6 +32,7 @@ export default function SearchForm({
   const [searchType, setSearchType] = useState<"area" | "specific">("area");
   const [radius, setRadius] = useState(5);
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
+  const [recentKey, setRecentKey] = useState(0);
   const markerLatRef = useRef<number | undefined>(undefined);
   const markerLngRef = useRef<number | undefined>(undefined);
 
@@ -51,6 +54,16 @@ export default function SearchForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
+    saveRecentSearch({
+      county_fips: "",
+      county_name: "",
+      state: "",
+      query: query.trim(),
+      radius,
+      timestamp: Date.now(),
+      tab: "find",
+    });
+    setRecentKey((k) => k + 1);
     onSearch({
       query,
       searchType,
@@ -58,6 +71,17 @@ export default function SearchForm({
       selectedPrograms,
       lat: markerLatRef.current,
       lng: markerLngRef.current,
+    });
+  }
+
+  function handleRecentSelect(s: RecentSearch) {
+    if (s.query) setQuery(s.query);
+    if (s.radius) setRadius(s.radius);
+    onSearch({
+      query: s.query ?? "",
+      searchType: "area",
+      radius: s.radius ?? 5,
+      selectedPrograms,
     });
   }
 
@@ -83,7 +107,7 @@ export default function SearchForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Search type */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -152,6 +176,8 @@ export default function SearchForm({
       >
         {loading ? "Searching..." : "Search Properties"}
       </button>
+
+      <RecentSearches tab="find" onSelect={handleRecentSelect} refreshKey={recentKey} />
 
       {/* Google Maps widget */}
       <MapWidget

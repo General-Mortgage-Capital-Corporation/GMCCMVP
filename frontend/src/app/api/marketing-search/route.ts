@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
           const listings: Listing[] = chunk.map((listing, k) => {
             const r = batchResult?.results[k];
             if (r) return { ...listing, matchData: { programs: r.programs }, censusData: r.census_data };
-            return { ...listing, matchData: { programs: [] }, censusData: null };
+            return { ...listing, matchData: { programs: [] }, censusData: null, _matchFailed: true };
           });
           emit({ type: "batch", listings, processed });
         });

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ProgramLocationEntry, CountyEntry } from "@/types";
+import RecentSearches from "@/components/search/RecentSearches";
+import { saveRecentSearch, type RecentSearch } from "@/lib/recent-searches";
 
 interface MarketingSearchFormProps {
   programLocations: ProgramLocationEntry[];
@@ -19,6 +21,7 @@ export default function MarketingSearchForm({
     null,
   );
   const [selectedCity, setSelectedCity] = useState("");
+  const [recentRefresh, setRecentRefresh] = useState(0);
 
   // Aggregate unique states and counties across all programs
   const allStates = useMemo(() => {
@@ -66,11 +69,40 @@ export default function MarketingSearchForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCounty) return;
+    saveRecentSearch({
+      county_fips: selectedCounty.fips,
+      county_name: selectedCounty.county,
+      state: selectedState,
+      city: selectedCity || undefined,
+      timestamp: Date.now(),
+      tab: "marketing",
+    });
+    setRecentRefresh((n) => n + 1);
     onSearch({
       countyFips: selectedCounty.fips,
       city: selectedCity || undefined,
     });
   }
+
+  const handleRecentSelect = useCallback(
+    (search: RecentSearch) => {
+      // Set state first, then find matching county after state options update
+      setSelectedState(search.state);
+      // County options depend on the selected state, so resolve county from allStates
+      const countyMap = allStates.get(search.state);
+      const county = countyMap?.get(search.county_fips) ?? null;
+      if (county) {
+        setSelectedCounty(county);
+        setSelectedCity(search.city ?? "");
+        // Trigger search immediately
+        onSearch({
+          countyFips: search.county_fips,
+          city: search.city,
+        });
+      }
+    },
+    [allStates, onSearch],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -148,6 +180,8 @@ export default function MarketingSearchForm({
       >
         {loading ? "Loading..." : "Load Properties"}
       </button>
+
+      <RecentSearches tab="marketing" onSelect={handleRecentSelect} refreshKey={recentRefresh} />
     </form>
   );
 }

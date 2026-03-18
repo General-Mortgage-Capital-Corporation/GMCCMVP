@@ -41,13 +41,13 @@ export default function FilterChips({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto md:flex-wrap">
       {chips.map(({ id, label }) => (
         <button
           key={id}
           type="button"
           onClick={() => toggle(id)}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
             active.has(id)
               ? "bg-red-600 text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"

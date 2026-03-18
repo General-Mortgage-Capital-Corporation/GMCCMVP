@@ -105,6 +105,9 @@ export interface RentCastListing {
   distance?: number;
   matchData?: { programs: ProgramResult[] };
   censusData?: CensusData | null;
+
+  // Set client-side when match-batch failed for this listing
+  _matchFailed?: boolean;
 }
 
 // ---------------------------------------------------------------------------

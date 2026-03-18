@@ -124,7 +124,7 @@ function CensusPanel({ census }: { census: CensusData }) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
         {[
           { label: "MSA/MD Code", value: census.msa_code ?? "Non-Metro" },
           { label: "MSA Name", value: census.msa_name && census.msa_name !== "N/A" ? census.msa_name : "Rural / Non-Metropolitan" },
@@ -163,7 +163,7 @@ function CensusPanel({ census }: { census: CensusData }) {
 // ---------------------------------------------------------------------------
 function CriteriaGrid({ criteria }: { criteria: CriterionResult[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {criteria.map((c, idx) => (
         <div key={`${c.criterion}-${idx}`} className="flex items-start gap-1.5">
           <StatusIcon status={c.status} />
@@ -421,7 +421,7 @@ function EditRealtorPanel({
       <p className="mb-3 text-xs text-amber-700">
         Auto-filled from listing agent data. Edit or clear fields as needed before generating a flyer.
       </p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {fields.map(({ key, label, placeholder }) => (
           <div key={key} className="flex flex-col gap-0.5">
             <label className="text-[0.7rem] font-medium text-amber-800 uppercase tracking-wide">
@@ -572,7 +572,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
     >
-      <div className="relative my-auto w-full max-w-3xl rounded-xl bg-white shadow-2xl">
+      <div className="relative my-auto w-full max-w-full rounded-xl bg-white shadow-2xl sm:max-w-3xl">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -624,12 +624,12 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
             {/* ── Matching Programs ── */}
             <div>
-              <div className="mb-3 flex items-center justify-between border-b border-gray-200 pb-2">
+              <div className="mb-3 flex flex-col gap-2 border-b border-gray-200 pb-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                   Matching Programs
                 </span>
                 {eligible.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {/* Property image upload */}
                     <input
                       ref={uploadImgRef}
@@ -776,7 +776,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             {/* ── Property Details ── */}
             <div>
               <SectionTitle>Property Details</SectionTitle>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <GridItem label="Type" value={listing.propertyType ?? "N/A"} />
                 <GridItem label="Bedrooms" value={listing.bedrooms != null ? String(listing.bedrooms) : "N/A"} />
                 <GridItem label="Bathrooms" value={listing.bathrooms != null ? String(listing.bathrooms) : "N/A"} />
@@ -791,7 +791,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             {/* ── Listing Information ── */}
             <div>
               <SectionTitle>Listing Information</SectionTitle>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <GridItem label="Listed Date" value={listing.listedDate ? listing.listedDate.slice(0, 10) : "N/A"} />
                 <GridItem label="Days on Market" value={listing.daysOnMarket != null ? listing.daysOnMarket + " days" : "N/A"} />
                 <GridItem label="MLS Number" value={listing.mlsNumber ?? "N/A"} />
@@ -802,7 +802,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             {/* ── Location ── */}
             <div>
               <SectionTitle>Location</SectionTitle>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <GridItem label="City" value={listing.city ?? "N/A"} />
                 <GridItem label="State" value={listing.state ?? "N/A"} />
                 <GridItem label="Zip Code" value={listing.zipCode ?? "N/A"} />

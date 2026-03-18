@@ -4,6 +4,10 @@ Three-step approach:
 1. Census Bureau Geocoder (address -> state, county, tract FIPS codes)
 2. FFIEC tract lookup file (MSA code, income level, MFI data)
 3. Census ACS 5-year API (population demographics by race/ethnicity)
+
+Caching layers:
+- L1: in-process @lru_cache (within a single invocation)
+- L2: Upstash Redis (persists across Vercel serverless invocations)
 """
 
 import json
@@ -12,6 +16,24 @@ import re
 from functools import lru_cache
 
 import requests
+
+try:
+    from matching.cache import (
+        get_cached_geocode,
+        set_cached_geocode,
+        get_cached_coord_geocode,
+        set_cached_coord_geocode,
+        get_cached_acs,
+        set_cached_acs,
+    )
+except Exception:
+    # Graceful degradation if cache module fails to import
+    def get_cached_geocode(*a, **kw): return None
+    def set_cached_geocode(*a, **kw): pass
+    def get_cached_coord_geocode(*a, **kw): return None
+    def set_cached_coord_geocode(*a, **kw): pass
+    def get_cached_acs(*a, **kw): return None
+    def set_cached_acs(*a, **kw): pass
 
 CENSUS_GEOCODER = "https://geocoding.geo.census.gov/geocoder/geographies/address"
 CENSUS_ACS_BASE = "https://api.census.gov/data/2023/acs/acs5"
@@ -147,6 +169,14 @@ def _geocode_address(street: str, city: str, state: str) -> dict | None:
     Returns dict with state_fips, county_fips, tract_code, county_name
     or None if geocoding fails.
     """
+    # L2 cache: check Redis first
+    try:
+        cached = get_cached_geocode(street, city, state)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     try:
         resp = requests.get(
             CENSUS_GEOCODER,
@@ -183,12 +213,20 @@ def _geocode_address(street: str, city: str, state: str) -> dict | None:
         if not state_fips or not county_code or not tract_code:
             return None
 
-        return {
+        result = {
             "state_fips": state_fips.zfill(2),
             "county_fips": county_code.zfill(3),
             "tract_code": tract_code,
             "county_name": county_info.get("BASENAME", ""),
         }
+
+        # L2 cache: store in Redis
+        try:
+            set_cached_geocode(street, city, state, result)
+        except Exception:
+            pass
+
+        return result
     except Exception:
         return None
 
@@ -206,7 +244,17 @@ def _geocode_coordinates(lat: float, lng: float) -> dict | None:
 
     Fallback when address geocoding fails. Returns same dict shape as
     _geocode_address or None.
+    L1 cache: @lru_cache (in-process, single invocation)
+    L2 cache: Upstash Redis (cross-invocation on Vercel)
     """
+    # L2 cache: check Redis first
+    try:
+        cached = get_cached_coord_geocode(lat, lng)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     try:
         resp = requests.get(
             CENSUS_COORD_GEOCODER,
@@ -238,12 +286,20 @@ def _geocode_coordinates(lat: float, lng: float) -> dict | None:
         if not state_fips or not county_code or not tract_code:
             return None
 
-        return {
+        result = {
             "state_fips": state_fips.zfill(2),
             "county_fips": county_code.zfill(3),
             "tract_code": tract_code,
             "county_name": county_info.get("BASENAME", ""),
         }
+
+        # L2 cache: store in Redis
+        try:
+            set_cached_coord_geocode(lat, lng, result)
+        except Exception:
+            pass
+
+        return result
     except Exception:
         return None
 
@@ -264,7 +320,18 @@ def _get_acs_demographics(
     - B03002_004E: Black/African American alone (non-Hispanic)
     - B03002_006E: Asian alone (non-Hispanic)
     - B03002_012E: Hispanic or Latino
+
+    L1 cache: @lru_cache (in-process, single invocation)
+    L2 cache: Upstash Redis (cross-invocation on Vercel)
     """
+    # L2 cache: check Redis first
+    try:
+        cached = get_cached_acs(state_fips, county_fips, tract_code)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     try:
         resp = requests.get(
             CENSUS_ACS_BASE,
@@ -283,13 +350,21 @@ def _get_acs_demographics(
                 row = dict(zip(headers, values))
                 total = _to_int(row.get("B03002_001E"))
                 white_nh = _to_int(row.get("B03002_003E"))
-                return {
+                result = {
                     "total_population": total,
                     "white_nh_population": white_nh,
                     "black_population": _to_int(row.get("B03002_004E")),
                     "asian_population": _to_int(row.get("B03002_006E")),
                     "hispanic_population": _to_int(row.get("B03002_012E")),
                 }
+
+                # L2 cache: store in Redis
+                try:
+                    set_cached_acs(state_fips, county_fips, tract_code, result)
+                except Exception:
+                    pass
+
+                return result
     except Exception:
         pass
     return None

@@ -95,7 +95,11 @@ export async function GET(req: NextRequest) {
           const matched: Listing[] = [];
           for (let k = 0; k < chunk.length; k++) {
             const r = batchResult?.results[k];
-            if (!r) continue;
+            if (!r) {
+              // Match service failed for this listing — propagate with failure flag
+              matched.push({ ...chunk[k], matchData: { programs: [] }, censusData: null, _matchFailed: true });
+              continue;
+            }
             const progResult = r.programs.find((p) => p.program_name === programName);
             if (!progResult || progResult.status === "Ineligible") continue;
             matched.push({ ...chunk[k], matchData: { programs: [progResult] }, censusData: r.census_data });

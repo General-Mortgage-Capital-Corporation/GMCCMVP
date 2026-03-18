@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ProgramLocationEntry, CountyEntry } from "@/types";
+import RecentSearches from "@/components/search/RecentSearches";
+import { saveRecentSearch, type RecentSearch } from "@/lib/recent-searches";
 
 interface ProgramSelectorProps {
   programLocations: ProgramLocationEntry[];
@@ -24,6 +26,7 @@ export default function ProgramSelector({
     null,
   );
   const [selectedCity, setSelectedCity] = useState("");
+  const [recentRefresh, setRecentRefresh] = useState(0);
 
   const stateOptions =
     programLocations.find((p) => p.program_name === selectedProgram)?.states ??
@@ -50,12 +53,49 @@ export default function ProgramSelector({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedProgram || !selectedCounty) return;
+    saveRecentSearch({
+      county_fips: selectedCounty.fips,
+      county_name: selectedCounty.county,
+      state: selectedState,
+      city: selectedCity || undefined,
+      timestamp: Date.now(),
+      tab: "program",
+      program_name: selectedProgram,
+    });
+    setRecentRefresh((n) => n + 1);
     onSearch({
       program: selectedProgram,
       countyFips: selectedCounty.fips,
       city: selectedCity || undefined,
     });
   }
+
+  const handleRecentSelect = useCallback(
+    (search: RecentSearch) => {
+      if (search.program_name) {
+        setSelectedProgram(search.program_name);
+        // Find the program's state/county options
+        const prog = programLocations.find((p) => p.program_name === search.program_name);
+        if (prog) {
+          const stEntry = prog.states.find((s) => s.state === search.state);
+          if (stEntry) {
+            setSelectedState(search.state);
+            const county = stEntry.counties.find((c) => c.fips === search.county_fips) ?? null;
+            if (county) {
+              setSelectedCounty(county);
+              setSelectedCity(search.city ?? "");
+              onSearch({
+                program: search.program_name,
+                countyFips: search.county_fips,
+                city: search.city,
+              });
+            }
+          }
+        }
+      }
+    },
+    [programLocations, onSearch],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -154,6 +194,8 @@ export default function ProgramSelector({
       >
         {loading ? "Searching..." : "Search Program Eligibility"}
       </button>
+
+      <RecentSearches tab="program" onSelect={handleRecentSelect} refreshKey={recentRefresh} />
     </form>
   );
 }

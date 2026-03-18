@@ -24,6 +24,7 @@ import {
   fetchProgramLocations,
   programSearchStream,
   marketingSearchStream,
+  matchBatch,
   ApiError,
 } from "@/lib/api";
 import { listingPassesChipFilters, formatPrice } from "@/lib/utils";
@@ -87,6 +88,8 @@ export default function Home() {
   const [mkSortDir, setMkSortDir] = useState<MkSortDir>("asc");
   const [mkProgramFilters, setMkProgramFilters] = useState<string[]>([]);
   const [mkTypeFilters, setMkTypeFilters] = useState<string[]>([]);
+  const [mkFailedCount, setMkFailedCount] = useState(0);
+  const [mkRetrying, setMkRetrying] = useState(false);
 
   const filteredMkListings = useMemo(() => {
     return mkListings.filter((l) => {
@@ -220,11 +223,16 @@ export default function Home() {
     setMkProgramFilters([]);
     setMkTypeFilters([]);
     setChipFilters(new Set());
+    setMkFailedCount(0);
     try {
+      let failedInSearch = 0;
       for await (const event of marketingSearchStream(params, ctrl.signal)) {
         if (event.type === "start") {
           setMkProgress({ processed: 0, total: event.total_in_county });
         } else if (event.type === "batch") {
+          const batchFailed = event.listings.filter((l) => l._matchFailed).length;
+          failedInSearch += batchFailed;
+          setMkFailedCount(failedInSearch);
           setMkListings((prev) => [...prev, ...event.listings]);
           setMkProgress((prev) =>
             prev ? { ...prev, processed: event.processed } : null,
@@ -246,6 +254,41 @@ export default function Home() {
         setMkLoading(false);
         setMkProgress(null);
       }
+    }
+  }
+
+  async function handleMkRetry() {
+    const failed = mkListings.filter((l) => l._matchFailed);
+    if (failed.length === 0) return;
+    setMkRetrying(true);
+    try {
+      const res = await matchBatch(failed);
+      if (res.success && res.results) {
+        setMkListings((prev) => {
+          const next = [...prev];
+          let ri = 0;
+          for (let i = 0; i < next.length; i++) {
+            if (!next[i]._matchFailed) continue;
+            const r = res.results[ri];
+            ri++;
+            if (r) {
+              next[i] = {
+                ...next[i],
+                matchData: { programs: r.programs },
+                censusData: r.census_data,
+                _matchFailed: undefined,
+              };
+            }
+          }
+          const remaining = next.filter((l) => l._matchFailed).length;
+          setMkFailedCount(remaining);
+          return next;
+        });
+      }
+    } catch {
+      // Retry failed silently -- user can try again
+    } finally {
+      setMkRetrying(false);
     }
   }
 
@@ -302,12 +345,12 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <img src="/gmcc-logo.png" alt="GMCC" className="h-8 w-8" />
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <img src="/gmcc-logo.png" alt="GMCC" className="h-8 w-8 shrink-0" />
+            <h1 className="truncate text-lg font-bold tracking-tight text-gray-900 sm:text-xl">
               GMCC Property Search
             </h1>
-            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+            <span className="hidden shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 sm:inline-flex">
               Sale Listings
             </span>
           </div>
@@ -347,8 +390,8 @@ export default function Home() {
         {/* ── Search card ── */}
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
           {/* Tab bar */}
-          <div className="border-b border-gray-100">
-            <nav className="flex px-2">
+          <div className="overflow-x-auto border-b border-gray-100">
+            <nav className="flex whitespace-nowrap px-2">
               {(
                 [
                   ["cra", "CRA Address Fast Check"],
@@ -465,7 +508,7 @@ export default function Home() {
                   showPriceRanges={activeTab === "program"}
                 />
 
-                <div className="ml-auto flex items-center gap-3">
+                <div className="flex w-full items-center gap-3 sm:ml-auto sm:w-auto">
                   {/* Matching eligibility indicator (Find tab) */}
                   {activeTab === "find" && findSearch.matchLoading && (
                     <div className="flex items-center gap-1.5 text-xs text-red-600">
@@ -551,6 +594,36 @@ export default function Home() {
                         ? `Matching ${mkProgress.processed.toLocaleString()} / ${mkProgress.total.toLocaleString()} properties…`
                         : "Fetching properties…"}
                     </p>
+                  </div>
+                )}
+                {!mkLoading && mkFailedCount > 0 && (
+                  <div className="mb-4 flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
+                      <path d="M8 1.5l6.5 12H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                      <path d="M8 6v3M8 11.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                    <span>
+                      <strong>{mkFailedCount}</strong> {mkFailedCount === 1 ? "property" : "properties"} could not be matched.
+                    </span>
+                    <button
+                      onClick={handleMkRetry}
+                      disabled={mkRetrying}
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      {mkRetrying ? (
+                        <>
+                          <LoadingSpinner size="sm" />
+                          Retrying…
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 8a6 6 0 0110.89-3.48M14 2v4h-4M14 8a6 6 0 01-10.89 3.48M2 14v-4h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Retry failed
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
                 {mkListings.length > 0 && (
