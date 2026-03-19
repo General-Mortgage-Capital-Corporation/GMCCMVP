@@ -144,8 +144,8 @@ function CensusPanel({ census }: { census: CensusData }) {
             label: "Asian Population",
             value: formatNumber(census.asian_population) + demoPct(census.asian_population, total),
           },
-          { label: "FFIEC MSA Median Income", value: formatCurrency(census.ffiec_mfi) },
-          { label: "Tract Median Income", value: formatCurrency(census.tract_mfi) },
+          { label: "FFIEC MSA MFI", value: formatCurrency(census.ffiec_mfi) },
+          { label: "Tract MFI", value: formatCurrency(census.tract_mfi) },
           { label: "Tract / MSA Ratio", value: tractMsaRatio },
         ].map(({ label, value }) => (
           <div key={label} className="flex flex-col gap-0.5">

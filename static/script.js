@@ -769,11 +769,11 @@ function renderMsaPanel(censusData) {
                 <span class="msa-value">${formatNumber(censusData.asian_population)}${demoPct(censusData.asian_population, total)}</span>
             </div>
             <div class="msa-item">
-                <span class="msa-label">FFIEC MSA Median Income</span>
+                <span class="msa-label">FFIEC MSA MFI</span>
                 <span class="msa-value">${formatCurrency(censusData.ffiec_mfi)}</span>
             </div>
             <div class="msa-item">
-                <span class="msa-label">Tract Median Income</span>
+                <span class="msa-label">Tract MFI</span>
                 <span class="msa-value">${formatCurrency(censusData.tract_mfi)}</span>
             </div>
             <div class="msa-item">
