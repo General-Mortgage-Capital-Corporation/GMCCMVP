@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     realtorEmail,
     loName,
   } = body as Record<string, string>;
+  const hasSignature = !!(body as Record<string, unknown>).hasSignature;
 
   const recipientLabel =
     recipientType === "realtor" ? `a real estate agent named ${realtorName || "the agent"}` :
@@ -46,7 +47,8 @@ Context:
 
 The loan officer's instructions: ${userPrompt}
 
-Write a concise, professional email. Keep it brief (2–4 short paragraphs). Include an appropriate salutation (e.g. "Hi [Name]," or "Dear [Name],") at the top and a professional closing (e.g. "Best regards,\\n${loName || "the loan officer"}") at the bottom.
+Write a concise, professional email. Keep it brief (2–4 short paragraphs). Include an appropriate salutation (e.g. "Hi [Name]," or "Dear [Name],") at the top.
+${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing (e.g. "Best regards,\\n${loName || "the loan officer"}") at the bottom. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code block):
 {"subject":"...","body":"..."}

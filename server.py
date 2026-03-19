@@ -9,6 +9,7 @@ Routes:
   GET  /api/programs            List available GMCC programs
   POST /api/match               Match a single listing
   POST /api/match-batch         Match up to 50 listings in parallel
+  POST /api/program-rules       Return raw program JSON for given names
   POST /api/explain             Generate LLM explanation for a match
   GET  /api/program-locations   Program → state → county hierarchy
   GET  /api/county-info         Resolve a 5-digit FIPS to lat/lng/state
@@ -229,6 +230,30 @@ def match_batch_endpoint():
                          **({"errors": errors} if errors else {})})
     except Exception:
         return jsonify({"success": False, "error": "Batch matching error. Please try again."}), 500
+
+
+@app.route("/api/program-rules", methods=["POST"])
+def program_rules_endpoint():
+    """Return raw program JSON rules for the given program names."""
+    try:
+        body = request.get_json(silent=True)
+        if not body or not isinstance(body.get("programs"), list):
+            return jsonify({"success": False, "error": "programs array is required."}), 400
+
+        requested = set(body["programs"])
+        result: dict[str, dict] = {}
+        for fname in os.listdir(PROGRAMS_DIR):
+            if not fname.endswith(".json"):
+                continue
+            with open(os.path.join(PROGRAMS_DIR, fname)) as f:
+                data = json.load(f)
+            name = data.get("program_name", "")
+            if name in requested:
+                result[name] = data
+
+        return jsonify({"success": True, "rules": result})
+    except Exception:
+        return jsonify({"success": False, "error": "Failed to load program rules."}), 500
 
 
 @app.route("/api/explain", methods=["POST"])

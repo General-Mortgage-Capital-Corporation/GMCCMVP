@@ -64,29 +64,71 @@ export function renderSimpleMarkdown(text: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+
+  // Inline formatting
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  escaped = escaped.replace(/\*(.+?)\*/g, "<em>$1</em>");
 
   const lines = escaped.split("\n");
   let html = "";
   let inList = false;
+  let inOl = false;
+
   for (const line of lines) {
     const trimmed = line.trimStart();
+
+    // Horizontal rule: --- or ***
+    if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (inOl) { html += "</ol>"; inOl = false; }
+      html += '<hr style="border:none;border-top:1px solid #e5e7eb;margin:0.75rem 0">';
+      continue;
+    }
+
+    // Headers: # ## ### ####
+    const headerMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (headerMatch) {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (inOl) { html += "</ol>"; inOl = false; }
+      const level = headerMatch[1].length;
+      const style =
+        level === 1 ? "font-size:1rem;font-weight:700;color:#111827;margin:1rem 0 0.5rem" :
+        level === 2 ? "font-size:0.875rem;font-weight:700;color:#1f2937;margin:0.75rem 0 0.375rem" :
+        "font-size:0.875rem;font-weight:600;color:#374151;margin:0.5rem 0 0.25rem";
+      html += `<div style="${style}">${headerMatch[2]}</div>`;
+      continue;
+    }
+
+    // Unordered list: - or *
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      if (!inList) {
-        html += "<ul>";
-        inList = true;
-      }
+      if (inOl) { html += "</ol>"; inOl = false; }
+      if (!inList) { html += '<ul style="list-style:disc;padding-left:1.25rem;margin:0.375rem 0">'; inList = true; }
       html += "<li>" + trimmed.slice(2) + "</li>";
+      continue;
+    }
+
+    // Ordered list: 1. 2. etc.
+    const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (!inOl) { html += '<ol style="list-style:decimal;padding-left:1.25rem;margin:0.375rem 0">'; inOl = true; }
+      html += "<li>" + olMatch[1] + "</li>";
+      continue;
+    }
+
+    // Regular line
+    if (inList) { html += "</ul>"; inList = false; }
+    if (inOl) { html += "</ol>"; inOl = false; }
+
+    // Empty lines become spacing
+    if (!trimmed) {
+      html += '<div style="height:0.5rem"></div>';
     } else {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      if (html.length > 0) html += "<br>";
-      html += line;
+      html += "<p>" + line + "</p>";
     }
   }
   if (inList) html += "</ul>";
+  if (inOl) html += "</ol>";
   return html;
 }
 

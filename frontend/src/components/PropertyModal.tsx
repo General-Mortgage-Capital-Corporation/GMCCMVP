@@ -23,7 +23,10 @@ import {
 } from "@/lib/utils";
 import { getExplanation } from "@/lib/api";
 import LoadingSpinner from "./LoadingSpinner";
-import FlierButton, { type RealtorInfo, programHasFlyer } from "@/components/flier/FlierButton";
+import { useAuth } from "@/contexts/AuthContext";
+import FlierButton, { type RealtorInfo, programHasFlyer, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
+import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
+import MultiEmailModal from "@/components/flier/MultiEmailModal";
 
 // ---------------------------------------------------------------------------
 // Criterion status icons
@@ -243,11 +246,15 @@ function ProgramCard({
   listing,
   realtorInfo,
   propertyImage,
+  selected,
+  onToggleSelect,
 }: {
   program: ProgramResult;
   listing: RentCastListing;
   realtorInfo: RealtorInfo;
   propertyImage?: string;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -260,7 +267,7 @@ function ProgramCard({
   return (
     <div
       className={`overflow-hidden rounded-lg border ${
-        expanded ? "border-gray-300" : "border-gray-200"
+        selected ? "border-red-300 ring-1 ring-red-200" : expanded ? "border-gray-300" : "border-gray-200"
       } bg-white`}
     >
       {/* Header row */}
@@ -268,6 +275,17 @@ function ProgramCard({
         className="flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors hover:bg-gray-50"
         onClick={() => setExpanded((v) => !v)}
       >
+        {/* Multi-select checkbox */}
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 shrink-0 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+            title="Select for multi-program summary / email"
+          />
+        )}
         {/* Name + beta badge */}
         <span className="min-w-0 flex-1 text-[0.9375rem] font-semibold text-gray-900">
           {program.program_name}
@@ -451,6 +469,7 @@ interface PropertyModalProps {
 }
 
 export default function PropertyModal({ listing, onClose }: PropertyModalProps) {
+  const { user, signIn, getIdToken } = useAuth();
   const overlayRef = useRef<HTMLDivElement>(null);
   const uploadImgRef = useRef<HTMLInputElement>(null);
   const [editRealtorOpen, setEditRealtorOpen] = useState(false);
@@ -464,6 +483,10 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     company: "",
   });
   const [photoErr, setPhotoErr] = useState(false);
+  const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
+  const [multiSummary, setMultiSummary] = useState<string>("");
 
   // Build the photo URL from the listing's address + coordinates
   const photoUrl = listing
@@ -490,6 +513,10 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     setPhotoErr(false);
     setPropertyImage(undefined);
     setFileUploadError(undefined);
+    setSelectedPrograms(new Set());
+    setMultiSummary("");
+    setShowSummaryModal(false);
+    setShowMultiEmailModal(false);
   }, [listing?.id]);
 
   useEffect(() => {
@@ -508,6 +535,59 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     [onClose],
   );
 
+  // Multi-select helpers
+  const toggleProgramSelect = useCallback((name: string) => {
+    setSelectedPrograms((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  /** Fetch a flyer PDF for a specific productId (used by MultiEmailModal). */
+  const fetchPdfForProduct = useCallback(
+    async (productId: string): Promise<Blob | null> => {
+      try {
+        let email = user?.email;
+        let idToken: string | null = null;
+        if (!email) {
+          const freshUser = await signIn();
+          email = freshUser.email;
+          idToken = freshUser.idToken;
+        } else {
+          idToken = await getIdToken();
+        }
+        if (!idToken) return null;
+
+        const res = await fetch("/api/generate-flier", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            productId,
+            userId: email,
+            ...(listing?.formattedAddress ? { address: listing.formattedAddress } : {}),
+            ...(listing?.price ? { listingPrice: String(listing.price) } : {}),
+            ...(realtorInfo.name ? { realtorName: realtorInfo.name } : {}),
+            ...(realtorInfo.phone ? { realtorPhone: realtorInfo.phone } : {}),
+            ...(realtorInfo.email ? { realtorEmail: realtorInfo.email } : {}),
+            ...(realtorInfo.nmls ? { realtorNmls: realtorInfo.nmls } : {}),
+            ...(realtorInfo.company ? { realtorCompany: realtorInfo.company } : {}),
+            ...(propertyImage ? { propertyImage } : {}),
+          }),
+        });
+        if (!res.ok) return null;
+        return await res.blob();
+      } catch {
+        return null;
+      }
+    },
+    [user, signIn, getIdToken, listing, realtorInfo, propertyImage],
+  );
+
   if (!listing) return null;
 
   const programs: ProgramResult[] = listing.matchData?.programs ?? [];
@@ -515,6 +595,21 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
   const eligible = programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
   const ineligible = programs.filter((p) => p.status === "Ineligible" && !p.is_secondary);
   const secondary = programs.filter((p) => p.is_secondary);
+
+  // All selectable programs (eligible + secondary that aren't ineligible)
+  const selectablePrograms = [
+    ...eligible,
+    ...secondary.filter((p) => p.status !== "Ineligible"),
+  ];
+
+  // Build selected program entries for modals
+  const selectedEntries = selectablePrograms
+    .filter((p) => selectedPrograms.has(p.program_name))
+    .map((p) => ({
+      name: p.program_name,
+      tier_name: p.best_tier ?? undefined,
+      product_id: PROGRAM_CONFIG[p.program_name]?.productId,
+    }));
 
   const agent = listing.listingAgent ?? {};
   const office = listing.listingOffice ?? {};
@@ -572,7 +667,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
     >
-      <div className="relative my-auto w-full max-w-full rounded-xl bg-white shadow-2xl sm:max-w-3xl">
+      <div className="relative my-auto flex max-h-[90vh] w-full max-w-full flex-col rounded-xl bg-white shadow-2xl sm:max-w-3xl">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -584,7 +679,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           </svg>
         </button>
 
-        <div className="max-h-[90vh] overflow-y-auto rounded-xl">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-t-xl">
           {/* ── Hero photo ── */}
           {SHOW_PROPERTY_PHOTO && photoUrl && !photoErr && (
             <div className="h-52 w-full overflow-hidden rounded-t-xl bg-gray-200">
@@ -726,6 +821,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       listing={listing}
                       realtorInfo={realtorInfo}
                       propertyImage={propertyImage}
+                      selected={selectedPrograms.has(prog.program_name)}
+                      onToggleSelect={() => toggleProgramSelect(prog.program_name)}
                     />
                   ))}
                 </div>
@@ -759,6 +856,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                             listing={listing}
                             realtorInfo={realtorInfo}
                             propertyImage={propertyImage}
+                            selected={selectedPrograms.has(prog.program_name)}
+                            onToggleSelect={() => toggleProgramSelect(prog.program_name)}
                           />
                         ))}
                         {secIneligible.length > 0 && (
@@ -826,7 +925,78 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             </div>
           </div>
         </div>
+
+        {/* ── Floating multi-select action bar (outside scroll container) ── */}
+        {selectedPrograms.size > 0 && (
+          <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-3 rounded-b-xl">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                  {selectedPrograms.size} selected
+                </span>
+                <button
+                  onClick={() => {
+                    const all = new Set(selectablePrograms.map((p) => p.program_name));
+                    setSelectedPrograms(all);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Select all
+                </button>
+                <button
+                  onClick={() => setSelectedPrograms(new Set())}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowSummaryModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Summary &amp; Email
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ── Multi-program summary modal ── */}
+      {showSummaryModal && selectedEntries.length > 0 && (
+        <MultiSummaryModal
+          programs={selectedEntries}
+          listing={listing as unknown as Record<string, unknown>}
+          authToken={null}
+          onClose={() => setShowSummaryModal(false)}
+          onComposeEmail={(summary: string) => {
+            setMultiSummary(summary);
+            setShowSummaryModal(false);
+            setShowMultiEmailModal(true);
+          }}
+        />
+      )}
+
+      {/* ── Multi-program email modal ── */}
+      {showMultiEmailModal && selectedEntries.length > 0 && (
+        <MultiEmailModal
+          programs={selectedEntries}
+          summary={multiSummary}
+          propertyAddress={listing.formattedAddress}
+          listingPrice={listing.price}
+          realtorInfo={realtorInfo}
+          onClose={() => setShowMultiEmailModal(false)}
+          onBackToSummary={() => {
+            setShowMultiEmailModal(false);
+            setShowSummaryModal(true);
+          }}
+          fetchPdf={fetchPdfForProduct}
+        />
+      )}
     </div>
   );
 }

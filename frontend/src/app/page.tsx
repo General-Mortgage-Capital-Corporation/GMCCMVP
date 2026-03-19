@@ -11,6 +11,7 @@ import MarketingTable from "@/components/marketing/MarketingTable";
 import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
 import SignInButton from "@/components/auth/SignInButton";
+import SettingsModal from "@/components/SettingsModal";
 import PropertyModal from "@/components/PropertyModal";
 import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -42,6 +43,7 @@ const PER_PAGE = 12;
 export default function Home() {
   const { user, signIn } = useAuth();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
@@ -354,7 +356,19 @@ export default function Home() {
               Sale Listings
             </span>
           </div>
-          <SignInButton />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              title="Settings"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6.5 1.5h3l.4 1.8.7.3 1.6-.9 2.1 2.1-.9 1.6.3.7 1.8.4v3l-1.8.4-.3.7.9 1.6-2.1 2.1-1.6-.9-.7.3-.4 1.8h-3l-.4-1.8-.7-.3-1.6.9-2.1-2.1.9-1.6-.3-.7L1.5 9.5v-3l1.8-.4.3-.7-.9-1.6 2.1-2.1 1.6.9.7-.3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            </button>
+            <SignInButton />
+          </div>
         </div>
       </header>
 
@@ -646,8 +660,9 @@ export default function Home() {
         Listing data provided by RentCast API &bull; Census data from FFIEC &bull; GMCC Program Matching
       </footer>
 
-      {/* Modal */}
+      {/* Modals */}
       <PropertyModal listing={modalListing} onClose={() => setModalListing(null)} />
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

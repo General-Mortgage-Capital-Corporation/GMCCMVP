@@ -1,0 +1,153 @@
+import { type NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 45;
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+interface RequestBody {
+  recipientType: "realtor" | "borrower";
+  userPrompt: string;
+  programs: string[];
+  summary: string; // multi-program summary from explain-multi
+  propertyAddress?: string;
+  listingPrice?: string;
+  realtorName?: string;
+  realtorEmail?: string;
+  realtorCompany?: string;
+  loName?: string;
+  hasSignature?: boolean;
+}
+
+export async function POST(req: NextRequest) {
+  if (!GEMINI_API_KEY) {
+    return NextResponse.json({ error: "AI not configured." }, { status: 503 });
+  }
+
+  const body = (await req.json().catch(() => null)) as RequestBody | null;
+  if (!body?.recipientType || !body?.userPrompt || !body?.programs?.length) {
+    return NextResponse.json(
+      { error: "recipientType, userPrompt, and programs are required." },
+      { status: 400 },
+    );
+  }
+
+  const {
+    recipientType,
+    userPrompt,
+    programs,
+    summary,
+    propertyAddress,
+    listingPrice,
+    realtorName,
+    realtorEmail,
+    realtorCompany,
+    loName,
+    hasSignature,
+  } = body;
+
+  const recipientLabel =
+    recipientType === "realtor"
+      ? `a real estate agent named ${realtorName || "the agent"}${realtorCompany ? ` at ${realtorCompany}` : ""}`
+      : "a prospective home buyer (borrower)";
+
+  const priceFormatted = listingPrice
+    ? `$${Number(listingPrice).toLocaleString()}`
+    : "price not specified";
+
+  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write a professional email marketing multiple loan programs together.
+
+Context:
+- Loan Officer: ${loName || "the loan officer"} at GMCC
+- Recipient: ${recipientLabel}${realtorEmail ? ` (${realtorEmail})` : ""}
+- Property: ${propertyAddress || "property not specified"}, listed at ${priceFormatted}
+- Programs being marketed: ${programs.join(", ")}
+- PDF flyers for each program will be attached to the email
+
+Multi-Program Summary (use this as your source for program details and marketing hooks):
+${summary || "No summary provided — focus on the programs listed above."}
+
+The loan officer's instructions: ${userPrompt}
+
+${userPrompt.toLowerCase().includes("research") || userPrompt.toLowerCase().includes("personali") ? "IMPORTANT: The loan officer wants you to research the recipient. Use your Google Search tool to look up the realtor/company and incorporate relevant details (specialization, market area, recent activity) to personalize the email." : ""}
+
+Write a concise, professional email. Keep it brief (2–4 short paragraphs). Use compelling one-liners from the summary for each program — do NOT dump all details. Include an appropriate salutation.
+${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing with the LO's name. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
+
+Mention that ${programs.length} program flyers are attached for their review.
+
+Respond ONLY with valid JSON in this exact format (no markdown, no code block):
+{"subject":"...","body":"..."}
+
+The body should be plain text with line breaks using \\n.`;
+
+  try {
+    // Determine whether to enable Google Search tool
+    const lowerPrompt = userPrompt.toLowerCase();
+    const useSearch =
+      lowerPrompt.includes("research") ||
+      lowerPrompt.includes("personali") ||
+      lowerPrompt.includes("look up") ||
+      lowerPrompt.includes("find out about");
+
+    const requestBody: Record<string, unknown> = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.5, maxOutputTokens: 5000 },
+    };
+
+    if (useSearch) {
+      requestBody.tools = [{ google_search: {} }];
+    }
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as {
+        error?: { message?: string };
+      };
+      return NextResponse.json(
+        { error: `AI error: ${errBody.error?.message ?? res.status}` },
+        { status: 502 },
+      );
+    }
+
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    // Strip markdown code blocks if Gemini wraps the JSON
+    const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    let parsed: { subject: string; body: string };
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return NextResponse.json(
+        { error: "AI returned invalid response. Please try again." },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json({
+      subject: parsed.subject,
+      body: parsed.body,
+      searched: useSearch,
+    });
+  } catch (err) {
+    console.error("[suggest-multi-email] error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `Failed to generate email: ${msg}` },
+      { status: 502 },
+    );
+  }
+}
