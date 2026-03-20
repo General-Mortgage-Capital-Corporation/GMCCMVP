@@ -1,8 +1,5 @@
 "use client";
 
-// Set to false to disable the hero photo in the property modal.
-const SHOW_PROPERTY_PHOTO = false;
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import type {
@@ -27,6 +24,49 @@ import { useAuth } from "@/contexts/AuthContext";
 import FlierButton, { type RealtorInfo, programHasFlyer, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
+import PhotoCarousel from "./PhotoCarousel";
+
+// ---------------------------------------------------------------------------
+// Zillow photo cache (sessionStorage, survives modal close / page nav)
+// ---------------------------------------------------------------------------
+const PHOTO_CACHE_PREFIX = "gmcc_zillow_photos:";
+
+function getCachedPhotos(address: string): string[] | null {
+  try {
+    const raw = sessionStorage.getItem(PHOTO_CACHE_PREFIX + address);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Only return cache hit if there are actual photos (don't cache failures)
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function setCachedPhotos(address: string, photos: string[]) {
+  // Don't cache empty results — they may have been caused by rate limits or errors
+  if (photos.length === 0) return;
+  try {
+    sessionStorage.setItem(PHOTO_CACHE_PREFIX + address, JSON.stringify(photos));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+/** Clear any stale empty caches from previous failed sessions */
+function clearEmptyPhotoCache() {
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(PHOTO_CACHE_PREFIX)) {
+        const val = sessionStorage.getItem(key);
+        if (val === "[]") toRemove.push(key);
+      }
+    }
+    toRemove.forEach((k) => sessionStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+
+// Run once on module load to clean up stale caches
+if (typeof window !== "undefined") clearEmptyPhotoCache();
 
 // ---------------------------------------------------------------------------
 // Criterion status icons
@@ -482,22 +522,17 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     nmls: "",
     company: "",
   });
-  const [photoErr, setPhotoErr] = useState(false);
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
   const [multiSummary, setMultiSummary] = useState<string>("");
 
-  // Build the photo URL from the listing's address + coordinates
-  const photoUrl = listing
-    ? `/api/place-photo?${new URLSearchParams([
-        ...(listing.formattedAddress ? [["address", listing.formattedAddress]] : []),
-        ...(listing.latitude != null ? [["lat", String(listing.latitude)]] : []),
-        ...(listing.longitude != null ? [["lng", String(listing.longitude)]] : []),
-      ]).toString()}`
-    : null;
+  // Zillow photo state
+  const [zillowPhotos, setZillowPhotos] = useState<string[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photosError, setPhotosError] = useState<string | undefined>(undefined);
 
-  // Reset realtor info and photo state whenever a new listing is opened
+  // Reset state whenever a new listing is opened
   useEffect(() => {
     if (!listing) return;
     const agent = listing.listingAgent ?? {};
@@ -510,14 +545,50 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
       company: office.name ?? "",
     });
     setEditRealtorOpen(false);
-    setPhotoErr(false);
     setPropertyImage(undefined);
     setFileUploadError(undefined);
     setSelectedPrograms(new Set());
     setMultiSummary("");
     setShowSummaryModal(false);
     setShowMultiEmailModal(false);
-  }, [listing?.id]);
+    setZillowPhotos([]);
+    setPhotosLoading(false);
+    setPhotosError(undefined);
+
+    // Fetch Zillow photos (check cache first)
+    const address = listing.formattedAddress;
+    if (!address) return;
+
+    const cached = getCachedPhotos(address);
+    if (cached) {
+      setZillowPhotos(cached);
+      // Auto-set primary photo for flyer if no user upload
+      if (cached.length > 0) setPropertyImage(undefined); // will use Zillow photo via carousel
+      return;
+    }
+
+    let cancelled = false;
+    setPhotosLoading(true);
+    fetch(`/api/zillow-photos?address=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then((data: { photos?: string[]; primaryPhoto?: string }) => {
+        if (cancelled) return;
+        const photos = data.photos ?? [];
+        setZillowPhotos(photos);
+        setCachedPhotos(address, photos);
+      })
+      .catch(() => {
+        if (!cancelled) setPhotosError("Could not load photos");
+      })
+      .finally(() => {
+        if (!cancelled) setPhotosLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  // Use address as primary key — every listing has a unique address.
+  // listing?.id can be undefined for some RentCast results, causing the effect to not re-fire.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listing?.formattedAddress]);
 
   useEffect(() => {
     if (!listing) return;
@@ -576,7 +647,11 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             ...(realtorInfo.email ? { realtorEmail: realtorInfo.email } : {}),
             ...(realtorInfo.nmls ? { realtorNmls: realtorInfo.nmls } : {}),
             ...(realtorInfo.company ? { realtorCompany: realtorInfo.company } : {}),
-            ...(propertyImage ? { propertyImage } : {}),
+            ...(propertyImage
+              ? { propertyImage }
+              : zillowPhotos.length > 0
+                ? { propertyImage: zillowPhotos[0] }
+                : {}),
           }),
         });
         if (!res.ok) return null;
@@ -585,7 +660,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
         return null;
       }
     },
-    [user, signIn, getIdToken, listing, realtorInfo, propertyImage],
+    [user, signIn, getIdToken, listing, realtorInfo, propertyImage, zillowPhotos],
   );
 
   if (!listing) return null;
@@ -680,17 +755,18 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
         </button>
 
         <div className="min-h-0 flex-1 overflow-y-auto rounded-t-xl">
-          {/* ── Hero photo ── */}
-          {SHOW_PROPERTY_PHOTO && photoUrl && !photoErr && (
-            <div className="h-52 w-full overflow-hidden rounded-t-xl bg-gray-200">
-              <img
-                src={photoUrl}
-                alt={listing.formattedAddress ?? "Property photo"}
-                className="h-full w-full object-cover"
-                onError={() => setPhotoErr(true)}
-              />
-            </div>
-          )}
+          {/* ── Photo carousel (Zillow) ── */}
+          <PhotoCarousel
+            photos={zillowPhotos}
+            loading={photosLoading}
+            error={photosError}
+            hasPropertyImage={!!propertyImage}
+            onSelectForFlyer={(url) => {
+              // Convert the Zillow CDN URL to a usable property image
+              // We store the URL directly — the flyer generator will handle it
+              setPropertyImage(url);
+            }}
+          />
 
           <div className="space-y-5 p-6">
             {/* ── Header ── */}
@@ -749,6 +825,15 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       <div className="flex items-center gap-1">
                         <img src={propertyImage} alt="Property" className="h-7 w-10 rounded object-cover ring-1 ring-gray-300" />
                         <button
+                          onClick={() => uploadImgRef.current?.click()}
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300"
+                          title="Replace flyer image"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
+                            <path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        <button
                           onClick={() => setPropertyImage(undefined)}
                           className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300"
                           title="Remove image"
@@ -763,14 +848,14 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                         <button
                           onClick={() => uploadImgRef.current?.click()}
                           className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
-                          title="Upload property photo for flyer"
+                          title={zillowPhotos.length > 0 ? "Override with your own photo" : "Upload property photo for flyer"}
                         >
                           <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
                             <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
                             <circle cx="5.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
                             <path d="M1 11l4-3 3 2.5 2.5-2 4.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
                           </svg>
-                          Upload Property Photo for Flyer
+                          {zillowPhotos.length > 0 ? "Upload Custom Photo" : "Upload Property Photo"}
                         </button>
                         {fileUploadError && (
                           <span className="text-[0.7rem] text-red-500">{fileUploadError}</span>
