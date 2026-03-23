@@ -700,8 +700,12 @@ export default function LoanComparisonFlyer({
                     <td className={`px-2 py-1.5 text-xs ${row.isBold || isRate ? "font-bold text-gray-800" : "text-gray-600"}`}>
                       {row.label}
                       {row.tooltip && (
-                        <span className="edit-only ml-1 cursor-help text-gray-300" title={row.tooltip}>
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="inline"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M6.5 6a1.5 1.5 0 013 0c0 1-1.5 1-1.5 2M8 11h.01" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                        <span className="edit-only group/tip relative ml-1 inline-flex cursor-help text-gray-400 hover:text-gray-600">
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="inline"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M6.5 6a1.5 1.5 0 013 0c0 1-1.5 1-1.5 2M8 11h.01" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                          <span className="pointer-events-none absolute bottom-full left-0 z-[100] mb-1.5 hidden w-52 rounded-md bg-gray-800 px-2.5 py-1.5 text-[10px] leading-snug text-white shadow-lg group-hover/tip:block">
+                            {row.tooltip}
+                            <span className="absolute left-2 top-full border-4 border-transparent border-t-gray-800" />
+                          </span>
                         </span>
                       )}
                     </td>
