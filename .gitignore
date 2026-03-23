@@ -5,3 +5,12 @@ __pycache__/
 venv/
 data/guidelines/
 data/chroma/
+
+# Untracked reference docs and data files
+EXCHANGE_MSAL_TOKEN_API.md
+FILL_PDF_FLIER_API.md
+data/*.pdf
+data/*.pptx
+data/*.xlsx
+data/*.xlsb
+frontend/assets/
