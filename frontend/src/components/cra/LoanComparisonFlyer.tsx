@@ -486,10 +486,14 @@ export default function LoanComparisonFlyer({
         </button>
       </div>
 
-      <p className="text-xs text-gray-400">
-        <span className="inline-block rounded bg-amber-50 px-1.5 py-0.5 text-amber-600 ring-1 ring-amber-200/60">Highlighted fields</span>
-        {" "}are editable — click to change. Drag column headers to reorder.
-      </p>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
+        <p className="text-sm font-medium text-amber-800">
+          <span className="font-bold">All highlighted fields are editable</span> — click any cell to change its value. Drag column headers to reorder. Auto-calculations update as you type.
+        </p>
+        <p className="mt-1 text-xs text-amber-600">
+          Highlights, edit buttons, and UI controls are only visible here — the downloaded PDF will be clean.
+        </p>
+      </div>
 
       {/* Hide edit-only elements in PDF export */}
       <style>{`
