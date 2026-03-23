@@ -10,6 +10,7 @@ import { ProgramCard, IneligiblePrograms, EditRealtorPanel } from "@/components/
 import { type RealtorInfo, programHasFlyer, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
+import LoanComparisonFlyer from "./LoanComparisonFlyer";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   AutocompleteSuggestion,
@@ -568,20 +569,14 @@ export default function CRACheckTab() {
             </div>
           )}
 
-          {/* ═══ Custom Loan Comparison (Placeholder for Stage 2) ═══ */}
-          <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center">
-            <div className="mx-auto max-w-md">
-              <svg className="mx-auto h-10 w-10 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M9 21V9" />
-              </svg>
-              <h3 className="mt-3 text-sm font-semibold text-gray-500">Custom Loan Comparison Flyer</h3>
-              <p className="mt-1 text-xs text-gray-400">
-                Build a custom comparison matrix with loan details, rates, and terms.
-                This feature is coming soon.
-              </p>
-            </div>
-          </div>
+          {/* ═══ Home Financing Options Flyer Builder ═══ */}
+          <LoanComparisonFlyer
+            listing={listing}
+            census={census}
+            realtorInfo={realtorInfo}
+            propertyImage={propertyImage}
+            zillowPhotos={zillowPhotos}
+          />
         </div>
       )}
 
