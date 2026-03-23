@@ -6,7 +6,9 @@ import {
   attachDistancesAndSort,
   RentCastError,
   MAX_LIMIT,
+  type Listing,
 } from "@/lib/rentcast";
+import { getCachedRentcastSearch, setCachedRentcastSearch } from "@/lib/redis-cache";
 
 export const runtime = "nodejs";
 
@@ -53,6 +55,21 @@ export async function GET(req: NextRequest) {
   const isZip = /^\d{5}$/.test(query);
 
   try {
+    // Cached RentCast fetch — checks Redis before hitting API
+    async function cachedRentcastFetch(params: URLSearchParams): Promise<Listing[]> {
+      const cacheKey = Object.fromEntries(params.entries());
+      const cached = await getCachedRentcastSearch(cacheKey);
+      if (cached) {
+        console.log("[search] Redis cache hit for:", cacheKey.address ?? cacheKey.zipCode ?? `${cacheKey.latitude},${cacheKey.longitude}`);
+        return cached as Listing[];
+      }
+      const data = await rentcastFetch(params, API_KEY);
+      if (data.length > 0) {
+        setCachedRentcastSearch(cacheKey, data).catch(() => {});
+      }
+      return data;
+    }
+
     if (searchType === "specific") {
       // Build params for a radius search — use precise lat/lng when available
       // (avoids RentCast re-geocoding the address string, which can differ from Google)
@@ -72,9 +89,9 @@ export async function GET(req: NextRequest) {
       };
 
       // Try 1-mile first; widen to 5 miles if nothing found
-      let nearbyData = await rentcastFetch(buildSpecificParams(1), API_KEY);
+      let nearbyData = await cachedRentcastFetch(buildSpecificParams(1));
       if (nearbyData.length === 0) {
-        nearbyData = await rentcastFetch(buildSpecificParams(5), API_KEY);
+        nearbyData = await cachedRentcastFetch(buildSpecificParams(5));
       }
 
       if (nearbyData.length === 0) {
@@ -135,7 +152,7 @@ export async function GET(req: NextRequest) {
         areaParams.set("radius", String(radius));
       }
 
-      const data = await rentcastFetch(areaParams, API_KEY);
+      const data = await cachedRentcastFetch(areaParams);
 
       if (!isZip && data.length > 0) {
         const centerLat = searchLat ?? data[0].latitude ?? null;

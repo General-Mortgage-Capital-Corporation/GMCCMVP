@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCachedZillowPhotos, setCachedZillowPhotos } from "@/lib/redis-cache";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Two sequential Apify calls can take up to ~90s total
@@ -33,6 +34,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // ── Check Redis cache first ──────────────────────────────────────────
+    const cached = await getCachedZillowPhotos(address);
+    if (cached) {
+      console.log("[zillow-photos] Redis cache hit:", cached.length, "photos for:", address);
+      return NextResponse.json(
+        { photos: cached, primaryPhoto: cached[0] ?? null },
+        { headers: { "Cache-Control": "private, max-age=86400" } },
+      );
+    }
+
     // ── Step 1: Address → Zillow URL ──────────────────────────────────────
     console.log("[zillow-photos] Step 1: Looking up Zillow URL for:", address);
 
@@ -140,6 +151,9 @@ export async function GET(req: NextRequest) {
     const photos = extractPhotos(detail);
 
     console.log("[zillow-photos] Extracted", photos.length, "photos for:", address);
+
+    // Cache in Redis (non-blocking, don't await)
+    setCachedZillowPhotos(address, photos).catch(() => {});
 
     return NextResponse.json(
       { photos, primaryPhoto: photos[0] ?? null },

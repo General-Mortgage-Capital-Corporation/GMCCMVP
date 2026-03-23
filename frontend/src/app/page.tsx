@@ -13,7 +13,8 @@ import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
-import PropertyModal from "@/components/PropertyModal";
+import dynamic from "next/dynamic";
+const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
 import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
 

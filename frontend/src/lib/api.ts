@@ -109,12 +109,31 @@ export async function getExplanation(
   });
 }
 
+const PROG_LOC_CACHE_KEY = "gmcc_program_locations";
+const PROG_LOC_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 export async function fetchProgramLocations(
   signal?: AbortSignal,
 ): Promise<ProgramLocationsResponse> {
-  return fetchJson<ProgramLocationsResponse>("/api/program-locations", {
+  // Check localStorage cache first
+  try {
+    const raw = localStorage.getItem(PROG_LOC_CACHE_KEY);
+    if (raw) {
+      const { data, ts } = JSON.parse(raw) as { data: ProgramLocationsResponse; ts: number };
+      if (Date.now() - ts < PROG_LOC_TTL) return data;
+    }
+  } catch { /* ignore */ }
+
+  const result = await fetchJson<ProgramLocationsResponse>("/api/program-locations", {
     signal,
   });
+
+  // Cache in localStorage
+  try {
+    localStorage.setItem(PROG_LOC_CACHE_KEY, JSON.stringify({ data: result, ts: Date.now() }));
+  } catch { /* quota exceeded */ }
+
+  return result;
 }
 
 /** Reads a Response body as newline-delimited JSON, yielding each parsed object. */

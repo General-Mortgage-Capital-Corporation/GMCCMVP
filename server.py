@@ -44,6 +44,23 @@ CORS(app, origins=[
 
 _COUNTY_FIPS_DATA: dict | None = None
 _MSA_LOOKUP: dict | None = None
+_RAW_PROGRAM_RULES: dict[str, dict] | None = None
+
+
+def _load_raw_program_rules() -> dict[str, dict]:
+    """Load all program JSONs as raw dicts, keyed by program_name. Cached."""
+    global _RAW_PROGRAM_RULES
+    if _RAW_PROGRAM_RULES is not None:
+        return _RAW_PROGRAM_RULES
+    _RAW_PROGRAM_RULES = {}
+    for fname in sorted(os.listdir(PROGRAMS_DIR)):
+        if fname.endswith(".json"):
+            with open(os.path.join(PROGRAMS_DIR, fname)) as f:
+                data = json.load(f)
+            name = data.get("program_name", "")
+            if name:
+                _RAW_PROGRAM_RULES[name] = data
+    return _RAW_PROGRAM_RULES
 
 
 def _load_county_fips() -> dict:
@@ -241,15 +258,8 @@ def program_rules_endpoint():
             return jsonify({"success": False, "error": "programs array is required."}), 400
 
         requested = set(body["programs"])
-        result: dict[str, dict] = {}
-        for fname in os.listdir(PROGRAMS_DIR):
-            if not fname.endswith(".json"):
-                continue
-            with open(os.path.join(PROGRAMS_DIR, fname)) as f:
-                data = json.load(f)
-            name = data.get("program_name", "")
-            if name in requested:
-                result[name] = data
+        all_rules = _load_raw_program_rules()
+        result = {name: rules for name, rules in all_rules.items() if name in requested}
 
         return jsonify({"success": True, "rules": result})
     except Exception:
@@ -271,14 +281,7 @@ def explain_endpoint():
         if not program_name or not listing:
             return jsonify({"success": False, "error": "program_name and listing are required."}), 400
 
-        program_rules = None
-        for fname in os.listdir(PROGRAMS_DIR):
-            if fname.endswith(".json"):
-                with open(os.path.join(PROGRAMS_DIR, fname)) as f:
-                    data = json.load(f)
-                if data.get("program_name") == program_name:
-                    program_rules = data
-                    break
+        program_rules = _load_raw_program_rules().get(program_name)
 
         explanation = explain_match(program_name, listing, tier_name, program_rules)
         return jsonify({"success": True, "explanation": explanation})
