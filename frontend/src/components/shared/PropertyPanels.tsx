@@ -130,9 +130,13 @@ export function CensusPanel({ census }: { census: CensusData }) {
             label: "Asian Population",
             value: formatNumber(census.asian_population) + demoPct(census.asian_population, total),
           },
-          { label: "FFIEC MSA MFI", value: formatCurrency(census.ffiec_mfi) },
+          { label: "MSA MFI", value: formatCurrency(census.ffiec_mfi) },
           { label: "Tract MFI", value: formatCurrency(census.tract_mfi) },
           { label: "Tract / MSA Ratio", value: tractMsaRatio },
+          { label: "80% MFI", value: census.ffiec_mfi ? formatCurrency(Math.round(census.ffiec_mfi * 0.8)) : "N/A" },
+          { label: "100% MFI", value: census.ffiec_mfi ? formatCurrency(census.ffiec_mfi) : "N/A" },
+          { label: "150% MFI", value: census.ffiec_mfi ? formatCurrency(Math.round(census.ffiec_mfi * 1.5)) : "N/A" },
+          { label: "200% MFI", value: census.ffiec_mfi ? formatCurrency(Math.round(census.ffiec_mfi * 2.0)) : "N/A" },
         ].map(({ label, value }) => (
           <div key={label} className="flex flex-col gap-0.5">
             <span className="text-[0.75rem] text-sky-600/80">{label}</span>
