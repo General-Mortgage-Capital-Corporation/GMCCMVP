@@ -95,6 +95,12 @@ export interface RentCastListing {
   countyFips?: string;
   mlsNumber?: string;
 
+  // Sale history from RentCast
+  lastSalePrice?: number;
+  lastSaleDate?: string;
+  taxAssessedValue?: number;
+  pricePerSquareFoot?: number;
+
   // Contact / listing details from RentCast
   hoa?: { fee?: number };
   listingAgent?: { name?: string; phone?: string; email?: string; website?: string };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface PhotoCarouselProps {
   photos: string[];
@@ -21,6 +21,7 @@ export default function PhotoCarousel({
 }: PhotoCarouselProps) {
   const [current, setCurrent] = useState(0);
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
+  const [fullscreen, setFullscreen] = useState(false);
 
   const validPhotos = photos.filter((_, i) => !imgErrors.has(i));
   const validIndices = photos
@@ -88,6 +89,21 @@ export default function PhotoCarousel({
         </div>
       )}
 
+      {/* Top-right action buttons */}
+      <div className="absolute right-3 top-3 flex items-center gap-2">
+        {/* Fullscreen button */}
+        <button
+          onClick={() => setFullscreen(true)}
+          className="rounded-md bg-black/60 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
+          title="View fullscreen"
+          aria-label="View fullscreen"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
       {/* Use for flyer button */}
       {onSelectForFlyer && !hasPropertyImage && (
         <button
@@ -144,6 +160,155 @@ export default function PhotoCarousel({
               }`}
               aria-label={`Go to photo ${i + 1}`}
             />
+          ))}
+        </div>
+      )}
+
+      {/* ── Fullscreen Lightbox ── */}
+      {fullscreen && <FullscreenLightbox
+        photos={photos}
+        validIndices={validIndices}
+        initialIndex={effectiveIdx}
+        onClose={() => setFullscreen(false)}
+        onSelectForFlyer={onSelectForFlyer}
+        hasPropertyImage={hasPropertyImage}
+      />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fullscreen lightbox overlay
+// ---------------------------------------------------------------------------
+
+function FullscreenLightbox({
+  photos,
+  validIndices,
+  initialIndex,
+  onClose,
+  onSelectForFlyer,
+  hasPropertyImage,
+}: {
+  photos: string[];
+  validIndices: number[];
+  initialIndex: number;
+  onClose: () => void;
+  onSelectForFlyer?: (photoUrl: string) => void;
+  hasPropertyImage?: boolean;
+}) {
+  const [idx, setIdx] = useState(initialIndex);
+  const currentPhotoIdx = validIndices[idx] ?? 0;
+
+  const goNext = useCallback(() => {
+    setIdx((i) => (i + 1) % validIndices.length);
+  }, [validIndices.length]);
+
+  const goPrev = useCallback(() => {
+    setIdx((i) => (i - 1 + validIndices.length) % validIndices.length);
+  }, [validIndices.length]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight" || e.key === "ArrowDown") goNext();
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") goPrev();
+    };
+    document.addEventListener("keydown", handler);
+    // Prevent body scroll while lightbox is open
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, goNext, goPrev]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+        aria-label="Close fullscreen"
+      >
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+          <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {/* Counter */}
+      {validIndices.length > 1 && (
+        <div className="absolute left-4 top-4 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+          {idx + 1} / {validIndices.length}
+        </div>
+      )}
+
+      {/* Use for flyer button */}
+      {onSelectForFlyer && !hasPropertyImage && (
+        <button
+          onClick={() => { onSelectForFlyer(photos[currentPhotoIdx]); onClose(); }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-lg bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+        >
+          Use for Flyer
+        </button>
+      )}
+
+      {/* Main image */}
+      <img
+        key={currentPhotoIdx}
+        src={photos[currentPhotoIdx]}
+        alt={`Property photo ${idx + 1} of ${validIndices.length}`}
+        className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+      />
+
+      {/* Navigation arrows */}
+      {validIndices.length > 1 && (
+        <>
+          <button
+            onClick={goPrev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
+            aria-label="Previous photo"
+          >
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            onClick={goNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
+            aria-label="Next photo"
+          >
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Thumbnail strip */}
+      {validIndices.length > 1 && validIndices.length <= 20 && (
+        <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2 rounded-xl bg-black/40 p-2 backdrop-blur-sm"
+          style={{ bottom: onSelectForFlyer && !hasPropertyImage ? "4rem" : "1.5rem" }}
+        >
+          {validIndices.map((photoIdx, i) => (
+            <button
+              key={photoIdx}
+              onClick={() => setIdx(i)}
+              className={`h-12 w-16 shrink-0 overflow-hidden rounded-md transition-all ${
+                i === idx
+                  ? "ring-2 ring-white"
+                  : "opacity-50 hover:opacity-75"
+              }`}
+            >
+              <img
+                src={photos[photoIdx]}
+                alt={`Thumbnail ${i + 1}`}
+                className="h-full w-full object-cover"
+              />
+            </button>
           ))}
         </div>
       )}

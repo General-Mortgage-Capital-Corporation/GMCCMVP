@@ -1,6 +1,7 @@
 "use client";
 
 import FilterChips from "@/components/search/FilterChips";
+import PriceRangeFilter from "@/components/search/PriceRangeFilter";
 import type { RentCastListing } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 
@@ -9,9 +10,12 @@ interface MarketingFiltersProps {
   programFilters: string[];
   typeFilters: string[];
   chipFilters: Set<ChipFilter>;
+  priceMin: number | null;
+  priceMax: number | null;
   onProgramFilters: (p: string[]) => void;
   onTypeFilters: (t: string[]) => void;
   onChipFilter: (c: Set<ChipFilter>) => void;
+  onPriceRange: (min: number | null, max: number | null) => void;
 }
 
 export default function MarketingFilters({
@@ -19,9 +23,12 @@ export default function MarketingFilters({
   programFilters,
   typeFilters,
   chipFilters,
+  priceMin,
+  priceMax,
   onProgramFilters,
   onTypeFilters,
   onChipFilter,
+  onPriceRange,
 }: MarketingFiltersProps) {
   const allPrograms = Array.from(
     new Set(
@@ -95,10 +102,23 @@ export default function MarketingFilters({
         )}
 
         <div>
-          <p className="mb-1.5 text-xs font-medium text-gray-600">Tract / Price</p>
-          <FilterChips active={chipFilters} onChange={onChipFilter} showPriceRanges />
+          <p className="mb-1.5 text-xs font-medium text-gray-600">Tract</p>
+          <FilterChips active={chipFilters} onChange={onChipFilter} showPriceRanges={false} />
         </div>
       </div>
+
+      {/* Price range slider */}
+      {(() => {
+        const allPrices = listings.map((l) => l.price ?? 0);
+        return allPrices.filter((p) => p > 0).length >= 2 ? (
+          <PriceRangeFilter
+            prices={allPrices}
+            min={priceMin}
+            max={priceMax}
+            onChange={onPriceRange}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

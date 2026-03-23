@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import SearchForm from "@/components/search/SearchForm";
 import FilterChips from "@/components/search/FilterChips";
+import PriceRangeFilter from "@/components/search/PriceRangeFilter";
 import PropertyGrid from "@/components/property/PropertyGrid";
 import ProgramSelector from "@/components/program/ProgramSelector";
 import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
@@ -49,19 +50,33 @@ export default function Home() {
   const [programs, setPrograms] = useState<string[]>([]);
   const [programLocations, setProgramLocations] = useState<ProgramLocationEntry[]>([]);
 
-  // Shared chip filters + sort
+  // Shared chip filters + sort + price range
   const [chipFilters, setChipFilters] = useState<Set<ChipFilter>>(new Set());
   const [sortBy, setSortBy] = useState<SortBy>("days-asc");
+  const [priceMin, setPriceMin] = useState<number | null>(null);
+  const [priceMax, setPriceMax] = useState<number | null>(null);
+
+  // Reset price range when tab changes or new search starts
+  const resetPriceRange = useCallback(() => { setPriceMin(null); setPriceMax(null); }, []);
 
   // ── Find Properties tab ──────────────────────────────────────────────────
   const findSearch = useSearch();
 
+  // Price range filter helper
+  const passesPrice = useCallback((l: RentCastListing) => {
+    if (priceMin == null && priceMax == null) return true;
+    const p = l.price ?? 0;
+    if (priceMin != null && p < priceMin) return false;
+    if (priceMax != null && p > priceMax) return false;
+    return true;
+  }, [priceMin, priceMax]);
+
   const filteredFindListings = useMemo(
     () => sortListings(
-      findSearch.listings.filter((l) => listingPassesChipFilters(l, chipFilters)),
+      findSearch.listings.filter((l) => listingPassesChipFilters(l, chipFilters) && passesPrice(l)),
       sortBy,
     ),
-    [findSearch.listings, chipFilters, sortBy],
+    [findSearch.listings, chipFilters, sortBy, passesPrice],
   );
 
   const findPagination = usePagination(filteredFindListings, PER_PAGE);
@@ -73,10 +88,10 @@ export default function Home() {
 
   const filteredProgListings = useMemo(
     () => sortListings(
-      progListings.filter((l) => listingPassesChipFilters(l, chipFilters)),
+      progListings.filter((l) => listingPassesChipFilters(l, chipFilters) && passesPrice(l)),
       sortBy,
     ),
-    [progListings, chipFilters, sortBy],
+    [progListings, chipFilters, sortBy, passesPrice],
   );
 
   const progPagination = usePagination(filteredProgListings, PER_PAGE);
@@ -96,6 +111,7 @@ export default function Home() {
   const filteredMkListings = useMemo(() => {
     return mkListings.filter((l) => {
       if (!listingPassesChipFilters(l, chipFilters)) return false;
+      if (!passesPrice(l)) return false;
       if (
         mkProgramFilters.length > 0 &&
         !mkProgramFilters.some((name) =>
@@ -109,7 +125,7 @@ export default function Home() {
         return false;
       return true;
     });
-  }, [mkListings, chipFilters, mkProgramFilters, mkTypeFilters]);
+  }, [mkListings, chipFilters, mkProgramFilters, mkTypeFilters, passesPrice]);
 
   // Separate abort controllers per tab so they don't interfere
   const progSearchCtrl = useRef<AbortController | null>(null);
@@ -187,6 +203,7 @@ export default function Home() {
     setProgLoading(true);
     setProgListings([]);
     setChipFilters(new Set());
+    resetPriceRange();
     try {
       for await (const event of programSearchStream(params, ctrl.signal)) {
         if (event.type === "batch") {
@@ -225,6 +242,7 @@ export default function Home() {
     setMkProgramFilters([]);
     setMkTypeFilters([]);
     setChipFilters(new Set());
+    resetPriceRange();
     setMkFailedCount(0);
     try {
       let failedInSearch = 0;
@@ -505,22 +523,41 @@ export default function Home() {
                   programFilters={mkProgramFilters}
                   typeFilters={mkTypeFilters}
                   chipFilters={chipFilters}
+                  priceMin={priceMin}
+                  priceMax={priceMax}
                   onProgramFilters={setMkProgramFilters}
                   onTypeFilters={setMkTypeFilters}
                   onChipFilter={setChipFilters}
+                  onPriceRange={(newMin, newMax) => { setPriceMin(newMin); setPriceMax(newMax); }}
                 />
               </div>
             )}
 
             {/* Filter + sort bar (find / program tabs) */}
             {showFilterBar && (
-              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</span>
-                <FilterChips
-                  active={chipFilters}
-                  onChange={setChipFilters}
-                  showPriceRanges={activeTab === "program"}
-                />
+              <div className="mb-4 space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</span>
+                  <FilterChips
+                    active={chipFilters}
+                    onChange={setChipFilters}
+                    showPriceRanges={false}
+                  />
+                </div>
+
+                {/* Price range slider */}
+                {(() => {
+                  const allPrices = (activeTab === "find" ? findSearch.listings : progListings)
+                    .map((l) => l.price ?? 0);
+                  return allPrices.filter((p) => p > 0).length >= 2 ? (
+                    <PriceRangeFilter
+                      prices={allPrices}
+                      min={priceMin}
+                      max={priceMax}
+                      onChange={(newMin, newMax) => { setPriceMin(newMin); setPriceMax(newMax); }}
+                    />
+                  ) : null;
+                })()}
 
                 <div className="flex w-full items-center gap-3 sm:ml-auto sm:w-auto">
                   {/* Matching eligibility indicator (Find tab) */}
