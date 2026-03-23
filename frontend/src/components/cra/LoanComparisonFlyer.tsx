@@ -413,25 +413,33 @@ export default function LoanComparisonFlyer({
         (h as HTMLElement).style.boxShadow = "none";
       });
 
-      // Swap inputs with divs
+      // Swap inputs with divs — wrapped in try/finally to guarantee DOM restoration
       const swaps: { input: HTMLInputElement; div: HTMLElement; parent: Node }[] = [];
-      el.querySelectorAll("input[type='text'], input:not([type])").forEach((input) => {
-        const inp = input as HTMLInputElement;
-        const div = document.createElement("div");
-        div.textContent = inp.value || inp.placeholder || "";
-        div.className = inp.className;
-        div.style.border = "none"; div.style.outline = "none"; div.style.background = "transparent";
-        if (!inp.value) div.style.color = "#d1d5db";
-        if (inp.parentNode) { inp.parentNode.replaceChild(div, inp); swaps.push({ input: inp, div, parent: div.parentNode! }); }
-      });
+      let canvas: HTMLCanvasElement;
+      try {
+        el.querySelectorAll("input[type='text'], input:not([type])").forEach((input) => {
+          const inp = input as HTMLInputElement;
+          const parent = inp.parentNode;
+          if (!parent) return;
+          const div = document.createElement("div");
+          div.textContent = inp.value || inp.placeholder || "";
+          div.className = inp.className;
+          div.style.border = "none"; div.style.outline = "none"; div.style.background = "transparent";
+          if (!inp.value) div.style.color = "#d1d5db";
+          swaps.push({ input: inp, div, parent });
+          parent.replaceChild(div, inp);
+        });
 
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const canvas = await html2canvas(el, { scale: 1.5, useCORS: true, backgroundColor: "#ffffff", logging: false });
-
-      for (const { input, div, parent } of swaps) parent.replaceChild(input, div);
-      // Restore highlights
-      highlighted.forEach((h) => { (h as HTMLElement).classList.add("bg-amber-50"); (h as HTMLElement).style.boxShadow = ""; });
-      el.className = origClassName; el.style.overflow = origOverflow; el.style.borderRadius = origRadius;
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        canvas = await html2canvas(el, { scale: 1.5, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      } finally {
+        // Always restore DOM even if html2canvas throws
+        for (const { input, div, parent } of swaps) {
+          try { parent.replaceChild(input, div); } catch { /* already restored */ }
+        }
+        highlighted.forEach((h) => { (h as HTMLElement).classList.add("bg-amber-50"); (h as HTMLElement).style.boxShadow = ""; });
+        el.className = origClassName; el.style.overflow = origOverflow; el.style.borderRadius = origRadius;
+      }
 
       const imgData = canvas.toDataURL("image/jpeg", 0.85);
       const pdfW = 612;

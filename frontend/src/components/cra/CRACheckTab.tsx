@@ -97,23 +97,31 @@ export default function CRACheckTab() {
     } catch { /* non-critical */ }
   }
 
-  // Fetch Zillow photos for an address
+  // Fetch Zillow photos — abort stale requests when a new search starts
+  const photoCtrl = useRef<AbortController | null>(null);
+
   function fetchPhotos(addr: string) {
+    // Abort any in-flight photo fetch
+    photoCtrl.current?.abort();
+    const ctrl = new AbortController();
+    photoCtrl.current = ctrl;
+
     const cached = getCachedPhotos(addr);
     if (cached) {
       setZillowPhotos(cached);
       return;
     }
     setPhotosLoading(true);
-    fetch(`/api/zillow-photos?address=${encodeURIComponent(addr)}`)
+    fetch(`/api/zillow-photos?address=${encodeURIComponent(addr)}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data: { photos?: string[] }) => {
+        if (ctrl.signal.aborted) return;
         const photos = data.photos ?? [];
         setZillowPhotos(photos);
         setCachedPhotos(addr, photos);
       })
-      .catch(() => setPhotosError("Could not load photos"))
-      .finally(() => setPhotosLoading(false));
+      .catch((err) => { if (err?.name !== "AbortError") setPhotosError("Could not load photos"); })
+      .finally(() => { if (!ctrl.signal.aborted) setPhotosLoading(false); });
   }
 
   // Main search handler
@@ -150,6 +158,7 @@ export default function CRACheckTab() {
           searchParams.set("lng", String(coords.lng));
         }
         const searchRes = await fetch(`/api/search?${searchParams}`);
+        if (!searchRes.ok) throw new Error("Search failed");
         const searchData = (await searchRes.json()) as SearchResponse;
         if (searchData.success && searchData.listings.length > 0) {
           // Use the first (best) match
@@ -170,6 +179,7 @@ export default function CRACheckTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([matchPayload]),
       });
+      if (!matchRes.ok) throw new Error("Match request failed");
       const matchData = await matchRes.json();
 
       if (!matchData.success || !matchData.results?.[0]) {
