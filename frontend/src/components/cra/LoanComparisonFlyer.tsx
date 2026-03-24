@@ -238,7 +238,7 @@ const TABLE_ROWS: RowDef[] = [
 // Broker info
 // ---------------------------------------------------------------------------
 
-interface BrokerInfo { name: string; company: string; phone: string; officePhone: string }
+interface BrokerInfo { label: string; name: string; company: string; phone: string; email: string }
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -287,12 +287,20 @@ export default function LoanComparisonFlyer({
   const [brokers, setBrokers] = useState<BrokerInfo[]>([]);
   useEffect(() => {
     const initial: BrokerInfo[] = [];
+    // Add listing agent as primary broker
     if (agent?.name) {
-      initial.push({ name: agent.name, company: office?.name ?? "", phone: agent.phone ?? "", officePhone: office?.phone ?? "" });
+      initial.push({ label: "Listing Broker", name: agent.name, company: office?.name ?? "", phone: agent.phone ?? "", email: agent.email ?? "" });
+    }
+    // Add listing office as separate entry if it has its own contact details
+    if (office?.name && (office?.phone || office?.email)) {
+      const isDuplicate = agent?.name && !office.email && !office.phone;
+      if (!isDuplicate) {
+        initial.push({ label: "Listing Office", name: office.name, company: "", phone: office.phone ?? "", email: office.email ?? "" });
+      }
     }
     setBrokers(initial);
-  }, [agent?.name, agent?.phone, office?.name, office?.phone]);
-  const addBroker = useCallback(() => setBrokers((p) => [...p, { name: "", company: "", phone: "", officePhone: "" }]), []);
+  }, [agent?.name, agent?.phone, agent?.email, office?.name, office?.phone, office?.email]);
+  const addBroker = useCallback(() => setBrokers((p) => [...p, { label: "Co-Listing Broker", name: "", company: "", phone: "", email: "" }]), []);
   const removeBroker = useCallback((i: number) => setBrokers((p) => p.filter((_, idx) => idx !== i)), []);
   const updateBroker = useCallback((i: number, f: keyof BrokerInfo, v: string) => {
     setBrokers((p) => p.map((b, idx) => idx === i ? { ...b, [f]: v } : b));
@@ -582,9 +590,9 @@ export default function LoanComparisonFlyer({
             {brokers.map((b, idx) => (
               <div key={idx} style={{ minWidth: 160, textAlign: "center" }}>
                 <div className="mb-1 flex items-center justify-center gap-2">
-                  <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-gray-400">
-                    {idx === 0 ? "Listing Broker" : "Co-Listing Broker"}
-                  </span>
+                  <input value={b.label} onChange={(e) => updateBroker(idx, "label", e.target.value)}
+                    className="w-24 border-0 bg-transparent p-0 text-center text-[0.6rem] font-semibold uppercase tracking-wider text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-0 focus:text-gray-600"
+                    placeholder="Label" />
                   <button onClick={() => removeBroker(idx)}
                     className="edit-only flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gray-200 text-gray-400 hover:bg-red-100 hover:text-red-500" title="Remove broker">
                     <svg width="6" height="6" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
@@ -596,7 +604,7 @@ export default function LoanComparisonFlyer({
                   className="mb-0.5 block w-full border-0 bg-transparent p-0 text-center text-[0.65rem] text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0" />
                 <input value={b.phone} onChange={(e) => updateBroker(idx, "phone", e.target.value)} placeholder="Broker phone"
                   className="mb-0.5 block w-full border-0 bg-transparent p-0 text-center text-[0.6rem] text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0" />
-                <input value={b.officePhone} onChange={(e) => updateBroker(idx, "officePhone", e.target.value)} placeholder="Office phone"
+                <input value={b.email} onChange={(e) => updateBroker(idx, "email", e.target.value)} placeholder="Email"
                   className="block w-full border-0 bg-transparent p-0 text-center text-[0.6rem] text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0" />
               </div>
             ))}
