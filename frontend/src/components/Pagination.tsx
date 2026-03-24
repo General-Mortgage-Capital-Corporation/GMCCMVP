@@ -29,7 +29,7 @@ export default function Pagination({
   return (
     <nav className="flex items-center justify-center gap-1 py-4" aria-label="Pagination">
       <button
-        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
         disabled={currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
@@ -38,14 +38,14 @@ export default function Pagination({
 
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`el-${i}`} className="inline-flex h-9 w-9 items-center justify-center text-sm text-slate-400">
+          <span key={`el-${i}`} className="inline-flex h-10 w-10 items-center justify-center text-sm text-slate-400 sm:h-9 sm:w-9">
             …
           </span>
         ) : (
           <button
             key={p}
             onClick={() => onPageChange(p as number)}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-colors sm:h-9 sm:w-9 ${
               p === currentPage
                 ? "bg-slate-900 text-white"
                 : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -57,7 +57,7 @@ export default function Pagination({
       )}
 
       <button
-        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >

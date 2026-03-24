@@ -521,8 +521,8 @@ export default function LoanComparisonFlyer({
       {/* ═══ Flyer Preview ═══ */}
       <div ref={flyerRef} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" style={{ maxWidth: 960 }}>
 
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-3">
+        {/* ── Header — wraps on mobile ── */}
+        <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/gmcc-logo.png" alt="GMCC" className="h-10 w-auto" />
@@ -531,14 +531,14 @@ export default function LoanComparisonFlyer({
               <div className="text-[0.6rem] text-gray-400">NMLS #254895 | Licensed in 49 States</div>
             </div>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <div className="text-lg font-bold text-red-700">Home Financing Options</div>
           </div>
         </div>
 
-        {/* ── Photo + LO Contact ── */}
-        <div data-pdf="hero-row" style={{ display: "flex", width: "100%", minHeight: "12rem" }}>
-          <div style={{ width: "60%", flexShrink: 0, position: "relative" }} className="bg-gray-100">
+        {/* ── Photo + LO Contact — stacks on mobile ── */}
+        <div data-pdf="hero-row" className="flex flex-col sm:flex-row" style={{ width: "100%", minHeight: "12rem" }}>
+          <div className="relative min-h-[10rem] w-full bg-gray-100 sm:w-[60%] sm:shrink-0">
             {heroImg ? (
               <img src={heroImg} alt="Property" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
             ) : (
@@ -547,7 +547,7 @@ export default function LoanComparisonFlyer({
               </div>
             )}
           </div>
-          <div style={{ width: "40%", flexShrink: 0 }} className="flex flex-col items-center justify-center border-l border-red-100 bg-red-50/40 px-5 py-4 text-center">
+          <div className="flex w-full flex-col items-center justify-center border-t border-red-100 bg-red-50/40 px-5 py-4 text-center sm:w-[40%] sm:shrink-0 sm:border-l sm:border-t-0">
             {/* Editable tagline — at the top */}
             <input value={tagline} onChange={(e) => setTagline(e.target.value)}
               className="mb-2 w-full border-0 bg-transparent text-center text-xl font-extrabold tracking-wide text-red-700 placeholder-red-300 focus:outline-none focus:ring-0"
@@ -573,7 +573,7 @@ export default function LoanComparisonFlyer({
         </div>
 
         {/* ── Property Details ── */}
-        <div className="border-y border-gray-200 bg-white px-6 py-3">
+        <div className="border-y border-gray-200 bg-white px-4 py-3 sm:px-6">
           <div className="text-base font-bold text-gray-900">{listing?.formattedAddress ?? "Property Address"}</div>
           <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
             {price > 0 && <span className="text-sm font-bold text-red-700">{formatPrice(price)}</span>}
@@ -584,11 +584,11 @@ export default function LoanComparisonFlyer({
           </div>
         </div>
 
-        {/* ── Broker Info ── */}
-        <div data-pdf="broker-row" className="border-b border-gray-100 px-6 py-3">
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: "2rem" }}>
+        {/* ── Broker Info — wraps on mobile ── */}
+        <div data-pdf="broker-row" className="border-b border-gray-100 px-4 py-3 sm:px-6">
+          <div className="flex flex-wrap justify-center gap-4 sm:justify-end sm:gap-8">
             {brokers.map((b, idx) => (
-              <div key={idx} style={{ minWidth: 160, textAlign: "center" }}>
+              <div key={idx} className="min-w-[140px] text-center sm:min-w-[160px]">
                 <div className="mb-1 flex items-center justify-center gap-2">
                   <input value={b.label} onChange={(e) => updateBroker(idx, "label", e.target.value)}
                     className="w-24 border-0 bg-transparent p-0 text-center text-[0.6rem] font-semibold uppercase tracking-wider text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-0 focus:text-gray-600"

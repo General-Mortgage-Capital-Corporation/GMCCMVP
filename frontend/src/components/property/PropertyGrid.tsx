@@ -160,7 +160,7 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
     <div className="flex items-center rounded-md border border-slate-200 bg-white p-0.5">
       <button
         onClick={() => onChange("list")}
-        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+        className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ${
           view === "list" ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-700"
         }`}
         title="List view"
@@ -172,7 +172,7 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
       </button>
       <button
         onClick={() => onChange("card")}
-        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+        className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ${
           view === "card" ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-700"
         }`}
         title="Card view"
@@ -195,7 +195,10 @@ function SortArrow({ active, dir }: { active: boolean; dir: "asc" | "desc" | nul
 }
 
 export default function PropertyGrid({ listings, loading, onCardClick, sortBy, onSortChange }: PropertyGridProps) {
-  const [view, setView] = useState<ViewMode>("list");
+  // Mobile defaults to card view since list view requires horizontal scroll
+  const [view, setView] = useState<ViewMode>(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "card" : "list"
+  );
   // listings are pre-sorted by page.tsx before pagination; no need to re-sort here
   const sorted = listings;
 
@@ -217,7 +220,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
 
   const colHeaderClass = (active: boolean) =>
     `text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 ${
-      onSortChange ? "cursor-pointer select-none hover:text-slate-600" : ""
+      onSortChange ? "cursor-pointer select-none hover:text-slate-600 active:text-slate-600" : ""
     } ${active ? "text-red-500" : ""}`;
 
   // Show skeletons only when loading with no results yet

@@ -378,7 +378,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSettingsOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors sm:h-8 sm:w-8"
               title="Settings"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -401,13 +401,13 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { signIn().catch(() => {}); }}
-                className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
               >
                 Sign in
               </button>
               <button
                 onClick={() => setBannerDismissed(true)}
-                className="text-red-400 hover:text-red-600 transition-colors"
+                className="p-2 text-red-400 hover:text-red-600 transition-colors"
                 aria-label="Dismiss"
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -427,23 +427,25 @@ export default function Home() {
             <nav className="flex whitespace-nowrap px-2">
               {(
                 [
-                  ["cra", "CRA Address Fast Check"],
-                  ["marketing", "Massive Marketing"],
-                  ["find", "Marketing/GPS Radius Check"],
-                  ["program", "Market by Program Check"],
-                ] as [ActiveTab, string][]
-              ).map(([tab, label]) => (
+                  ["cra", "CRA Check", "CRA Address Fast Check"],
+                  ["marketing", "Marketing", "Massive Marketing"],
+                  ["find", "GPS Radius", "Marketing/GPS Radius Check"],
+                  ["program", "By Program", "Market by Program Check"],
+                ] as [ActiveTab, string, string][]
+              ).map(([tab, shortLabel, fullLabel]) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => handleTabChange(tab)}
-                  className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:px-4 ${
                     activeTab === tab
                       ? "border-red-600 text-red-600"
                       : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  {label}
+                  {/* Shorter labels on mobile to prevent tab overflow */}
+                  <span className="sm:hidden">{shortLabel}</span>
+                  <span className="hidden sm:inline">{fullLabel}</span>
                 </button>
               ))}
             </nav>
@@ -583,7 +585,7 @@ export default function Home() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 sm:text-xs"
                   >
                     <option value="days-asc">Sort: Days on Market ↑</option>
                     <option value="days-desc">Sort: Days on Market ↓</option>

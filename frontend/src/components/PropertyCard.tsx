@@ -34,7 +34,7 @@ export default function PropertyCard({ listing, onClick }: PropertyCardProps) {
   return (
     <div
       onClick={onClick}
-      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-150 hover:border-slate-300 hover:shadow-md"
+      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-150 hover:border-slate-300 hover:shadow-md active:scale-[0.99] active:shadow-sm"
     >
       <div className="flex-1 p-5">
         <p className="text-[1.375rem] font-bold tracking-tight text-slate-900">

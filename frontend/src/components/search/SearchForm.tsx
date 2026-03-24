@@ -118,7 +118,7 @@ export default function SearchForm({
             onChange={(e) =>
               setSearchType(e.target.value as "area" | "specific")
             }
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-red-500 sm:text-sm"
           >
             <option value="area">Area Search</option>
             <option value="specific">Exact Address</option>

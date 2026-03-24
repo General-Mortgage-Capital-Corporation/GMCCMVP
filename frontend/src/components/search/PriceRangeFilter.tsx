@@ -163,6 +163,7 @@ export default function PriceRangeFilter({
                       : count > 0 ? "rgb(229 231 235)" : "transparent",
                 }}
                 onMouseEnter={() => count > 0 ? setHoveredBucket(i) : setHoveredBucket(null)}
+                onClick={() => count > 0 ? setHoveredBucket(hoveredBucket === i ? null : i) : setHoveredBucket(null)}
               >
                 {/* Tooltip */}
                 {isHovered && count > 0 && (
@@ -190,7 +191,7 @@ export default function PriceRangeFilter({
             className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-red-500 bg-white shadow-md transition-shadow ${
               dragging === "min" ? "z-20 scale-110 shadow-lg ring-2 ring-red-200" : "z-10 hover:shadow-lg"
             }`}
-            style={{ left: `${minPct}%`, width: 16, height: 16 }}
+            style={{ left: `${minPct}%`, width: 22, height: 22 }}
             onPointerDown={handlePointerDown("min")}
           />
 
@@ -199,7 +200,7 @@ export default function PriceRangeFilter({
             className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-red-500 bg-white shadow-md transition-shadow ${
               dragging === "max" ? "z-20 scale-110 shadow-lg ring-2 ring-red-200" : "z-10 hover:shadow-lg"
             }`}
-            style={{ left: `${maxPct}%`, width: 16, height: 16 }}
+            style={{ left: `${maxPct}%`, width: 22, height: 22 }}
             onPointerDown={handlePointerDown("max")}
           />
         </div>

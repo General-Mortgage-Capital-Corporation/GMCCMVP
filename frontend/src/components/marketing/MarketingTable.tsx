@@ -537,7 +537,7 @@ export default function MarketingTable({
                     checked={allPageSelected}
                     ref={(el) => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
                     onChange={togglePage}
-                    className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                    className="h-4 w-4 rounded accent-red-600 cursor-pointer"
                     title={allPageSelected ? "Deselect page" : "Select page"}
                   />
                 </th>
@@ -581,7 +581,7 @@ export default function MarketingTable({
                         type="checkbox"
                         checked={isSelected}
                         readOnly
-                        className="h-3.5 w-3.5 rounded accent-red-600 cursor-pointer"
+                        className="h-4 w-4 rounded accent-red-600 cursor-pointer"
                       />
                     </td>
 

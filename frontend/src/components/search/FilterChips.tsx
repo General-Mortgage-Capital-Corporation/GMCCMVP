@@ -47,7 +47,7 @@ export default function FilterChips({
           key={id}
           type="button"
           onClick={() => toggle(id)}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors sm:py-1 ${
             active.has(id)
               ? "bg-red-600 text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"

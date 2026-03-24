@@ -296,7 +296,8 @@ export default function CRACheckTab() {
   return (
     <div className="relative">
       {/* ═══ Search Bar ═══ */}
-      <form onSubmit={handleSubmit} className="flex gap-3">
+      {/* Stacks vertically on mobile, inline on desktop */}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">
           <AddressAutocomplete
             value={address}
@@ -312,7 +313,7 @@ export default function CRACheckTab() {
         <button
           type="submit"
           disabled={loading || !address.trim()}
-          className="flex items-center gap-2 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 sm:w-auto"
         >
           {loading && <LoadingSpinner size="sm" />}
           {loading ? "Checking..." : "Check Address"}
