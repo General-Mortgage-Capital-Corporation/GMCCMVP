@@ -52,7 +52,7 @@ const DEFAULT_GROUPS: GroupTemplate[] = [
     ],
   },
   {
-    name: "Universe / Massive",
+    name: "Universe / Massive No Ratio No DTI",
     subs: [
       { name: "30-Year Fixed", termMonths: 360 },
       { name: "5/1 ARM", termMonths: 360 },
@@ -489,7 +489,7 @@ export default function LoanComparisonFlyer({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-gray-800">Home Financing Options Flyer</h3>
+        <h3 className="text-sm font-bold text-gray-800">Home Financing Options Flyer <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase text-amber-700">Beta</span></h3>
         <button onClick={exportPDF} disabled={exporting}
           className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50">
           {exporting ? <>
