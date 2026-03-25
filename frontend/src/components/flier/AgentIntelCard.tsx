@@ -164,6 +164,8 @@ export default function AgentIntelCard({
             </div>
           )}
 
+          <p className="text-[0.6rem] italic text-amber-600/70">AI-generated research may be inaccurate. Verify details before referencing in emails.</p>
+
           <div className="flex items-center justify-between pt-1">
             {research.sources.length > 0 && (
               <span className="text-[0.6rem] text-gray-400">
