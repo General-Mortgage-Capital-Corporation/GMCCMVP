@@ -747,7 +747,8 @@ export default function LoanComparisonFlyer({
           <div className="flex items-start gap-2.5">
             <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[0.65rem] font-bold text-white">i</div>
             <p className="text-[0.7rem] font-medium leading-relaxed text-gray-700">
-              Your actual rate, payment, and costs could be higher. Get an official Loan Estimate before choosing a loan.
+              Rates as of {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+              {" "}Your actual rate, payment, and costs could be higher. Get an official Loan Estimate before choosing a loan.
               Interest rates and APRs are based on current market rates, are for informational purposes only, and are subject to change without notice.
             </p>
           </div>

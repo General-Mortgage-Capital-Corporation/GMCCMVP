@@ -3,6 +3,7 @@
 import FilterChips from "@/components/search/FilterChips";
 import PriceRangeFilter from "@/components/search/PriceRangeFilter";
 import type { RentCastListing } from "@/types";
+import { EXCLUDED_PROPERTY_TYPES } from "@/lib/utils";
 import type { ChipFilter } from "@/lib/utils";
 
 interface MarketingFiltersProps {
@@ -16,6 +17,8 @@ interface MarketingFiltersProps {
   onTypeFilters: (t: string[]) => void;
   onChipFilter: (c: Set<ChipFilter>) => void;
   onPriceRange: (min: number | null, max: number | null) => void;
+  /** Hide the program checkbox filters (e.g. when searching by a specific program) */
+  hidePrograms?: boolean;
 }
 
 export default function MarketingFilters({
@@ -29,6 +32,7 @@ export default function MarketingFilters({
   onTypeFilters,
   onChipFilter,
   onPriceRange,
+  hidePrograms = false,
 }: MarketingFiltersProps) {
   const allPrograms = Array.from(
     new Set(
@@ -40,8 +44,8 @@ export default function MarketingFilters({
   );
 
   const allTypes = Array.from(
-    new Set(listings.map((l) => l.propertyType).filter(Boolean)),
-  ) as string[];
+    new Set(listings.map((l) => l.propertyType).filter((t): t is string => !!t && !EXCLUDED_PROPERTY_TYPES.has(t))),
+  );
 
   function toggleProgram(p: string) {
     if (programFilters.includes(p)) {
@@ -63,7 +67,7 @@ export default function MarketingFilters({
     <div className="space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</p>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
-        {allPrograms.length > 0 && (
+        {!hidePrograms && allPrograms.length > 0 && (
           <div>
             <p className="mb-1.5 text-xs font-medium text-gray-600">Program</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">

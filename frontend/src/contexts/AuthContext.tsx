@@ -47,13 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restore cached session on mount
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as FirebaseUser;
         if (parsed.expiresAt > Date.now() + EXPIRY_BUFFER_MS) {
           setUser(parsed);
         } else {
-          sessionStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(STORAGE_KEY);
         }
       }
     } catch {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
       return firebaseUser;
     } catch (err) {
       console.error("Sign-in failed:", err);
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(() => {
     setUser(null);
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     getMsal().then((msal) => {
       const accounts = msal.getAllAccounts();
       if (accounts.length > 0) {
@@ -133,11 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const refreshed = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(refreshed);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
       return refreshed.idToken;
     } catch {
       setUser(null);
-      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
       return null;
     }
   }, [user]);

@@ -145,6 +145,9 @@ export type ChipFilter =
   | "1mto3m"
   | "over3m";
 
+/** Property types excluded from all search results */
+export const EXCLUDED_PROPERTY_TYPES = new Set(["Land", "Manufactured"]);
+
 export function listingPassesChipFilters(
   listing: RentCastListing,
   filters: Set<ChipFilter>,

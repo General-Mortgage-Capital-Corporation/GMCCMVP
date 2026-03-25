@@ -12,7 +12,7 @@ export const msalConfig: Configuration = {
     redirectUri: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: "localStorage",
     storeAuthStateInCookie: false,
   },
 };

@@ -3,9 +3,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import SearchForm from "@/components/search/SearchForm";
-import FilterChips from "@/components/search/FilterChips";
-import PriceRangeFilter from "@/components/search/PriceRangeFilter";
-import PropertyGrid from "@/components/property/PropertyGrid";
 import ProgramSelector from "@/components/program/ProgramSelector";
 import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
 import MarketingTable from "@/components/marketing/MarketingTable";
@@ -15,12 +12,10 @@ import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
 import dynamic from "next/dynamic";
 const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
-import Pagination from "@/components/Pagination";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearch } from "@/hooks/useSearch";
-import { usePagination } from "@/hooks/usePagination";
 
 import {
   fetchPrograms,
@@ -30,17 +25,17 @@ import {
   matchBatch,
   ApiError,
 } from "@/lib/api";
-import { listingPassesChipFilters, formatPrice } from "@/lib/utils";
+import { listingPassesChipFilters, formatPrice, EXCLUDED_PROPERTY_TYPES } from "@/lib/utils";
 
 import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
-import type { SortBy } from "@/components/property/PropertyGrid";
-import { sortListings } from "@/components/property/PropertyGrid";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
 type ActiveTab = "find" | "program" | "marketing" | "cra";
 
-const PER_PAGE = 12;
+function excludeTypes(listing: RentCastListing) {
+  return !EXCLUDED_PROPERTY_TYPES.has(listing.propertyType ?? "");
+}
 
 export default function Home() {
   const { user, signIn } = useAuth();
@@ -51,17 +46,24 @@ export default function Home() {
   const [programs, setPrograms] = useState<string[]>([]);
   const [programLocations, setProgramLocations] = useState<ProgramLocationEntry[]>([]);
 
-  // Shared chip filters + sort + price range
+  // Shared chip filters + price range
   const [chipFilters, setChipFilters] = useState<Set<ChipFilter>>(new Set());
-  const [sortBy, setSortBy] = useState<SortBy>("days-asc");
   const [priceMin, setPriceMin] = useState<number | null>(null);
   const [priceMax, setPriceMax] = useState<number | null>(null);
+
+  // Sort state per tab (all tabs now use MarketingTable-style sorting)
+  const [findSortCol, setFindSortCol] = useState<MkSortColumn>("days");
+  const [findSortDir, setFindSortDir] = useState<MkSortDir>("asc");
+  const [progSortCol, setProgSortCol] = useState<MkSortColumn>("days");
+  const [progSortDir, setProgSortDir] = useState<MkSortDir>("asc");
 
   // Reset price range when tab changes or new search starts
   const resetPriceRange = useCallback(() => { setPriceMin(null); setPriceMax(null); }, []);
 
   // ── Find Properties tab ──────────────────────────────────────────────────
   const findSearch = useSearch();
+  const [findProgramFilters, setFindProgramFilters] = useState<string[]>([]);
+  const [findTypeFilters, setFindTypeFilters] = useState<string[]>([]);
 
   // Price range filter helper
   const passesPrice = useCallback((l: RentCastListing) => {
@@ -72,30 +74,41 @@ export default function Home() {
     return true;
   }, [priceMin, priceMax]);
 
-  const filteredFindListings = useMemo(
-    () => sortListings(
-      findSearch.listings.filter((l) => listingPassesChipFilters(l, chipFilters) && passesPrice(l)),
-      sortBy,
-    ),
-    [findSearch.listings, chipFilters, sortBy, passesPrice],
-  );
-
-  const findPagination = usePagination(filteredFindListings, PER_PAGE);
+  const filteredFindListings = useMemo(() => {
+    return findSearch.listings.filter((l) => {
+      if (!excludeTypes(l)) return false;
+      if (!listingPassesChipFilters(l, chipFilters)) return false;
+      if (!passesPrice(l)) return false;
+      if (
+        findProgramFilters.length > 0 &&
+        !findProgramFilters.some((name) =>
+          l.matchData?.programs.some(
+            (p) => p.program_name === name && p.status !== "Ineligible",
+          ),
+        )
+      ) return false;
+      if (findTypeFilters.length > 0 && !findTypeFilters.includes(l.propertyType ?? ""))
+        return false;
+      return true;
+    });
+  }, [findSearch.listings, chipFilters, passesPrice, findProgramFilters, findTypeFilters]);
 
   // ── Search by Program tab ────────────────────────────────────────────────
   const [progListings, setProgListings] = useState<RentCastListing[]>([]);
   const [progLoading, setProgLoading] = useState(false);
   const [progError, setProgError] = useState<string | null>(null);
+  const [progTypeFilters, setProgTypeFilters] = useState<string[]>([]);
 
-  const filteredProgListings = useMemo(
-    () => sortListings(
-      progListings.filter((l) => listingPassesChipFilters(l, chipFilters) && passesPrice(l)),
-      sortBy,
-    ),
-    [progListings, chipFilters, sortBy, passesPrice],
-  );
-
-  const progPagination = usePagination(filteredProgListings, PER_PAGE);
+  const filteredProgListings = useMemo(() => {
+    return progListings.filter((l) => {
+      if (!excludeTypes(l)) return false;
+      if (!listingPassesChipFilters(l, chipFilters)) return false;
+      if (!passesPrice(l)) return false;
+      if (progTypeFilters.length > 0 && !progTypeFilters.includes(l.propertyType ?? ""))
+        return false;
+      return true;
+    });
+  }, [progListings, chipFilters, passesPrice, progTypeFilters]);
 
   // ── Marketing tab ────────────────────────────────────────────────────────
   const [mkListings, setMkListings] = useState<RentCastListing[]>([]);
@@ -111,6 +124,7 @@ export default function Home() {
 
   const filteredMkListings = useMemo(() => {
     return mkListings.filter((l) => {
+      if (!excludeTypes(l)) return false;
       if (!listingPassesChipFilters(l, chipFilters)) return false;
       if (!passesPrice(l)) return false;
       if (
@@ -169,7 +183,6 @@ export default function Home() {
   function handleTabChange(tab: ActiveTab) {
     setActiveTab(tab);
     setChipFilters(new Set());
-    setSortBy("days-asc");
   }
 
   async function handleFindSearch(params: {
@@ -181,6 +194,9 @@ export default function Home() {
     lng?: number;
   }) {
     setChipFilters(new Set());
+    setFindProgramFilters([]);
+    setFindTypeFilters([]);
+    resetPriceRange();
     await findSearch.search({
       query: params.query,
       searchType: params.searchType,
@@ -204,6 +220,7 @@ export default function Home() {
     setProgLoading(true);
     setProgListings([]);
     setChipFilters(new Set());
+    setProgTypeFilters([]);
     resetPriceRange();
     try {
       for await (const event of programSearchStream(params, ctrl.signal)) {
@@ -322,6 +339,24 @@ export default function Home() {
     }
   }
 
+  function handleFindSort(col: MkSortColumn) {
+    if (findSortCol === col) {
+      setFindSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setFindSortCol(col);
+      setFindSortDir("desc");
+    }
+  }
+
+  function handleProgSort(col: MkSortColumn) {
+    if (progSortCol === col) {
+      setProgSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setProgSortCol(col);
+      setProgSortDir("desc");
+    }
+  }
+
   const openModal = useCallback(
     (listing: RentCastListing) => {
       const all = [...findSearch.listings, ...progListings, ...mkListings];
@@ -352,14 +387,6 @@ export default function Home() {
           ? mkError
           : null;
 
-  const showFilterBar = activeTab !== "marketing" && hasResults;
-
-  const resultCount =
-    activeTab === "find"
-      ? filteredFindListings.length
-      : activeTab === "program"
-        ? filteredProgListings.length
-        : filteredMkListings.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -518,7 +545,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* Marketing filters */}
+            {/* Filters (consistent MarketingFilters for all result tabs) */}
             {activeTab === "marketing" && mkListings.length > 0 && (
               <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                 <MarketingFilters
@@ -535,85 +562,71 @@ export default function Home() {
                 />
               </div>
             )}
-
-            {/* Filter + sort bar (find / program tabs) */}
-            {showFilterBar && (
-              <div className="mb-4 space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Filters</span>
-                  <FilterChips
-                    active={chipFilters}
-                    onChange={setChipFilters}
-                    showPriceRanges={false}
-                  />
-                </div>
-
-                {/* Price range slider */}
-                {(() => {
-                  const allPrices = (activeTab === "find" ? findSearch.listings : progListings)
-                    .map((l) => l.price ?? 0);
-                  return allPrices.filter((p) => p > 0).length >= 2 ? (
-                    <PriceRangeFilter
-                      prices={allPrices}
-                      min={priceMin}
-                      max={priceMax}
-                      onChange={(newMin, newMax) => { setPriceMin(newMin); setPriceMax(newMax); }}
-                    />
-                  ) : null;
-                })()}
-
-                <div className="flex w-full items-center gap-3 sm:ml-auto sm:w-auto">
-                  {/* Matching eligibility indicator (Find tab) */}
-                  {activeTab === "find" && findSearch.matchLoading && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-600">
-                      <LoadingSpinner size="sm" />
-                      <span>Checking eligibility…</span>
-                    </div>
-                  )}
-                  {/* Streaming progress indicator (Program tab) */}
-                  {activeTab === "program" && progLoading && progListings.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-600">
-                      <LoadingSpinner size="sm" />
-                      <span>Finding more matches…</span>
-                    </div>
-                  )}
-
-                  {/* Result count */}
-                  <span className="text-xs text-gray-400">{resultCount} properties</span>
-
-                  {/* Sort select */}
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 sm:text-xs"
-                  >
-                    <option value="days-asc">Sort: Days on Market ↑</option>
-                    <option value="days-desc">Sort: Days on Market ↓</option>
-                    <option value="price-asc">Sort: Price ↑</option>
-                    <option value="price-desc">Sort: Price ↓</option>
-                    <option value="distance">Sort: Distance</option>
-                    <option value="best-match">Sort: Best Match</option>
-                  </select>
-                </div>
+            {activeTab === "find" && findSearch.listings.length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                <MarketingFilters
+                  listings={findSearch.listings}
+                  programFilters={findProgramFilters}
+                  typeFilters={findTypeFilters}
+                  chipFilters={chipFilters}
+                  priceMin={priceMin}
+                  priceMax={priceMax}
+                  onProgramFilters={setFindProgramFilters}
+                  onTypeFilters={setFindTypeFilters}
+                  onChipFilter={setChipFilters}
+                  onPriceRange={(newMin, newMax) => { setPriceMin(newMin); setPriceMax(newMax); }}
+                />
+                {findSearch.matchLoading && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
+                    <LoadingSpinner size="sm" />
+                    <span>Checking eligibility…</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === "program" && progListings.length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                <MarketingFilters
+                  listings={progListings}
+                  programFilters={[]}
+                  typeFilters={progTypeFilters}
+                  chipFilters={chipFilters}
+                  priceMin={priceMin}
+                  priceMax={priceMax}
+                  onProgramFilters={() => {}}
+                  onTypeFilters={setProgTypeFilters}
+                  onChipFilter={setChipFilters}
+                  onPriceRange={(newMin, newMax) => { setPriceMin(newMin); setPriceMax(newMax); }}
+                  hidePrograms
+                />
+                {progLoading && progListings.length > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
+                    <LoadingSpinner size="sm" />
+                    <span>Finding more matches…</span>
+                  </div>
+                )}
               </div>
             )}
 
             {/* ── Find Properties ── */}
             {activeTab === "find" && (
               <>
-                <PropertyGrid
-                  listings={findPagination.paginatedItems}
-                  loading={findSearch.loading}
-                  onCardClick={openModal}
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                />
-                {findPagination.totalPages > 1 && (
-                  <Pagination
-                    currentPage={findPagination.currentPage}
-                    totalPages={findPagination.totalPages}
-                    onPageChange={findPagination.setPage}
+                {findSearch.loading && filteredFindListings.length === 0 && (
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <LoadingSpinner size="lg" />
+                    <p className="text-sm text-gray-500">Fetching properties…</p>
+                  </div>
+                )}
+                {filteredFindListings.length > 0 ? (
+                  <MarketingTable
+                    listings={filteredFindListings}
+                    sortColumn={findSortCol}
+                    sortDir={findSortDir}
+                    onSort={handleFindSort}
+                    onRowClick={openModal}
                   />
+                ) : !findSearch.loading && findSearch.listings.length > 0 && (
+                  <p className="py-12 text-center text-sm text-gray-400">No properties match your current filters.</p>
                 )}
               </>
             )}
@@ -621,18 +634,22 @@ export default function Home() {
             {/* ── Search by Program ── */}
             {activeTab === "program" && (
               <>
-                <PropertyGrid
-                  listings={progPagination.paginatedItems}
-                  loading={progLoading}
-                  onCardClick={openModal}
-                  sortBy={sortBy}
-                />
-                {progPagination.totalPages > 1 && (
-                  <Pagination
-                    currentPage={progPagination.currentPage}
-                    totalPages={progPagination.totalPages}
-                    onPageChange={progPagination.setPage}
+                {progLoading && filteredProgListings.length === 0 && (
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <LoadingSpinner size="lg" />
+                    <p className="text-sm text-gray-500">Fetching properties…</p>
+                  </div>
+                )}
+                {filteredProgListings.length > 0 ? (
+                  <MarketingTable
+                    listings={filteredProgListings}
+                    sortColumn={progSortCol}
+                    sortDir={progSortDir}
+                    onSort={handleProgSort}
+                    onRowClick={openModal}
                   />
+                ) : !progLoading && progListings.length > 0 && (
+                  <p className="py-12 text-center text-sm text-gray-400">No properties match your current filters.</p>
                 )}
               </>
             )}

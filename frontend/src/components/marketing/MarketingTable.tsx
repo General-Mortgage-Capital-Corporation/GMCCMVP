@@ -161,9 +161,21 @@ function downloadCsv(listings: RentCastListing[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Resolve effective contact info: listing agent → listing office → builder → N/A */
+function getContact(listing: RentCastListing) {
+  const agent = listing.listingAgent ?? {};
+  const office = listing.listingOffice ?? {};
+  const builder = listing.builder ?? {};
+  return {
+    name:  agent.name?.trim() || office.name?.trim() || builder.name?.trim() || "N/A",
+    email: agent.email?.trim() || office.email?.trim() || "N/A",
+    phone: agent.phone?.trim() || office.phone?.trim() || builder.phone?.trim() || "N/A",
+  };
+}
+
 function getSortValue(listing: RentCastListing, col: MkSortColumn): string | number {
   const census = listing.censusData ?? {};
-  const agent = listing.listingAgent ?? {};
+  const contact = getContact(listing);
   switch (col) {
     case "msa":       return census.msa_code ?? "";
     case "price":     return listing.price ?? 0;
@@ -175,9 +187,9 @@ function getSortValue(listing: RentCastListing, col: MkSortColumn): string | num
       return ({ low: 0, moderate: 1, middle: 2, upper: 3 } as Record<string, number>)[lvl] ?? 4;
     }
     case "days":      return listing.daysOnMarket ?? 9999;
-    case "agentName": return (agent.name ?? "").toLowerCase();
-    case "agentEmail":return (agent.email ?? "").toLowerCase();
-    case "agentPhone":return agent.phone ?? "";
+    case "agentName": return contact.name === "N/A" ? "" : contact.name.toLowerCase();
+    case "agentEmail":return contact.email === "N/A" ? "" : contact.email.toLowerCase();
+    case "agentPhone":return contact.phone === "N/A" ? "" : contact.phone;
     case "state":     return listing.state ?? "";
     case "county":    return listing.county ?? "";
     case "city":      return listing.city ?? "";
@@ -188,6 +200,29 @@ function getSortValue(listing: RentCastListing, col: MkSortColumn): string | num
 }
 
 function sortListings(listings: RentCastListing[], col: MkSortColumn, dir: MkSortDir): RentCastListing[] {
+  // For agent name sort: group by most listings (popularity) then alphabetically within same count
+  if (col === "agentName") {
+    const counts = new Map<string, number>();
+    for (const l of listings) {
+      const name = getContact(l).name.toLowerCase();
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...listings].sort((a, b) => {
+      const na = getContact(a).name.toLowerCase();
+      const nb = getContact(b).name.toLowerCase();
+      // N/A always sorts last
+      if (na === "n/a" && nb !== "n/a") return 1;
+      if (nb === "n/a" && na !== "n/a") return -1;
+      const ca = counts.get(na) ?? 0;
+      const cb = counts.get(nb) ?? 0;
+      // Primary: listing count (desc = most listings first when dir=desc)
+      let cmp = ca - cb;
+      // Tie-break: alphabetical
+      if (cmp === 0) cmp = na.localeCompare(nb);
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }
+
   return [...listings].sort((a, b) => {
     const va = getSortValue(a, col);
     const vb = getSortValue(b, col);
@@ -558,7 +593,7 @@ export default function MarketingTable({
                 const key = pageKeys[i];
                 const isSelected = selected.has(key);
                 const census = listing.censusData ?? {};
-                const agent = listing.listingAgent ?? {};
+                const contact = getContact(listing);
                 const progs = listing.matchData?.programs ?? [];
                 const eligible = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
                 const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
@@ -664,17 +699,17 @@ export default function MarketingTable({
 
                     {/* Agent */}
                     <td className="whitespace-nowrap px-3 py-2.5 text-gray-700">
-                      {agent.name ?? "N/A"}
+                      {contact.name}
                     </td>
 
                     {/* Email */}
-                    <td className="max-w-[160px] truncate px-3 py-2.5 text-gray-600" title={agent.email}>
-                      {agent.email ?? "N/A"}
+                    <td className="max-w-[160px] truncate px-3 py-2.5 text-gray-600" title={contact.email !== "N/A" ? contact.email : undefined}>
+                      {contact.email}
                     </td>
 
                     {/* Phone */}
                     <td className="whitespace-nowrap px-3 py-2.5 text-gray-600">
-                      {agent.phone ? formatPhone(agent.phone) : "N/A"}
+                      {contact.phone !== "N/A" ? formatPhone(contact.phone) : "N/A"}
                     </td>
 
                     {/* State */}
