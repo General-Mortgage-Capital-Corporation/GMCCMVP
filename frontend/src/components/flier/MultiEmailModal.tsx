@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import FollowUpToggle from "@/components/FollowUpToggle";
+import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
 
 type RecipientTab = "realtor" | "borrower" | "myself";
@@ -20,6 +22,8 @@ interface MultiEmailModalProps {
   propertyAddress?: string;
   listingPrice?: number;
   realtorInfo: RealtorInfo;
+  /** Pre-fetched research text from the summary modal */
+  preResearch?: string | null;
   onClose: () => void;
   /** Go back to the summary modal */
   onBackToSummary?: () => void;
@@ -90,11 +94,12 @@ export default function MultiEmailModal({
   propertyAddress,
   listingPrice,
   realtorInfo,
+  preResearch,
   onClose,
   onBackToSummary,
   fetchPdf,
 }: MultiEmailModalProps) {
-  const { user, signIn, getMsalAccessToken } = useAuth();
+  const { user, signIn, getMsalAccessToken, getIdToken } = useAuth();
 
   const [tab, setTab] = useState<RecipientTab>("realtor");
   const [toEmail, setToEmail] = useState("");
@@ -111,6 +116,11 @@ export default function MultiEmailModal({
   const [aiSearched, setAiSearched] = useState(false);
   const [attachSummary, setAttachSummary] = useState(false);
   const [sentWithSig, setSentWithSig] = useState(false);
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpDays, setFollowUpDays] = useState(3);
+  const [followUpMode, setFollowUpMode] = useState<"remind" | "auto-send">("remind");
+  const [agentResearch, setAgentResearch] = useState<string | null>(preResearch ?? null);
+  const autoGenTriggered = useRef(false);
 
   const loName = user?.displayName || user?.email || "Loan Officer";
   const programsWithFlyer = programs.filter((p) => p.product_id);
@@ -151,8 +161,7 @@ export default function MultiEmailModal({
     }
   }, [tab, user, realtorEmail, realtorName]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleAiSuggest() {
-    if (!aiPrompt.trim()) return;
+  const generateEmail = useCallback(async (prompt: string, researchOverride?: string | null) => {
     setAiLoading(true);
     setError(null);
     try {
@@ -161,7 +170,7 @@ export default function MultiEmailModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipientType: tab,
-          userPrompt: aiPrompt,
+          userPrompt: prompt,
           programs: programs.map((p) => p.name),
           summary,
           propertyAddress,
@@ -171,6 +180,7 @@ export default function MultiEmailModal({
           realtorCompany: realtorInfo.company,
           loName,
           hasSignature: hasSignature(),
+          realtorResearch: researchOverride !== undefined ? researchOverride : agentResearch,
         }),
       });
       const data = (await res.json()) as {
@@ -191,7 +201,44 @@ export default function MultiEmailModal({
     } finally {
       setAiLoading(false);
     }
+  }, [tab, programs, summary, propertyAddress, listingPrice, realtorInfo, loName, agentResearch]);
+
+  async function handleAiSuggest() {
+    if (!aiPrompt.trim()) return;
+    await generateEmail(aiPrompt);
   }
+
+  const handleResearchComplete = useCallback((research: import("@/lib/redis-cache").AgentResearch | null) => {
+    if (research) {
+      const text = [
+        research.summary,
+        research.specialties.length > 0 ? `Specialties: ${research.specialties.join(", ")}` : "",
+        (typeof research.reviews === "string" ? research.reviews : "") || "",
+        research.personalHooks.length > 0 ? `Hooks: ${research.personalHooks.join("; ")}` : "",
+      ].filter(Boolean).join("\n");
+      setAgentResearch(text);
+
+      // Auto-generate only if no preResearch (preResearch triggers via the effect below)
+      if (!preResearch && tab === "realtor" && !autoGenTriggered.current) {
+        autoGenTriggered.current = true;
+        generateEmail(
+          "Write a personalized outreach email introducing these loan programs. Use the research to personalize.",
+          text,
+        );
+      }
+    }
+  }, [tab, generateEmail, preResearch]);
+
+  // Auto-generate on mount when preResearch is available (from summary modal)
+  useEffect(() => {
+    if (preResearch && tab === "realtor" && !autoGenTriggered.current && !subject && !body) {
+      autoGenTriggered.current = true;
+      generateEmail(
+        "Write a personalized outreach email introducing these loan programs. Use the research to personalize.",
+        preResearch,
+      );
+    }
+  }, [preResearch, tab, subject, body, generateEmail]);
 
   async function handleSend() {
     if (sending) return;
@@ -284,6 +331,32 @@ export default function MultiEmailModal({
       }
 
       setSent(true);
+
+      // Record all sent emails (fire and forget)
+      if (tab !== "myself") {
+        const idToken = await getIdToken().catch(() => null);
+        if (idToken) {
+          fetch("/api/follow-up/record", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              recipientEmail: toEmail.trim(),
+              recipientName: toName.trim(),
+              recipientType: tab,
+              subject,
+              body,
+              propertyAddress,
+              programNames: programs.map((p) => p.name),
+              followUpDays: followUpEnabled ? followUpDays : null,
+              followUpMode: followUpEnabled ? followUpMode : null,
+              userEmail: user?.email,
+            }),
+          }).catch(() => console.warn("[email-record] Recording failed (non-critical)"));
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send email.");
     } finally {
@@ -425,6 +498,26 @@ export default function MultiEmailModal({
                       />
                     </div>
                   )}
+
+                  {/* Agent Intel — skip if preResearch already provided from summary modal */}
+                  {!preResearch && tab === "realtor" && (realtorInfo.name || realtorInfo.email || realtorInfo.company) && (
+                    <AgentIntelCard
+                      realtorName={realtorInfo.name}
+                      realtorEmail={realtorInfo.email}
+                      realtorCompany={realtorInfo.company}
+                      onResearchComplete={handleResearchComplete}
+                    />
+                  )}
+                  {preResearch && tab === "realtor" && (
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 px-3 py-2 flex items-center gap-2">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-indigo-500">
+                        <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.3" />
+                        <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      </svg>
+                      <span className="text-xs text-indigo-600">Agent research from summary used for personalization</span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
                       Subject
@@ -560,21 +653,33 @@ export default function MultiEmailModal({
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-1">
-                  <button
-                    onClick={onClose}
-                    className="text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={sending}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {sending && <LoadingSpinner size="sm" />}
-                    {sending ? sendProgress || "Sending..." : "Send Email"}
-                  </button>
+                <div className="flex items-center justify-between pt-1">
+                  {tab !== "myself" ? (
+                    <FollowUpToggle
+                      enabled={followUpEnabled}
+                      days={followUpDays}
+                      mode={followUpMode}
+                      onToggle={setFollowUpEnabled}
+                      onDaysChange={setFollowUpDays}
+                      onModeChange={setFollowUpMode}
+                    />
+                  ) : <div />}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={onClose}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSend}
+                      disabled={sending}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {sending && <LoadingSpinner size="sm" />}
+                      {sending ? sendProgress || "Sending..." : "Send Email"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { renderSimpleMarkdown } from "@/lib/utils";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import AgentIntelCard from "./AgentIntelCard";
 import { useAuth } from "@/contexts/AuthContext";
+import type { AgentResearch } from "@/lib/redis-cache";
 
 /** Build a sessionStorage cache key from listing address + program names. */
 function summaryCacheKey(
@@ -20,13 +22,19 @@ interface MultiSummaryModalProps {
   programs: { name: string; tier_name?: string; product_id?: string }[];
   listing: Record<string, unknown>;
   authToken: string | null;
+  realtorName?: string;
+  realtorEmail?: string;
+  realtorCompany?: string;
   onClose: () => void;
-  onComposeEmail: (summary: string) => void;
+  onComposeEmail: (summary: string, research: string | null) => void;
 }
 
 export default function MultiSummaryModal({
   programs,
   listing,
+  realtorName,
+  realtorEmail,
+  realtorCompany,
   onClose,
   onComposeEmail,
 }: MultiSummaryModalProps) {
@@ -36,6 +44,18 @@ export default function MultiSummaryModal({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fromCache, setFromCache] = useState(false);
+  const [researchText, setResearchText] = useState<string | null>(null);
+
+  const handleResearchComplete = useCallback((research: AgentResearch | null) => {
+    if (research) {
+      setResearchText([
+        research.summary,
+        research.specialties.length > 0 ? `Specialties: ${research.specialties.join(", ")}` : "",
+        (typeof research.reviews === "string" ? research.reviews : "") || "",
+        research.personalHooks.length > 0 ? `Hooks: ${research.personalHooks.join("; ")}` : "",
+      ].filter(Boolean).join("\n"));
+    }
+  }, []);
 
   // Restore cached summary on mount or when programs change
   const cacheKey = summaryCacheKey(listing, programs);
@@ -159,6 +179,18 @@ export default function MultiSummaryModal({
             ))}
           </div>
 
+          {/* Agent Intel — starts researching immediately */}
+          {(realtorName || realtorEmail || realtorCompany) && (
+            <div className="mb-4">
+              <AgentIntelCard
+                realtorName={realtorName || ""}
+                realtorEmail={realtorEmail || ""}
+                realtorCompany={realtorCompany || ""}
+                onResearchComplete={handleResearchComplete}
+              />
+            </div>
+          )}
+
           {/* Generate button or loading */}
           {!summary && !loading && (
             <button
@@ -237,7 +269,7 @@ export default function MultiSummaryModal({
                 </div>
 
                 <button
-                  onClick={() => onComposeEmail(summary)}
+                  onClick={() => onComposeEmail(summary, researchText)}
                   className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">

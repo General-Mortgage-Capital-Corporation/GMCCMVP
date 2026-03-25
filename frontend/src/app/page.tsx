@@ -10,6 +10,7 @@ import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
+import FollowUpDashboard from "@/components/FollowUpDashboard";
 import dynamic from "next/dynamic";
 const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -38,9 +39,11 @@ function excludeTypes(listing: RentCastListing) {
 }
 
 export default function Home() {
-  const { user, signIn } = useAuth();
+  const { user, signIn, getIdToken } = useAuth();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpCount, setFollowUpCount] = useState(0);
   const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
@@ -155,6 +158,25 @@ export default function Home() {
       .then((r) => setProgramLocations(r.programs))
       .catch(() => {});
   }, []);
+
+  // ── Follow-up notification count ───────────────────────────────────────
+  const refreshFollowUpCount = useCallback(async () => {
+    const token = await getIdToken().catch(() => null);
+    if (!token) { setFollowUpCount(0); return; }
+    try {
+      const res = await fetch("/api/follow-up/count", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json() as { due: number; pending: number };
+        setFollowUpCount(data.pending);
+      }
+    } catch { /* ignore */ }
+  }, [getIdToken]);
+
+  useEffect(() => {
+    if (user) refreshFollowUpCount();
+  }, [user, refreshFollowUpCount]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const statsListings =
@@ -403,6 +425,24 @@ export default function Home() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {user && (
+              <button
+                onClick={() => setFollowUpOpen(true)}
+                className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                title="Email Dashboard"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0">
+                  <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M1 5l7 5 7-5" stroke="currentColor" strokeWidth="1.3" />
+                </svg>
+                <span className="hidden sm:inline">Email Dashboard</span>
+                {followUpCount > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[0.6rem] font-bold text-white">
+                    {followUpCount > 99 ? "99+" : followUpCount}
+                  </span>
+                )}
+              </button>
+            )}
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors sm:h-8 sm:w-8"
@@ -720,6 +760,11 @@ export default function Home() {
       {/* Modals */}
       <PropertyModal listing={modalListing} onClose={() => setModalListing(null)} />
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {followUpOpen && (
+        <FollowUpDashboard
+          onClose={() => { setFollowUpOpen(false); refreshFollowUpCount(); }}
+        />
+      )}
     </div>
   );
 }

@@ -82,6 +82,7 @@ export default function CRACheckTab() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
   const [multiSummary, setMultiSummary] = useState("");
+  const [preResearch, setPreResearch] = useState<string | null>(null);
 
   // Prefetch coordinates from Google Places
   async function prefetchCoords(placeId: string) {
@@ -633,9 +634,13 @@ export default function CRACheckTab() {
           programs={selectedEntries}
           listing={listing as unknown as Record<string, unknown>}
           authToken={null}
+          realtorName={realtorInfo.name}
+          realtorEmail={realtorInfo.email}
+          realtorCompany={realtorInfo.company}
           onClose={() => setShowSummaryModal(false)}
-          onComposeEmail={(summary: string) => {
+          onComposeEmail={(summary: string, research: string | null) => {
             setMultiSummary(summary);
+            setPreResearch(research);
             setShowSummaryModal(false);
             setShowMultiEmailModal(true);
           }}
@@ -650,6 +655,7 @@ export default function CRACheckTab() {
           propertyAddress={listing.formattedAddress}
           listingPrice={listing.price}
           realtorInfo={realtorInfo}
+          preResearch={preResearch}
           onClose={() => setShowMultiEmailModal(false)}
           onBackToSummary={() => {
             setShowMultiEmailModal(false);

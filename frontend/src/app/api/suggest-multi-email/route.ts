@@ -18,6 +18,7 @@ interface RequestBody {
   realtorCompany?: string;
   loName?: string;
   hasSignature?: boolean;
+  realtorResearch?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
     realtorCompany,
     loName,
     hasSignature,
+    realtorResearch,
   } = body;
 
   const recipientLabel =
@@ -56,6 +58,10 @@ export async function POST(req: NextRequest) {
     ? `$${Number(listingPrice).toLocaleString()}`
     : "price not specified";
 
+  const researchBlock = realtorResearch
+    ? `\n\nResearch on the recipient (use this to personalize naturally — do NOT dump all of it into the email):\n${realtorResearch}`
+    : "";
+
   const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write a professional email marketing multiple loan programs together.
 
 Context:
@@ -66,11 +72,9 @@ Context:
 - PDF flyers for each program will be attached to the email
 
 Multi-Program Summary (use this as your source for program details and marketing hooks):
-${summary || "No summary provided — focus on the programs listed above."}
+${summary || "No summary provided — focus on the programs listed above."}${researchBlock}
 
 The loan officer's instructions: ${userPrompt}
-
-${userPrompt.toLowerCase().includes("research") || userPrompt.toLowerCase().includes("personali") ? "IMPORTANT: The loan officer wants you to research the recipient. Use your Google Search tool to look up the realtor/company and incorporate relevant details (specialization, market area, recent activity) to personalize the email." : ""}
 
 Write a concise, professional email. Keep it brief (2–4 short paragraphs). Use compelling one-liners from the summary for each program — do NOT dump all details. Include an appropriate salutation.
 ${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing with the LO's name. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
@@ -83,22 +87,10 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code block):
 The body should be plain text with line breaks using \\n.`;
 
   try {
-    // Determine whether to enable Google Search tool
-    const lowerPrompt = userPrompt.toLowerCase();
-    const useSearch =
-      lowerPrompt.includes("research") ||
-      lowerPrompt.includes("personali") ||
-      lowerPrompt.includes("look up") ||
-      lowerPrompt.includes("find out about");
-
     const requestBody: Record<string, unknown> = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.5, maxOutputTokens: 5000 },
     };
-
-    if (useSearch) {
-      requestBody.tools = [{ google_search: {} }];
-    }
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
@@ -140,7 +132,7 @@ The body should be plain text with line breaks using \\n.`;
     return NextResponse.json({
       subject: parsed.subject,
       body: parsed.body,
-      searched: useSearch,
+      searched: !!realtorResearch,
     });
   } catch (err) {
     console.error("[suggest-multi-email] error:", err);

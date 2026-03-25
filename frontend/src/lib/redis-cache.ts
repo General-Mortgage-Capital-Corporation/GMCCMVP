@@ -95,3 +95,46 @@ export async function setCachedRentcastSearch(params: Record<string, string>, re
     await redis.set(key, results, { ex: RENTCAST_TTL });
   } catch { /* ignore */ }
 }
+
+// ---------------------------------------------------------------------------
+// Realtor research cache (7-day TTL)
+// ---------------------------------------------------------------------------
+
+const REALTOR_TTL = 7 * 24 * 60 * 60; // 7 days
+
+export interface AgentResearch {
+  summary: string;
+  specialties: string[];
+  yearsActive: number | null;
+  recentActivity: string;
+  designations: string[];
+  reviews: string | null;
+  linkedinSnippet: string | null;
+  personalHooks: string[];
+  sources: string[];
+  confidence: "high" | "medium" | "low";
+}
+
+function realtorCacheKey(name: string, email: string, company: string): string {
+  const input = [name, email, company].map((s) => s.toLowerCase().trim()).join("|");
+  return `realtor:research:${sha256(input)}`;
+}
+
+export async function getCachedRealtorResearch(name: string, email: string, company: string): Promise<AgentResearch | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const data = await redis.get<AgentResearch>(realtorCacheKey(name, email, company));
+    return data && data.summary ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedRealtorResearch(name: string, email: string, company: string, research: AgentResearch): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.set(realtorCacheKey(name, email, company), research, { ex: REALTOR_TTL });
+  } catch { /* ignore */ }
+}

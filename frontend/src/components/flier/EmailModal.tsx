@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import FollowUpToggle from "@/components/FollowUpToggle";
+import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
 
 type RecipientTab = "myself" | "realtor" | "borrower";
@@ -63,7 +65,7 @@ export default function EmailModal({
   onClose,
   fetchPdf,
 }: EmailModalProps) {
-  const { user, signIn, getMsalAccessToken } = useAuth();
+  const { user, signIn, getMsalAccessToken, getIdToken } = useAuth();
 
   const [tab, setTab] = useState<RecipientTab>("realtor");
   const [toEmail, setToEmail] = useState("");
@@ -77,6 +79,10 @@ export default function EmailModal({
   const [sent, setSent] = useState(false);
   const [sentWithSig, setSentWithSig] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpDays, setFollowUpDays] = useState(3);
+  const [followUpMode, setFollowUpMode] = useState<"remind" | "auto-send">("remind");
+  const [agentResearch, setAgentResearch] = useState<string | null>(null);
 
   const loName = user?.displayName || user?.email || "Loan Officer";
 
@@ -106,8 +112,7 @@ export default function EmailModal({
     }
   }, [tab, user, realtorEmail, realtorName]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleAiSuggest() {
-    if (!aiPrompt.trim()) return;
+  const generateEmail = useCallback(async (prompt: string, researchOverride?: string | null) => {
     setAiLoading(true);
     setError(null);
     try {
@@ -116,7 +121,7 @@ export default function EmailModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipientType: tab,
-          userPrompt: aiPrompt,
+          userPrompt: prompt,
           programName,
           propertyAddress,
           listingPrice: listingPrice ? String(listingPrice) : undefined,
@@ -124,6 +129,7 @@ export default function EmailModal({
           realtorEmail: realtorInfo.email,
           loName,
           hasSignature: hasSignature(),
+          realtorResearch: researchOverride !== undefined ? researchOverride : agentResearch,
         }),
       });
       const data = await res.json() as { subject?: string; body?: string; error?: string };
@@ -138,7 +144,28 @@ export default function EmailModal({
     } finally {
       setAiLoading(false);
     }
+  }, [tab, programName, propertyAddress, listingPrice, realtorInfo, loName, agentResearch]);
+
+  async function handleAiSuggest() {
+    if (!aiPrompt.trim()) return;
+    await generateEmail(aiPrompt);
   }
+
+  // Auto-generate email when research completes for realtor tab
+  const handleResearchComplete = useCallback((research: import("@/lib/redis-cache").AgentResearch | null) => {
+    if (research) {
+      const summary = [
+        research.summary,
+        research.specialties.length > 0 ? `Specialties: ${research.specialties.join(", ")}` : "",
+        (typeof research.reviews === "string" ? research.reviews : "") || "",
+        research.personalHooks.length > 0 ? `Hooks: ${research.personalHooks.join("; ")}` : "",
+      ].filter(Boolean).join("\n");
+      setAgentResearch(summary);
+    }
+  }, []);
+
+  // Single-program email: no auto-generate, user prompts themselves
+  // Research is still available and passed to AI when user does prompt
 
   async function handleSend() {
     if (sending) return; // guard against double-submission
@@ -208,6 +235,32 @@ export default function EmailModal({
       }
 
       setSent(true);
+
+      // Record all sent emails (fire and forget)
+      if (tab !== "myself") {
+        const idToken = await getIdToken().catch(() => null);
+        if (idToken) {
+          fetch("/api/follow-up/record", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              recipientEmail: toEmail.trim(),
+              recipientName: toName.trim(),
+              recipientType: tab,
+              subject,
+              body,
+              propertyAddress,
+              programNames: [programName],
+              followUpDays: followUpEnabled ? followUpDays : null,
+              followUpMode: followUpEnabled ? followUpMode : null,
+              userEmail: user?.email,
+            }),
+          }).catch(() => console.warn("[email-record] Recording failed (non-critical)"));
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send email.");
     } finally {
@@ -327,6 +380,17 @@ export default function EmailModal({
                       />
                     </div>
                   )}
+
+                  {/* Agent Intel — auto-research when realtor tab is active */}
+                  {tab === "realtor" && (realtorInfo.name || realtorInfo.email || realtorInfo.company) && (
+                    <AgentIntelCard
+                      realtorName={realtorInfo.name}
+                      realtorEmail={realtorInfo.email}
+                      realtorCompany={realtorInfo.company}
+                      onResearchComplete={handleResearchComplete}
+                    />
+                  )}
+
                   <div>
                     <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
                       Subject
@@ -422,21 +486,33 @@ export default function EmailModal({
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-1">
-                  <button
-                    onClick={onClose}
-                    className="text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={sending}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {sending && <LoadingSpinner size="sm" />}
-                    {sending ? "Sending…" : "Send Email"}
-                  </button>
+                <div className="flex items-center justify-between pt-1">
+                  {tab !== "myself" ? (
+                    <FollowUpToggle
+                      enabled={followUpEnabled}
+                      days={followUpDays}
+                      mode={followUpMode}
+                      onToggle={setFollowUpEnabled}
+                      onDaysChange={setFollowUpDays}
+                      onModeChange={setFollowUpMode}
+                    />
+                  ) : <div />}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={onClose}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSend}
+                      disabled={sending}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {sending && <LoadingSpinner size="sm" />}
+                      {sending ? "Sending…" : "Send Email"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}

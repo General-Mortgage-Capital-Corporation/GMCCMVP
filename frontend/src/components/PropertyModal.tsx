@@ -89,6 +89,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
   const [multiSummary, setMultiSummary] = useState<string>("");
+  const [preResearch, setPreResearch] = useState<string | null>(null);
 
   // Zillow photo state
   const [zillowPhotos, setZillowPhotos] = useState<string[]>([]);
@@ -620,9 +621,13 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           programs={selectedEntries}
           listing={listing as unknown as Record<string, unknown>}
           authToken={null}
+          realtorName={realtorInfo.name}
+          realtorEmail={realtorInfo.email}
+          realtorCompany={realtorInfo.company}
           onClose={() => setShowSummaryModal(false)}
-          onComposeEmail={(summary: string) => {
+          onComposeEmail={(summary: string, research: string | null) => {
             setMultiSummary(summary);
+            setPreResearch(research);
             setShowSummaryModal(false);
             setShowMultiEmailModal(true);
           }}
@@ -637,6 +642,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           propertyAddress={listing.formattedAddress}
           listingPrice={listing.price}
           realtorInfo={realtorInfo}
+          preResearch={preResearch}
           onClose={() => setShowMultiEmailModal(false)}
           onBackToSummary={() => {
             setShowMultiEmailModal(false);

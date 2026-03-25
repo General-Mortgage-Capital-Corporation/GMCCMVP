@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     loName,
   } = body as Record<string, string>;
   const hasSignature = !!(body as Record<string, unknown>).hasSignature;
+  const realtorResearch = (body as Record<string, unknown>).realtorResearch as string | undefined;
 
   const recipientLabel =
     recipientType === "realtor" ? `a real estate agent named ${realtorName || "the agent"}` :
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
     ? `$${Number(listingPrice).toLocaleString()}`
     : "price not specified";
 
+  const researchBlock = realtorResearch
+    ? `\n\nResearch on the recipient (use this to personalize naturally — do NOT dump all of it into the email):\n${realtorResearch}`
+    : "";
+
   const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write a professional email.
 
 Context:
@@ -43,7 +48,7 @@ Context:
 - Recipient: ${recipientLabel}${realtorEmail ? ` (${realtorEmail})` : ""}
 - Property: ${propertyAddress || "property address not specified"}, listed at ${priceFormatted}
 - GMCC Loan Program: ${programName || "GMCC program"}
-- A PDF flier for this program will be attached to the email
+- A PDF flier for this program will be attached to the email${researchBlock}
 
 The loan officer's instructions: ${userPrompt}
 
