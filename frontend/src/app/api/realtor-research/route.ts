@@ -48,14 +48,36 @@ Find their specialties, experience, reviews, and any personalizable details. Be 
   // Helper to parse Gemini response into AgentResearch
   function parseGeminiResponse(data: Record<string, unknown>): AgentResearch | null {
     const parts = (data.candidates as { content?: { parts?: { text?: string }[] } }[])?.[0]?.content?.parts ?? [];
-    const text = parts.map((p) => p.text ?? "").join("").trim();
-    if (!text) return null;
+    // Filter to only parts with text (skip thought parts)
+    const rawText = parts
+      .filter((p: Record<string, unknown>) => typeof p.text === "string")
+      .map((p: Record<string, unknown>) => p.text as string)
+      .join("")
+      .trim();
+    if (!rawText) return null;
+    // Strip markdown code blocks
+    const text = rawText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     try {
       return JSON.parse(jsonMatch[0]) as AgentResearch;
     } catch {
-      return null;
+      // Try to fix truncated JSON by closing open braces/brackets
+      let fixed = jsonMatch[0];
+      const openBraces = (fixed.match(/\{/g) || []).length;
+      const closeBraces = (fixed.match(/\}/g) || []).length;
+      const openBrackets = (fixed.match(/\[/g) || []).length;
+      const closeBrackets = (fixed.match(/\]/g) || []).length;
+      // Remove trailing incomplete value (after last comma or colon)
+      fixed = fixed.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "");
+      fixed = fixed.replace(/,\s*$/, "");
+      for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += "]";
+      for (let i = 0; i < openBraces - closeBraces; i++) fixed += "}";
+      try {
+        return JSON.parse(fixed) as AgentResearch;
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -79,13 +101,14 @@ Find their specialties, experience, reviews, and any personalizable details. Be 
 
   // Attempt 1: With google_search grounding (best quality, but can be slow/flaky)
   let research: AgentResearch | null = null;
+  const t1 = Date.now();
   try {
     const res = await fetch(geminiUrl, {
       method: "POST",
       headers,
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 3000 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 3000, thinkingConfig: { thinkingBudget: 0 } },
         tools: [{ google_search: {} }],
       }),
       signal: AbortSignal.timeout(110_000),
@@ -93,17 +116,30 @@ Find their specialties, experience, reviews, and any personalizable details. Be 
 
     if (res.ok) {
       const data = await res.json();
+      // Log raw response structure for debugging
+      const rawParts = data.candidates?.[0]?.content?.parts ?? [];
+      const partTypes = rawParts.map((p: Record<string, unknown>) => Object.keys(p).join(","));
+      console.log(`[realtor-research] Gemini responded in ${Date.now() - t1}ms, parts: [${partTypes.join(" | ")}]`);
       research = parseGeminiResponse(data);
+      if (research) {
+        console.log(`[realtor-research] Search grounding parsed successfully`);
+      } else {
+        // Log what we got so we can debug parse failures
+        const allText = rawParts.map((p: { text?: string }) => p.text ?? "").join("").slice(0, 200);
+        console.error(`[realtor-research] Parse failed. Text preview: "${allText}"`);
+      }
     } else {
       const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
-      console.error("[realtor-research] Gemini search error:", errBody.error?.message ?? res.status);
+      console.error(`[realtor-research] Gemini search returned HTTP ${res.status} after ${Date.now() - t1}ms:`, errBody.error?.message ?? "no details");
     }
   } catch (err) {
-    console.error("[realtor-research] Search attempt failed:", err instanceof Error ? err.message : "unknown");
+    const msg = err instanceof Error ? `${err.name}: ${err.message}` : "unknown";
+    console.error(`[realtor-research] Search attempt exception after ${Date.now() - t1}ms:`, msg);
   }
 
   // Attempt 2: Without google_search (faster, uses training data only)
   if (!research) {
+    const t2 = Date.now();
     console.log("[realtor-research] Falling back to non-search model...");
     try {
       const res = await fetch(geminiUrl, {
@@ -111,7 +147,7 @@ Find their specialties, experience, reviews, and any personalizable details. Be 
         headers,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 2000 },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 2000, thinkingConfig: { thinkingBudget: 0 } },
         }),
         signal: AbortSignal.timeout(60_000),
       });
@@ -119,11 +155,19 @@ Find their specialties, experience, reviews, and any personalizable details. Be 
       if (res.ok) {
         const data = await res.json();
         research = parseGeminiResponse(data);
-        // Mark as low confidence since no live search
-        if (research) research.confidence = "low";
+        if (research) {
+          research.confidence = "low";
+          console.log(`[realtor-research] Fallback succeeded in ${Date.now() - t2}ms`);
+        } else {
+          const rawParts = data.candidates?.[0]?.content?.parts ?? [];
+          const allText = rawParts.map((p: { text?: string }) => p.text ?? "").join("").slice(0, 200);
+          console.error(`[realtor-research] Fallback parse failed. Text: "${allText}"`);
+        }
+      } else {
+        console.error(`[realtor-research] Fallback HTTP ${res.status} after ${Date.now() - t2}ms`);
       }
     } catch (err) {
-      console.error("[realtor-research] Fallback also failed:", err instanceof Error ? err.message : "unknown");
+      console.error(`[realtor-research] Fallback exception after ${Date.now() - t2}ms:`, err instanceof Error ? err.message : "unknown");
     }
   }
 
