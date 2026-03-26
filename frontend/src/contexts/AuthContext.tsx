@@ -44,16 +44,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Restore cached session on mount
+  // Restore cached session on mount — silently refresh if expired
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as FirebaseUser;
         if (parsed.expiresAt > Date.now() + EXPIRY_BUFFER_MS) {
+          // Token still valid
           setUser(parsed);
         } else {
-          localStorage.removeItem(STORAGE_KEY);
+          // Token expired — try silent refresh via MSAL
+          getMsal().then(async (msal) => {
+            const accounts = msal.getAllAccounts();
+            if (accounts.length === 0) {
+              localStorage.removeItem(STORAGE_KEY);
+              return;
+            }
+            try {
+              const tokenResponse = await msal.acquireTokenSilent({
+                ...loginRequest,
+                account: accounts[0],
+              });
+              const refreshed = await exchangeMsalForFirebase(tokenResponse.accessToken);
+              setUser(refreshed);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
+            } catch {
+              // Silent refresh failed — user will need to sign in manually
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          }).catch(() => {
+            localStorage.removeItem(STORAGE_KEY);
+          });
         }
       }
     } catch {
