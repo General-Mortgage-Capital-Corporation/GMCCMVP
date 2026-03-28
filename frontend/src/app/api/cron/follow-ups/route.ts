@@ -5,6 +5,9 @@ import { sendMailAs, checkForReply, isAutoSendAvailable, getOriginalMessageIds }
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
+const GEMINI_MODEL = "gemini-2.5-flash";
+
 const ESCALATION_DAYS = [3, 7, 14]; // follow-up #1 after 3d, #2 after 7d, #3 after 14d
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://gmccmvp-two.vercel.app";
 
@@ -120,37 +123,61 @@ export async function GET(req: NextRequest) {
       const daysSinceSent = Math.round((now - data.sentAt) / (24 * 60 * 60 * 1000));
       const followUpNumber = followUp.reminderCount + 1;
 
-      // Step 2: Generate AI draft
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      // Step 2: Generate AI draft directly (avoid internal HTTP call which hits deployment protection)
+      if (!GEMINI_API_KEY) { errors++; continue; }
 
-      const draftRes = await fetch(`${baseUrl}/api/follow-up/generate-draft`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          originalSubject: data.subject,
-          originalBodyPreview: data.bodyPreview,
-          recipientName: data.recipientName,
-          recipientType: data.recipientType,
-          programNames: data.programNames,
-          propertyAddress: data.propertyAddress,
-          daysSinceSent,
-          followUpNumber,
-          loName: (data.userEmail && data.userEmail.includes("@")) ? data.userEmail.split("@")[0] : "Loan Officer",
-        }),
-      });
+      const loName = (data.userEmail && data.userEmail.includes("@")) ? data.userEmail.split("@")[0] : "Loan Officer";
+      const toneGuide =
+        followUpNumber <= 1 ? "Gentle and friendly — a casual check-in. Don't be pushy."
+        : followUpNumber === 2 ? "Polite but more direct — express genuine interest in connecting."
+        : "Final follow-up — mention this is your last note, create soft urgency without pressure.";
 
-      if (!draftRes.ok) {
-        errors++;
-        continue;
-      }
+      const draftPrompt = `You are a loan officer named ${loName} following up on an email you sent to a ${data.recipientType || "realtor"} named ${data.recipientName || "there"}.
 
-      const draft = (await draftRes.json()) as { subject?: string; body?: string };
-      if (!draft.subject || !draft.body) {
-        errors++;
-        continue;
-      }
+Original email subject: "${data.subject}"
+Original email preview: "${data.bodyPreview}"
+Property: ${data.propertyAddress || "N/A"}
+Programs discussed: ${(data.programNames || []).join(", ") || "N/A"}
+Days since original email: ${daysSinceSent}
+This is follow-up #${followUpNumber}.
+
+Tone: ${toneGuide}
+
+Rules:
+- Keep it 2-4 sentences MAX. No fluff, no filler.
+- Sound like a real person, not a marketing bot.
+- Reference the property or program naturally so they remember the context.
+- Do NOT start with "I hope this email finds you well" or any cliché opener.
+- Vary the subject line.
+
+Return JSON only: {"subject": "...", "body": "..."}
+Use \\n for line breaks in the body. Do not include a signature.`;
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: draftPrompt }] }],
+            generationConfig: { temperature: 0.6, maxOutputTokens: 4000, thinkingConfig: { thinkingBudget: 0 } },
+          }),
+          signal: AbortSignal.timeout(30_000),
+        },
+      );
+
+      if (!geminiRes.ok) { errors++; continue; }
+
+      const geminiData = await geminiRes.json();
+      const parts = geminiData.candidates?.[0]?.content?.parts ?? [];
+      const rawText = parts.filter((p: Record<string, unknown>) => typeof p.text === "string").map((p: Record<string, unknown>) => p.text as string).join("").trim();
+      const text = rawText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) { errors++; continue; }
+
+      let draft: { subject?: string; body?: string };
+      try { draft = JSON.parse(jsonMatch[0]); } catch { errors++; continue; }
+      if (!draft.subject || !draft.body) { errors++; continue; }
 
       // Calculate next follow-up schedule
       const nextDaysIdx = Math.min(followUpNumber, ESCALATION_DAYS.length - 1);

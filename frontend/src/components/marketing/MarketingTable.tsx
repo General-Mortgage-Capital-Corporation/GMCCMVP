@@ -54,7 +54,7 @@ interface MarketingTableProps {
   onRowClick: (listing: RentCastListing) => void;
 }
 
-const PER_PAGE = 50;
+const PER_PAGE = 20;
 
 const FLYER_URL = "https://mlo.joingmcc.com/marketing/flyers";
 const DIAMOND_DISCLAIMER =
@@ -457,6 +457,41 @@ export default function MarketingTable({
             {sortDir === "asc" ? "▲ Asc" : "▼ Desc"}
           </button>
         </div>
+      )}
+
+      {/* Pagination (top) */}
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-center gap-1 py-2" aria-label="Marketing table pagination top">
+          <button
+            className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={safePage === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            ← Prev
+          </button>
+          {pages.map((p, idx) =>
+            p === "..." ? (
+              <span key={`elt-${idx}`} className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
+            ) : (
+              <button
+                key={`t-${p}`}
+                onClick={() => setPage(p as number)}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
+                  p === safePage ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            ),
+          )}
+          <button
+            className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={safePage === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next →
+          </button>
+        </nav>
       )}
 
       {/* Mobile: card list / Desktop: table */}
