@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import SignatureEditor from "./SignatureEditor";
 import { getHeadshot, setHeadshot, clearHeadshot } from "@/lib/headshot-store";
+import { getLOInfo, setLOInfo } from "@/lib/lo-info-store";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -86,6 +87,39 @@ function HeadshotUpload() {
   );
 }
 
+function AiLiteUrlField() {
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    setUrl(getLOInfo().aiLiteUrl);
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setUrl(v);
+    const info = getLOInfo();
+    setLOInfo({ ...info, aiLiteUrl: v });
+  }
+
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+        AI Lite URL
+      </div>
+      <p className="mb-3 text-xs text-gray-500">
+        Your personal webpage URL. If set, a QR code linking to this page will appear on the Home Financing Options flyer.
+      </p>
+      <input
+        type="url"
+        value={url}
+        onChange={handleChange}
+        placeholder="https://your-page.ailite.com/yourname"
+        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:border-red-300 focus:outline-none focus:ring-1 focus:ring-red-300"
+      />
+    </div>
+  );
+}
+
 export default function SettingsModal({ onClose }: SettingsModalProps) {
   return (
     <div
@@ -112,6 +146,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {/* Content */}
         <div className="max-h-[75vh] space-y-6 overflow-y-auto p-5">
           <HeadshotUpload />
+          <div className="border-t border-gray-200 pt-4">
+            <AiLiteUrlField />
+          </div>
           <div className="border-t border-gray-200 pt-4">
             <SignatureEditor />
           </div>

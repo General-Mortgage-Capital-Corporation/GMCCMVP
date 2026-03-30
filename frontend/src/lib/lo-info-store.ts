@@ -9,11 +9,12 @@ export interface LOInfo {
   phone: string;
   email: string;
   title: string;
+  aiLiteUrl: string;
 }
 
 const STORAGE_KEY = "gmcc_lo_info";
 
-const EMPTY: LOInfo = { name: "", nmls: "", phone: "", email: "", title: "Mortgage Loan Officer" };
+const EMPTY: LOInfo = { name: "", nmls: "", phone: "", email: "", title: "Mortgage Loan Officer", aiLiteUrl: "" };
 
 export function getLOInfo(): LOInfo {
   if (typeof window === "undefined") return EMPTY;

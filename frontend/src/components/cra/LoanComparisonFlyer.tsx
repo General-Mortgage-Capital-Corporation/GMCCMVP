@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/utils";
 import { getHeadshot } from "@/lib/headshot-store";
 import { getLOInfo, setLOInfo, type LOInfo } from "@/lib/lo-info-store";
+import QRCode from "qrcode";
 import { useAuth } from "@/contexts/AuthContext";
 import type { RentCastListing, CensusData } from "@/types";
 import type { RealtorInfo } from "@/components/flier/FlierButton";
@@ -152,7 +153,7 @@ function EditableCell({
       onClick={() => { setText(value != null ? String(value) : ""); setEditing(true); }}
       className={`cursor-pointer rounded px-1.5 py-0.5 text-right text-xs transition-colors ${
         highlight ? "bg-amber-50 ring-1 ring-amber-200/60" : "hover:bg-red-50"
-      } ${bold ? "font-bold" : ""} ${className}`}
+      } ${bold ? "font-bold text-sm text-red-800" : ""} ${className}`}
       title="Click to edit"
     >
       {display()}
@@ -277,6 +278,16 @@ export default function LoanComparisonFlyer({
   const updateLO = useCallback((field: keyof LOInfo, value: string) => {
     setLoInfoState((prev) => { const next = { ...prev, [field]: value }; setLOInfo(next); return next; });
   }, []);
+
+  // QR code for AI Lite URL
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const url = loInfo.aiLiteUrl?.trim();
+    if (!url) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(url, { width: 120, margin: 1, color: { dark: "#991b1b", light: "#ffffff" } })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [loInfo.aiLiteUrl]);
 
   // Tagline
   const [tagline, setTagline] = useState("CALL ME");
@@ -569,6 +580,12 @@ export default function LoanComparisonFlyer({
             </div>
             <input value={loInfo.email} onChange={(e) => updateLO("email", e.target.value)} placeholder="your.email@gmccloan.com"
               className="w-full border-0 bg-transparent text-center text-[0.65rem] text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0" />
+            {qrDataUrl && (
+              <div className="mt-2 flex flex-col items-center">
+                <img src={qrDataUrl} alt="QR Code" className="h-20 w-20" />
+                <span className="mt-0.5 text-[0.55rem] font-medium text-gray-400">Scan with your mobile camera</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -705,7 +722,7 @@ export default function LoanComparisonFlyer({
 
                 return (
                   <tr key={row.key} className={`border-b border-gray-100 ${isRate ? "bg-red-50/60" : ""}`}>
-                    <td className={`px-2 py-1.5 text-xs ${row.isBold || isRate ? "font-bold text-gray-800" : "text-gray-600"}`}>
+                    <td className={`px-2 py-1.5 ${isRate ? "text-sm font-bold text-red-800" : row.isBold ? "text-xs font-bold text-gray-800" : "text-xs text-gray-600"}`}>
                       {row.label}
                       {row.tooltip && (
                         <span className="edit-only group/tip relative ml-1 inline-flex cursor-help text-gray-400 hover:text-gray-600">
