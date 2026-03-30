@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
     : "price not specified";
 
   const researchBlock = realtorResearch
-    ? `\n\nResearch on the recipient (use this to personalize naturally — do NOT dump all of it into the email):\n${realtorResearch}`
+    ? `\n\nResearch on the recipient:\n${realtorResearch}\n\nPersonalization guidance: Use the research to make a genuine connection to the programs being marketed. For example, if the agent works in areas where these programs are strong, or serves a client base that would benefit, connect those dots naturally. Pick the most relevant detail — don't force it or list everything.`
     : "";
 
-  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write a professional email marketing multiple loan programs together.
+  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write an email marketing multiple loan programs together.
 
 Context:
 - Loan Officer: ${loName || "the loan officer"} at GMCC
@@ -76,7 +76,9 @@ ${summary || "No summary provided — focus on the programs listed above."}${res
 
 The loan officer's instructions: ${userPrompt}
 
-Write a concise, professional email. Keep it brief (2–4 short paragraphs). Use compelling one-liners from the summary for each program — do NOT dump all details. Include an appropriate salutation.
+Tone: Professional but warm and conversational — like a knowledgeable colleague reaching out, not a corporate mass email. Write like a real person, not a template.
+
+Write a concise email (2–4 short paragraphs). Use compelling one-liners from the summary for each program — do NOT dump all details. Include an appropriate salutation.
 ${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing with the LO's name. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
 
 Mention that ${programs.length} program flyers are attached for their review.

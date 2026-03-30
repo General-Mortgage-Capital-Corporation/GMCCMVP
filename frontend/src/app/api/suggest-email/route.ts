@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
     : "price not specified";
 
   const researchBlock = realtorResearch
-    ? `\n\nResearch on the recipient (use this to personalize naturally — do NOT dump all of it into the email):\n${realtorResearch}`
+    ? `\n\nResearch on the recipient:\n${realtorResearch}\n\nPersonalization guidance: Use the research to make a genuine connection to the loan program being marketed. For example, if the agent specializes in an area where this program shines, mention that. If they work with first-time buyers and the program suits that, connect those dots. Pick the most relevant detail — don't force it or list everything.`
     : "";
 
-  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write a professional email.
+  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write an email.
 
 Context:
 - Loan Officer: ${loName || "the loan officer"} at GMCC
@@ -52,7 +52,9 @@ Context:
 
 The loan officer's instructions: ${userPrompt}
 
-Write a concise, professional email. Keep it brief (2–4 short paragraphs). Include an appropriate salutation (e.g. "Hi [Name]," or "Dear [Name],") at the top.
+Tone: Professional but warm and conversational — like a knowledgeable colleague reaching out, not a corporate mass email. Write like a real person, not a template.
+
+Write a concise email (2–4 short paragraphs). Include an appropriate salutation (e.g. "Hi [Name],") at the top.
 ${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing (e.g. "Best regards,\\n${loName || "the loan officer"}") at the bottom. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code block):
