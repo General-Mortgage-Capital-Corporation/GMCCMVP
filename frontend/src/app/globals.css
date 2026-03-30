@@ -24,3 +24,20 @@ body {
   background: #cbd5e1;
   border-radius: 3px;
 }
+
+/* Hide native scrollbar — replaced by custom React scrollbar */
+.scroll-fade-x {
+  scrollbar-width: none; /* Firefox */
+}
+.scroll-fade-x::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+/* Horizontal bounce animation for scroll hint arrow */
+@keyframes bounce-x {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+.animate-bounce-x {
+  animation: bounce-x 1s ease-in-out infinite;
+}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { formatPrice, formatPhone } from "@/lib/utils";
+import ScrollFadeWrapper from "@/components/shared/ScrollFadeWrapper";
 import type { RentCastListing } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -596,7 +597,7 @@ export default function MarketingTable({
         </div>
       ) : (
         /* ── Desktop Table ── */
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+        <ScrollFadeWrapper className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-gray-200 bg-gray-50">
               <tr>
@@ -776,7 +777,7 @@ export default function MarketingTable({
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollFadeWrapper>
       )}
 
       {/* Pagination */}

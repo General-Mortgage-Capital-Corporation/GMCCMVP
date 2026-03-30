@@ -104,16 +104,16 @@ function AiLiteUrlField() {
   return (
     <div>
       <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-        AI Lite URL
+        Personal Page URL
       </div>
       <p className="mb-3 text-xs text-gray-500">
-        Your personal webpage URL. If set, a QR code linking to this page will appear on the Home Financing Options flyer.
+        Your personal webpage URL (AI Lite, marketing site, etc). If set, a QR code linking to this page will appear on the Home Financing Options flyer.
       </p>
       <input
         type="url"
         value={url}
         onChange={handleChange}
-        placeholder="https://your-page.ailite.com/yourname"
+        placeholder="https://..."
         className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:border-red-300 focus:outline-none focus:ring-1 focus:ring-red-300"
       />
     </div>

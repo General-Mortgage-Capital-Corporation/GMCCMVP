@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PropertyCard from "@/components/PropertyCard";
 import ProgBadge from "@/components/ProgBadge";
+import ScrollFadeWrapper from "@/components/shared/ScrollFadeWrapper";
 import type { RentCastListing } from "@/types";
 import { formatPrice, formatDistance } from "@/lib/utils";
 
@@ -235,7 +236,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <ScrollFadeWrapper className="rounded-xl border border-slate-200 bg-white">
             <div style={{ minWidth: 680 }}>
               <div className="grid border-b border-slate-200 bg-slate-50 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400"
                 style={{ gridTemplateColumns: LIST_COLS }}>
@@ -243,7 +244,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
               </div>
               {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
             </div>
-          </div>
+          </ScrollFadeWrapper>
         )}
       </div>
     );
@@ -279,7 +280,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <ScrollFadeWrapper className="rounded-xl border border-slate-200 bg-white">
           <div style={{ minWidth: 680 }}>
             {/* Column headers */}
             <div
@@ -308,7 +309,7 @@ export default function PropertyGrid({ listings, loading, onCardClick, sortBy, o
               />
             ))}
           </div>
-        </div>
+        </ScrollFadeWrapper>
       )}
     </div>
   );
