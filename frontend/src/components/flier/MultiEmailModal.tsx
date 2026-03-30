@@ -554,17 +554,17 @@ export default function MultiEmailModal({
                       Describe how you'd like the email written. Mention &quot;research the realtor&quot; for AI to personalize using web search.
                     </p>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
+                      <textarea
                         value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleAiSuggest(); }}
+                        onChange={(e) => { setAiPrompt(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiSuggest(); } }}
                         placeholder={
                           tab === "realtor"
                             ? 'e.g. "Research the realtor and write a personalized pitch"'
                             : 'e.g. "Friendly intro, highlight program benefits"'
                         }
-                        className="flex-1 rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                        rows={1}
+                        className="flex-1 resize-none rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
                       />
                       <button
                         onClick={handleAiSuggest}

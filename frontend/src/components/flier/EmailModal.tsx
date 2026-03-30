@@ -427,17 +427,17 @@ export default function EmailModal({
                       Describe how you'd like the email written (tone, focus, length, etc.)
                     </p>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
+                      <textarea
                         value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleAiSuggest(); }}
+                        onChange={(e) => { setAiPrompt(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiSuggest(); } }}
                         placeholder={
                           tab === "realtor"
                             ? 'e.g. "Short intro, highlight the grant benefit"'
                             : 'e.g. "Friendly, explain the program briefly"'
                         }
-                        className="flex-1 rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                        rows={1}
+                        className="flex-1 resize-none rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
                       />
                       <button
                         onClick={handleAiSuggest}
