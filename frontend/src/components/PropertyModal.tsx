@@ -11,7 +11,7 @@ import {
   formatPhoneInput,
 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { type RealtorInfo, programHasFlyer, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
+import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import PhotoCarousel from "./PhotoCarousel";
@@ -231,7 +231,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
   const programs: ProgramResult[] = listing.matchData?.programs ?? [];
   const census = listing.censusData;
-  const eligible = programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+  const eligible = sortByHighlightOrder(programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary));
   const ineligible = programs.filter((p) => p.status === "Ineligible" && !p.is_secondary);
   const secondary = programs.filter((p) => p.is_secondary);
 
@@ -306,7 +306,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
     >
-      <div className="relative my-auto flex max-h-[90vh] w-full max-w-full flex-col rounded-xl bg-white shadow-2xl sm:max-w-3xl">
+      <div className="relative my-auto flex max-h-[90vh] w-full max-w-full flex-col rounded-xl bg-white shadow-2xl sm:max-w-4xl">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -463,6 +463,12 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
               {eligible.length > 0 && (
                 <div className="space-y-2">
+                  <div className="mb-1 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-gray-700">GMCC Highlighted Programs</h3>
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.65rem] font-medium text-red-600">
+                      {eligible.length}
+                    </span>
+                  </div>
                   {eligible.map((prog) => (
                     <ProgramCard
                       key={prog.program_name}
@@ -486,7 +492,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
               {secondary.length > 0 && (
                 <div className="mt-6">
                   <div className="mb-3 flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-700">Additional Program Matches</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">Additional Programs</h3>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-500">
                       {secondary.length}
                     </span>

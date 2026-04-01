@@ -7,7 +7,7 @@ import { formatPrice, formatCurrency, formatPhoneInput } from "@/lib/utils";
 import PhotoCarousel from "@/components/PhotoCarousel";
 import { CensusPanel, SectionTitle, GridItem } from "@/components/shared/PropertyPanels";
 import { ProgramCard, IneligiblePrograms, EditRealtorPanel } from "@/components/shared/ProgramCards";
-import { type RealtorInfo, programHasFlyer, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
+import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import LoanComparisonFlyer from "./LoanComparisonFlyer";
@@ -276,7 +276,7 @@ export default function CRACheckTab() {
   );
 
   // Derived state
-  const eligible = programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
+  const eligible = sortByHighlightOrder(programs.filter((p) => p.status !== "Ineligible" && !p.is_secondary));
   const ineligible = programs.filter((p) => p.status === "Ineligible" && !p.is_secondary);
   const secondary = programs.filter((p) => p.is_secondary);
   const selectablePrograms = [
@@ -522,6 +522,12 @@ export default function CRACheckTab() {
 
               {eligible.length > 0 && (
                 <div className="space-y-2">
+                  <div className="mb-1 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-gray-700">GMCC Highlighted Programs</h3>
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.65rem] font-medium text-red-600">
+                      {eligible.length}
+                    </span>
+                  </div>
                   {eligible.map((prog) => (
                     <ProgramCard
                       key={prog.program_name}
@@ -545,7 +551,7 @@ export default function CRACheckTab() {
               {secondary.length > 0 && (
                 <div className="mt-6">
                   <div className="mb-3 flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-700">Additional Program Matches</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">Additional Programs</h3>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-500">
                       {secondary.length}
                     </span>

@@ -568,7 +568,7 @@ export default function MarketingTable({
                     ))}
                     {secondaryMatchCount > 0 && (
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                        +{secondaryMatchCount} secondary
+                        +{secondaryMatchCount} additional
                       </span>
                     )}
                   </div>
@@ -693,13 +693,13 @@ export default function MarketingTable({
                           ))}
                           {secondaryMatchCount > 0 && (
                             <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                              +{secondaryMatchCount} secondary
+                              +{secondaryMatchCount} additional
                             </span>
                           )}
                         </div>
                       ) : secondaryMatchCount > 0 ? (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                          {secondaryMatchCount} secondary
+                          {secondaryMatchCount} additional
                         </span>
                       ) : (
                         <span className="text-gray-400">None</span>

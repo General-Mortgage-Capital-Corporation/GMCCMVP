@@ -28,17 +28,12 @@ from matching.property_types import PROPERTY_TYPE_UNITS, PROPERTY_TYPE_UNIT_RANG
 # formalised into data/programs/ JSON files.
 SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Hermes",
-    "GMCC Ocean",
     "GMCC Celebrity Jumbo",
     "GMCC Celebrity Forgivable $15K",
     "GMCC Community Opportunity",
     "GMCC Massive",
-    # "GMCC Universe",  # temporarily moved to primary for testing
-    "GMCC Buy Without Sell First",
-    "GMCC Radiant",
     "GMCC Bank Statement Self Employed",
     "GMCC WVOE P&L",
-    "GMCC DSCR Rental Flow",
     "GMCC Diamond Express",
 }
 
