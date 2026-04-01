@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
-import { getSignatureHtml, setSignatureHtml, clearSignature } from "@/lib/signature-store";
+import { getSignatureHtml, setSignatureHtml, clearSignature, COMPANY_NAME, COMPANY_NMLS, COMPANY_DISCLAIMER } from "@/lib/signature-store";
 
 /**
  * Rich-text email signature editor using contentEditable.
@@ -124,9 +124,12 @@ export default function SignatureEditor() {
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium text-gray-700 mb-1">Email Signature</p>
-        <p className="text-xs text-gray-500 mb-3">
-          Paste your signature from Outlook or Gmail, or build one here. It will be automatically appended to all emails you send.
+        <p className="text-sm font-medium text-gray-700 mb-1">Email Signature <span className="text-red-500">*</span></p>
+        <p className="text-xs text-gray-500 mb-1">
+          Required before sending emails. Add your name, title, and any personal branding.
+        </p>
+        <p className="text-[0.65rem] text-amber-600 mb-3">
+          The company compliance block below is automatically included on every email and cannot be edited.
         </p>
       </div>
 
@@ -210,6 +213,24 @@ export default function SignatureEditor() {
         {!isEmpty && !saved && (
           <span className="text-[0.65rem] text-amber-600">Unsaved changes</span>
         )}
+      </div>
+
+      {/* Company compliance block (non-editable) */}
+      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div className="mb-2 flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 7h2v5H7V7zm0-3h2v2H7V4z" fill="#9ca3af" />
+          </svg>
+          <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-gray-400">
+            Company Compliance Block (auto-included)
+          </span>
+        </div>
+        <div className="text-[0.6rem] leading-relaxed text-gray-400 whitespace-pre-line">
+          <p className="font-semibold text-gray-500 mb-1">{COMPANY_NAME} | NMLS #{COMPANY_NMLS} | CA DRE #01509029</p>
+          {COMPANY_DISCLAIMER.split("\n").slice(1).map((line, i) => (
+            <p key={i} className={line.trim() ? "mb-1" : "mb-0"}>{line}</p>
+          ))}
+        </div>
       </div>
     </div>
   );

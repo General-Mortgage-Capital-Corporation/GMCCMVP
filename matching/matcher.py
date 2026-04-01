@@ -33,7 +33,7 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Celebrity Forgivable $15K",
     "GMCC Community Opportunity",
     "GMCC Massive",
-    "GMCC Universe",
+    # "GMCC Universe",  # temporarily moved to primary for testing
     "GMCC Buy Without Sell First",
     "GMCC Radiant",
     "GMCC Bank Statement Self Employed",
@@ -212,6 +212,29 @@ def check_eligible_county(
                 status=CriterionStatus.PASS,
                 detail=f"County FIPS {resolved_fips} is in the eligible county list",
             )
+        # Check if county is in an exception state (may qualify with management approval)
+        if tier.exception_county_states:
+            state_prefix = resolved_fips[:2]
+            state_fips_to_abbr = {
+                "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+                "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+                "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+                "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+                "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+                "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+                "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+                "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+                "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+                "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+                "56": "WY",
+            }
+            state_abbr = state_fips_to_abbr.get(state_prefix, "")
+            if state_abbr in tier.exception_county_states:
+                return CriterionResult(
+                    criterion="eligible_county",
+                    status=CriterionStatus.UNVERIFIED,
+                    detail=f"County FIPS {resolved_fips} in {state_abbr} is not in the approved county list but may qualify by exception (management approval required)",
+                )
         return CriterionResult(
             criterion="eligible_county",
             status=CriterionStatus.FAIL,

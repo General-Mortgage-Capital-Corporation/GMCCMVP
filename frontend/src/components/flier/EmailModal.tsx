@@ -169,6 +169,7 @@ export default function EmailModal({
 
   async function handleSend() {
     if (sending) return; // guard against double-submission
+    if (!hasSignature()) { setError("Email signature is required. Please set one up in Settings (gear icon) before sending."); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
@@ -471,12 +472,15 @@ export default function EmailModal({
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    Your email signature will be attached
+                    Your signature + company disclaimer will be attached
                   </div>
                 ) : (
-                  <p className="text-[0.65rem] text-gray-400">
-                    No email signature set up. Add one in Settings (gear icon), or use AI Assist to generate one — try &quot;generate a professional signature for me&quot;.
-                  </p>
+                  <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4h2v5H7V4zm0 6h2v2H7v-2z" fill="currentColor" />
+                    </svg>
+                    Email signature required. Set one up in Settings (gear icon) before sending.
+                  </div>
                 )}
 
                 {error && (

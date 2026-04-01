@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firestore-admin";
 import { sendMailAs, checkForReply, isAutoSendAvailable, getOriginalMessageIds } from "@/lib/graph-client";
+import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -200,7 +201,7 @@ Use \\n for line breaks in the body. Do not include a signature.`;
         // Auto-send: send the follow-up in the same thread as the original
         const message: import("@/lib/graph-client").GraphMessage = {
           subject: threadIds ? `Re: ${data.subject}` : draft.subject,
-          body: { contentType: "Text", content: draft.body },
+          body: { contentType: "Text", content: `${draft.body}\n\n---\n${COMPANY_DISCLAIMER}` },
           toRecipients: [
             {
               emailAddress: {

@@ -70,6 +70,10 @@ class EligibilityTier(BaseModel):
         default_factory=list,
         description="Allowed 2-letter state abbreviations, e.g., ['CA', 'TX']. Empty = no restriction. Use when program is available in all counties of listed states.",
     )
+    exception_county_states: list[str] = Field(
+        default_factory=list,
+        description="States where counties outside the approved list may qualify by exception (management approval). Property in these states but not in eligible_county_fips → UNVERIFIED instead of FAIL.",
+    )
     requires_lmi_tract: bool = Field(
         default=False,
         description="If True, property must be in a FFIEC-designated low-to-moderate income census tract.",
