@@ -130,7 +130,7 @@ export default function ChatTab() {
         if (!r.ok) {
           throw new Error(`Failed to load conversation (${r.status})`);
         }
-        const data = await r.json() as { messages?: unknown[]; found?: boolean };
+        const data = await r.json() as { messages?: GmccAgentUIMessage[]; found?: boolean };
 
         if (data.found === false) {
           setConversations((prev) => prev.filter((c) => c.id !== convId));
@@ -145,7 +145,7 @@ export default function ChatTab() {
         }
 
         if (Array.isArray(data.messages)) {
-          setMessages(data.messages);
+          setMessages(data.messages as GmccAgentUIMessage[]);
           clearHistoryError();
           return;
         }
