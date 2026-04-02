@@ -130,13 +130,27 @@ export default function ChatTab() {
         if (!r.ok) {
           throw new Error(`Failed to load conversation (${r.status})`);
         }
-        const data = await r.json();
-        if (Array.isArray(data.messages) && data.messages.length > 0) {
-          setMessages(data.messages);
-        } else {
-          throw new Error("Conversation is empty or no longer available.");
+        const data = await r.json() as { messages?: unknown[]; found?: boolean };
+
+        if (data.found === false) {
+          setConversations((prev) => prev.filter((c) => c.id !== convId));
+          if (activeConvIdRef.current === convId) {
+            setMessages([]);
+          }
+          setHistoryError({
+            message: "That conversation is no longer available (it may have expired).",
+            action: "retry-index",
+          });
+          return;
         }
-        clearHistoryError();
+
+        if (Array.isArray(data.messages)) {
+          setMessages(data.messages);
+          clearHistoryError();
+          return;
+        }
+
+        throw new Error("Failed to parse conversation response.");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load conversation";
         console.error("[chat] Failed to load conversation:", err);

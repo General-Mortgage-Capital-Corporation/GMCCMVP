@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
   // If conversation ID provided, load that conversation
   if (convId) {
     const messages = await getChatMessages(userId, convId);
-    return NextResponse.json({ messages: messages ?? [] });
+    if (messages === null) {
+      return NextResponse.json({ messages: [], found: false });
+    }
+    return NextResponse.json({ messages, found: true });
   }
 
   // Otherwise list all conversations
