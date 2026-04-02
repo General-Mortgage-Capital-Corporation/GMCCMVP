@@ -138,3 +138,84 @@ export async function setCachedRealtorResearch(name: string, email: string, comp
     await redis.set(realtorCacheKey(name, email, company), research, { ex: REALTOR_TTL });
   } catch { /* ignore */ }
 }
+
+// ---------------------------------------------------------------------------
+// Chat conversation persistence
+// ---------------------------------------------------------------------------
+
+const CHAT_TTL = 48 * 60 * 60; // 48 hours
+
+function chatKey(userId: string, convId: string): string {
+  return `chat:conv:${sha256(userId)}:${convId}`;
+}
+
+function chatIndexKey(userId: string): string {
+  return `chat:index:${sha256(userId)}`;
+}
+
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  updatedAt: number;
+  messageCount: number;
+}
+
+export async function getChatMessages(userId: string, convId: string): Promise<unknown[] | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const data = await redis.get(chatKey(userId, convId));
+    return Array.isArray(data) ? data : null;
+  } catch { return null; }
+}
+
+export async function setChatMessages(
+  userId: string,
+  convId: string,
+  messages: unknown[],
+  title: string,
+): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.set(chatKey(userId, convId), messages, { ex: CHAT_TTL });
+    // Update conversation index
+    const index = await getChatIndex(userId);
+    const existing = index.findIndex((c) => c.id === convId);
+    const meta: ConversationMeta = {
+      id: convId,
+      title,
+      updatedAt: Date.now(),
+      messageCount: messages.length,
+    };
+    if (existing >= 0) {
+      index[existing] = meta;
+    } else {
+      index.unshift(meta);
+    }
+    // Keep max 20 conversations
+    const trimmed = index.slice(0, 20);
+    await redis.set(chatIndexKey(userId), trimmed, { ex: CHAT_TTL });
+  } catch { /* ignore */ }
+}
+
+export async function getChatIndex(userId: string): Promise<ConversationMeta[]> {
+  const redis = getRedis();
+  if (!redis) return [];
+  try {
+    const data = await redis.get(chatIndexKey(userId));
+    return Array.isArray(data) ? (data as ConversationMeta[]) : [];
+  } catch { return []; }
+}
+
+export async function clearChatMessages(userId: string, convId: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.del(chatKey(userId, convId));
+    // Remove from index
+    const index = await getChatIndex(userId);
+    const filtered = index.filter((c) => c.id !== convId);
+    await redis.set(chatIndexKey(userId), filtered, { ex: CHAT_TTL });
+  } catch { /* ignore */ }
+}

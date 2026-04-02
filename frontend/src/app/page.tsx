@@ -11,6 +11,7 @@ import CRACheckTab from "@/components/cra/CRACheckTab";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
 import FollowUpDashboard from "@/components/FollowUpDashboard";
+import ChatTab from "@/components/chat/ChatTab";
 import dynamic from "next/dynamic";
 const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -32,7 +33,7 @@ import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
-type ActiveTab = "find" | "program" | "marketing" | "cra";
+type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat";
 
 function excludeTypes(listing: RentCastListing) {
   return !EXCLUDED_PROPERTY_TYPES.has(listing.propertyType ?? "");
@@ -498,6 +499,7 @@ export default function Home() {
                   ["marketing", "Marketing", "Massive Marketing"],
                   ["find", "GPS Radius", "Marketing/GPS Radius Check"],
                   ["program", "By Program", "Market by Program Check"],
+                  ["chat", "AI Agent", "AI Marketing Agent"],
                 ] as [ActiveTab, string, string][]
               ).map(([tab, shortLabel, fullLabel]) => (
                 <button
@@ -542,6 +544,10 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
+            {/* ChatTab stays mounted but hidden to preserve conversation state */}
+            <div className={activeTab === "chat" ? "" : "hidden"}>
+              <ChatTab />
+            </div>
           </div>
         </div>
 
