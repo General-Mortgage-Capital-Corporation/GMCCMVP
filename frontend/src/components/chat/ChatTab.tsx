@@ -130,24 +130,13 @@ export default function ChatTab() {
         if (!r.ok) {
           throw new Error(`Failed to load conversation (${r.status})`);
         }
-        const data = await r.json() as { messages?: GmccAgentUIMessage[]; found?: boolean };
-
-        if (data.found === false) {
-          setHistoryError({
-            message: "Could not load this conversation right now. It may be expired or temporarily unavailable.",
-            action: "retry-conversation",
-            convId,
-          });
-          return;
+        const data = await r.json();
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+          setMessages(data.messages);
+        } else {
+          throw new Error("Conversation is empty or no longer available.");
         }
-
-        if (Array.isArray(data.messages)) {
-          setMessages(data.messages as GmccAgentUIMessage[]);
-          clearHistoryError();
-          return;
-        }
-
-        throw new Error("Failed to parse conversation response.");
+        clearHistoryError();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load conversation";
         console.error("[chat] Failed to load conversation:", err);
