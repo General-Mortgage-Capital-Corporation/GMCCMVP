@@ -7,6 +7,24 @@ interface DraftEmailContext {
   signatureHtml: string;
 }
 
+/** Convert signature HTML to readable plain text for draft previews. */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function createDraftEmailTool(ctx?: DraftEmailContext) {
   return tool({
     description:
@@ -55,12 +73,22 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
           hasSignature: true,
         });
 
+        // Build full preview: body + signature + company disclaimer
+        const signatureText = htmlToText(ctx!.signatureHtml);
+        const fullPreview = [
+          body,
+          "---",
+          signatureText,
+          "---",
+          COMPANY_DISCLAIMER,
+        ].join("\n\n");
+
         return {
           subject,
           body,
-          signatureNote:
-            "Your saved email signature and GMCC company disclaimer will be appended automatically when sent.",
+          signature: signatureText,
           companyDisclaimer: COMPANY_DISCLAIMER,
+          fullEmailPreview: fullPreview,
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Email draft failed.";
