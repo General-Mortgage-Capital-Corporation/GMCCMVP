@@ -6,25 +6,25 @@ const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net"
 
 // Maps program display names to the product IDs the Cloud Function expects
 const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
-  "GMCC Jumbo CRA": "jumbo-cra",
-  "GMCC Diamond CRA": "diamond-community-lending",
-  "GMCC Fabulous Jumbo": "fabulous-program",
-  "GMCC Grandslam": "grandslam",
-  "GMCC $10K Grant": "celebrity-10k",
-  "GMCC Special Conforming": "conforming-special",
-  "GMCC Celebrity Jumbo": "celebrity-jumbo",
-  "GMCC Massive": "massive",
-  "GMCC Universe": "universe",
+  // Hot Programs
   "GMCC Buy Without Sell First": "buy-without-sell-first",
+  "GMCC Universe": "universe",
+  "GMCC Massive": "massive",
+  "GMCC Diamond Express": "diamond-express",
+  "GMCC DSCR Rental Flow": "dscr",
   "GMCC Ocean": "ocean",
   "GMCC Hermes": "hermes",
-  "GMCC Celebrity Forgivable $15K": "forgivable-15k",
-  "GMCC Community Opportunity": "community-opportunity",
-  "GMCC Diamond Express": "diamond-express",
-  "GMCC Bank Statement Self Employed": "bank-statement",
-  "GMCC DSCR Rental Flow": "dscr",
   "GMCC Radiant": "radiant",
-  "GMCC WVOE P&L": "wvoe-pl",
+  "GMCC Bank Statement Self Employed": "bank-statement",
+  "GMCC Fabulous Jumbo": "fabulous-program",
+  // Community Lending Programs (CRA)
+  "GMCC CRA: Celebrity $10K Grant": "celebrity-10k",
+  "GMCC CRA: Celebrity Forgivable $10K DPA 2nd": "forgivable-15k",
+  "GMCC CRA: Cronus Grand Slam": "grandslam",
+  "GMCC CRA: Cronus Special Conforming": "conforming-special",
+  "GMCC CRA: Cronus Jumbo CRA": "jumbo-cra",
+  "GMCC CRA: Diamond CRA": "diamond-community-lending",
+  "GMCC Celebrity Jumbo": "celebrity-jumbo",
 };
 
 function resolveProductId(programName: string): string | null {
@@ -50,13 +50,13 @@ export function createGenerateFlyerTool(auth: AuthContext) {
   return tool({
     description:
       "Generate a PDF flyer for a GMCC program + property combination. " +
-      "Pass the program name as it appears in match results (e.g. 'GMCC Jumbo CRA'). " +
+      "Pass the program name as it appears in match results (e.g. 'GMCC CRA: Cronus Jumbo CRA'). " +
       "Returns the flyer as base64 PDF that can be attached to emails. " +
       "Requires the user to be signed in.",
     inputSchema: z.object({
       programName: z
         .string()
-        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Jumbo CRA', 'GMCC Diamond CRA'"),
+        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC CRA: Diamond CRA'"),
       address: z.string().optional().describe("Property address"),
       listingPrice: z.string().optional().describe("Listing price"),
       realtorName: z.string().optional(),
