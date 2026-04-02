@@ -11,11 +11,14 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { dirname, join } from "path";
 import { createHash } from "crypto";
 
 // TTLs in seconds
 const ZILLOW_TTL = 30 * 24 * 60 * 60; // 30 days
 const RENTCAST_TTL = 12 * 60 * 60;     // 12 hours
+const LOCAL_CACHE_FILE = join(process.cwd(), ".next", "cache", "gmcc-dev-cache.json");
 
 let _redis: Redis | null = null;
 let _initAttempted = false;
@@ -36,6 +39,109 @@ function getRedis(): Redis | null {
   return _redis;
 }
 
+function shouldUseLocalCache(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+interface LocalCacheEntry {
+  value: unknown;
+  expiresAt: number | null;
+}
+
+interface LocalCacheStore {
+  entries: Record<string, LocalCacheEntry>;
+}
+
+async function readLocalCacheStore(): Promise<LocalCacheStore> {
+  try {
+    const raw = await readFile(LOCAL_CACHE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as Partial<LocalCacheStore>;
+    return {
+      entries: parsed.entries ?? {},
+    };
+  } catch {
+    return { entries: {} };
+  }
+}
+
+async function writeLocalCacheStore(store: LocalCacheStore): Promise<void> {
+  await mkdir(dirname(LOCAL_CACHE_FILE), { recursive: true });
+  await writeFile(LOCAL_CACHE_FILE, JSON.stringify(store, null, 2), "utf8");
+}
+
+async function getLocalCacheValue<T>(key: string): Promise<T | null> {
+  const store = await readLocalCacheStore();
+  const entry = store.entries[key];
+  if (!entry) return null;
+  if (entry.expiresAt != null && entry.expiresAt <= Date.now()) {
+    delete store.entries[key];
+    await writeLocalCacheStore(store);
+    return null;
+  }
+  return entry.value as T;
+}
+
+async function setLocalCacheValue(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+  const store = await readLocalCacheStore();
+  store.entries[key] = {
+    value,
+    expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
+  };
+  await writeLocalCacheStore(store);
+}
+
+async function deleteLocalCacheValue(key: string): Promise<void> {
+  const store = await readLocalCacheStore();
+  if (!(key in store.entries)) return;
+  delete store.entries[key];
+  await writeLocalCacheStore(store);
+}
+
+async function getCacheValue<T>(key: string): Promise<T | null> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const data = await redis.get<T>(key);
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (!shouldUseLocalCache()) return null;
+  return getLocalCacheValue<T>(key);
+}
+
+async function setCacheValue(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.set(key, value, ttlSeconds ? { ex: ttlSeconds } : undefined);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
+  if (!shouldUseLocalCache()) return;
+  await setLocalCacheValue(key, value, ttlSeconds);
+}
+
+async function deleteCacheValue(key: string): Promise<void> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.del(key);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
+  if (!shouldUseLocalCache()) return;
+  await deleteLocalCacheValue(key);
+}
+
 function sha256(input: string): string {
   return createHash("sha256").update(input).digest("hex").slice(0, 16);
 }
@@ -45,11 +151,9 @@ function sha256(input: string): string {
 // ---------------------------------------------------------------------------
 
 export async function getCachedZillowPhotos(address: string): Promise<string[] | null> {
-  const redis = getRedis();
-  if (!redis) return null;
   try {
     const key = `zillow:photos:${sha256(address.toLowerCase().trim())}`;
-    const data = await redis.get<string[]>(key);
+    const data = await getCacheValue<string[]>(key);
     if (Array.isArray(data) && data.length > 0) return data;
     return null;
   } catch {
@@ -59,11 +163,9 @@ export async function getCachedZillowPhotos(address: string): Promise<string[] |
 
 export async function setCachedZillowPhotos(address: string, photos: string[]): Promise<void> {
   if (photos.length === 0) return;
-  const redis = getRedis();
-  if (!redis) return;
   try {
     const key = `zillow:photos:${sha256(address.toLowerCase().trim())}`;
-    await redis.set(key, photos, { ex: ZILLOW_TTL });
+    await setCacheValue(key, photos, ZILLOW_TTL);
   } catch { /* ignore */ }
 }
 
@@ -72,12 +174,10 @@ export async function setCachedZillowPhotos(address: string, photos: string[]): 
 // ---------------------------------------------------------------------------
 
 export async function getCachedRentcastSearch(params: Record<string, string>): Promise<unknown[] | null> {
-  const redis = getRedis();
-  if (!redis) return null;
   try {
     const sorted = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&");
     const key = `rentcast:search:${sha256(sorted)}`;
-    const data = await redis.get<unknown[]>(key);
+    const data = await getCacheValue<unknown[]>(key);
     if (Array.isArray(data) && data.length > 0) return data;
     return null;
   } catch {
@@ -87,12 +187,10 @@ export async function getCachedRentcastSearch(params: Record<string, string>): P
 
 export async function setCachedRentcastSearch(params: Record<string, string>, results: unknown[]): Promise<void> {
   if (results.length === 0) return;
-  const redis = getRedis();
-  if (!redis) return;
   try {
     const sorted = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&");
     const key = `rentcast:search:${sha256(sorted)}`;
-    await redis.set(key, results, { ex: RENTCAST_TTL });
+    await setCacheValue(key, results, RENTCAST_TTL);
   } catch { /* ignore */ }
 }
 
@@ -121,10 +219,8 @@ function realtorCacheKey(name: string, email: string, company: string): string {
 }
 
 export async function getCachedRealtorResearch(name: string, email: string, company: string): Promise<AgentResearch | null> {
-  const redis = getRedis();
-  if (!redis) return null;
   try {
-    const data = await redis.get<AgentResearch>(realtorCacheKey(name, email, company));
+    const data = await getCacheValue<AgentResearch>(realtorCacheKey(name, email, company));
     return data && data.summary ? data : null;
   } catch {
     return null;
@@ -132,10 +228,8 @@ export async function getCachedRealtorResearch(name: string, email: string, comp
 }
 
 export async function setCachedRealtorResearch(name: string, email: string, company: string, research: AgentResearch): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
   try {
-    await redis.set(realtorCacheKey(name, email, company), research, { ex: REALTOR_TTL });
+    await setCacheValue(realtorCacheKey(name, email, company), research, REALTOR_TTL);
   } catch { /* ignore */ }
 }
 
@@ -143,7 +237,7 @@ export async function setCachedRealtorResearch(name: string, email: string, comp
 // Chat conversation persistence
 // ---------------------------------------------------------------------------
 
-const CHAT_TTL = 48 * 60 * 60; // 48 hours
+const CHAT_TTL = 4 * 24 * 60 * 60; // 4 days
 
 function chatKey(userId: string, convId: string): string {
   return `chat:conv:${sha256(userId)}:${convId}`;
@@ -161,10 +255,8 @@ export interface ConversationMeta {
 }
 
 export async function getChatMessages(userId: string, convId: string): Promise<unknown[] | null> {
-  const redis = getRedis();
-  if (!redis) return null;
   try {
-    const data = await redis.get(chatKey(userId, convId));
+    const data = await getCacheValue<unknown[]>(chatKey(userId, convId));
     return Array.isArray(data) ? data : null;
   } catch { return null; }
 }
@@ -175,10 +267,8 @@ export async function setChatMessages(
   messages: unknown[],
   title: string,
 ): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
   try {
-    await redis.set(chatKey(userId, convId), messages, { ex: CHAT_TTL });
+    await setCacheValue(chatKey(userId, convId), messages, CHAT_TTL);
     // Update conversation index
     const index = await getChatIndex(userId);
     const existing = index.findIndex((c) => c.id === convId);
@@ -195,27 +285,23 @@ export async function setChatMessages(
     }
     // Keep max 20 conversations
     const trimmed = index.slice(0, 20);
-    await redis.set(chatIndexKey(userId), trimmed, { ex: CHAT_TTL });
+    await setCacheValue(chatIndexKey(userId), trimmed, CHAT_TTL);
   } catch { /* ignore */ }
 }
 
 export async function getChatIndex(userId: string): Promise<ConversationMeta[]> {
-  const redis = getRedis();
-  if (!redis) return [];
   try {
-    const data = await redis.get(chatIndexKey(userId));
+    const data = await getCacheValue<ConversationMeta[]>(chatIndexKey(userId));
     return Array.isArray(data) ? (data as ConversationMeta[]) : [];
   } catch { return []; }
 }
 
 export async function clearChatMessages(userId: string, convId: string): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
   try {
-    await redis.del(chatKey(userId, convId));
+    await deleteCacheValue(chatKey(userId, convId));
     // Remove from index
     const index = await getChatIndex(userId);
     const filtered = index.filter((c) => c.id !== convId);
-    await redis.set(chatIndexKey(userId), filtered, { ex: CHAT_TTL });
+    await setCacheValue(chatIndexKey(userId), filtered, CHAT_TTL);
   } catch { /* ignore */ }
 }

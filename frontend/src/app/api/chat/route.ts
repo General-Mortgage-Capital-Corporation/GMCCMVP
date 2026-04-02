@@ -21,7 +21,6 @@ import { searchByProgramTool } from "@/lib/tools/search-by-program";
 import { createGenerateCsvTool } from "@/lib/tools/generate-csv";
 import { checkCRAEligibilityTool } from "@/lib/tools/check-cra-eligibility";
 import { createSearchSentEmailsTool } from "@/lib/tools/search-sent-emails";
-import { calculateRateTool } from "@/lib/tools/calculate-rate";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
 
 export const runtime = "nodejs";
@@ -62,7 +61,6 @@ export async function POST(req: Request) {
       generateCsv: createGenerateCsvTool(),
       checkCRAEligibility: checkCRAEligibilityTool,
       searchSentEmails: createSearchSentEmailsTool(authContext),
-      calculateRate: calculateRateTool,
     },
     stopWhen: stepCountIs(25),
     temperature: 0.3,

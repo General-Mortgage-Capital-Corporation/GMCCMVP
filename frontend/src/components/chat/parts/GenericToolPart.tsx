@@ -18,7 +18,6 @@ const TOOL_LABELS: Record<string, string> = {
   searchByProgram: "Program Coverage",
   checkCRAEligibility: "CRA Eligibility Check",
   searchSentEmails: "Sent Email Search",
-  calculateRate: "Rate Calculator",
 };
 
 interface GenericToolPartProps {

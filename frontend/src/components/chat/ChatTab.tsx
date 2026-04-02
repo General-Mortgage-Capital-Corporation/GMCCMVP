@@ -33,6 +33,9 @@ export default function ChatTab() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { user, getIdToken, getMsalAccessToken } = useAuth();
+  const userEmailRef = useRef<string | null>(user?.email ?? null);
+  const getIdTokenRef = useRef(getIdToken);
+  const getMsalAccessTokenRef = useRef(getMsalAccessToken);
 
   // Sidebar toggle
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -42,6 +45,13 @@ export default function ChatTab() {
   const activeConvIdRef = useRef<string>(generateConvId());
   const [activeConvId, setActiveConvIdState] = useState(activeConvIdRef.current);
   const [initDone, setInitDone] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    userEmailRef.current = user?.email ?? null;
+    getIdTokenRef.current = getIdToken;
+    getMsalAccessTokenRef.current = getMsalAccessToken;
+  }, [user?.email, getIdToken, getMsalAccessToken]);
 
   function setActiveConvId(id: string) {
     activeConvIdRef.current = id;
@@ -55,11 +65,11 @@ export default function ChatTab() {
         api: "/api/chat",
         headers: async () => {
           const headers: Record<string, string> = {};
-          const idToken = await getIdToken();
+          const idToken = await getIdTokenRef.current();
           if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
-          const msalToken = await getMsalAccessToken(["Mail.Send"]).catch(() => null);
+          const msalToken = await getMsalAccessTokenRef.current(["Mail.Send"]).catch(() => null);
           if (msalToken) headers["X-MSAL-Token"] = msalToken;
-          if (user?.email) headers["X-User-Email"] = user.email;
+          if (userEmailRef.current) headers["X-User-Email"] = userEmailRef.current;
           return headers;
         },
       }),
@@ -74,47 +84,61 @@ export default function ChatTab() {
   // ── Helper: fetch conversation list ───────────────────────────────────────
 
   const fetchIndex = useCallback(async () => {
-    if (!user?.email) return [];
+    const email = userEmailRef.current;
+    if (!email) return [];
     try {
       const r = await fetch("/api/chat/history", {
-        headers: { "X-User-Email": user.email },
+        headers: { "X-User-Email": email },
       });
+      if (!r.ok) {
+        throw new Error(`Failed to load conversation list (${r.status})`);
+      }
       const data = await r.json();
       const convs = (data.conversations ?? []) as ConversationMeta[];
       setConversations(convs);
+      setHistoryError(null);
       return convs;
     } catch (err) {
-      console.warn("[chat] Failed to load index:", err);
+      const message = err instanceof Error ? err.message : "Failed to load conversation list";
+      console.error("[chat] Failed to load index:", err);
+      setHistoryError(message);
       return [];
     }
-  }, [user?.email]);
+  }, []);
 
   // ── Helper: fetch messages for a conversation ─────────────────────────────
 
   const fetchMessages = useCallback(
     async (convId: string) => {
-      if (!user?.email) return;
+      const email = userEmailRef.current;
+      if (!email) return;
       try {
         const r = await fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
-          headers: { "X-User-Email": user.email },
+          headers: { "X-User-Email": email },
         });
+        if (!r.ok) {
+          throw new Error(`Failed to load conversation (${r.status})`);
+        }
         const data = await r.json();
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages(data.messages);
         } else {
-          setMessages([]);
+          throw new Error("Conversation is empty or no longer available.");
         }
+        setHistoryError(null);
       } catch (err) {
-        console.warn("[chat] Failed to load conversation:", err);
+        const message = err instanceof Error ? err.message : "Failed to load conversation";
+        console.error("[chat] Failed to load conversation:", err);
+        setHistoryError(message);
       }
     },
-    [user?.email, setMessages],
+    [setMessages],
   );
 
   // ── Init: load index + most recent conversation ───────────────────────────
 
   useEffect(() => {
-    if (!user?.email || initDone) return;
+    if (!userEmailRef.current || initDone) return;
     setInitDone(true);
 
     fetchIndex().then((convs) => {
@@ -142,7 +166,8 @@ export default function ChatTab() {
 
   const saveConversation = useCallback(
     (msgs: typeof messages, convId: string) => {
-      if (!user?.email || msgs.length === 0) return;
+      const email = userEmailRef.current;
+      if (!email || msgs.length === 0) return;
 
       const firstUserMsg = msgs.find((m) => m.role === "user");
       const title =
@@ -154,10 +179,17 @@ export default function ChatTab() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Email": user.email,
+          "X-User-Email": email,
         },
         body: JSON.stringify({ messages: msgs, conversationId: convId, title }),
       })
+        .then((r) => {
+          if (!r.ok) {
+            throw new Error(`Failed to save conversation (${r.status})`);
+          }
+          setHistoryError(null);
+          return r;
+        })
         .then(() => {
           setConversations((prev) => {
             const meta: ConversationMeta = {
@@ -170,13 +202,17 @@ export default function ChatTab() {
             return [meta, ...filtered].slice(0, 20);
           });
         })
-        .catch(() => {});
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : "Failed to save conversation";
+          console.error("[chat] Failed to save conversation:", err);
+          setHistoryError(message);
+        });
     },
-    [user?.email],
+    [],
   );
 
   useEffect(() => {
-    if (!user?.email || messages.length === 0) return;
+    if (!userEmailRef.current || messages.length === 0) return;
     if (status !== "ready") return;
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -184,20 +220,22 @@ export default function ChatTab() {
       () => saveConversation(messages, activeConvIdRef.current),
       500,
     );
-  }, [messages, status, user?.email, saveConversation]);
+  }, [messages, status, saveConversation]);
 
   // ── New chat ──────────────────────────────────────────────────────────────
 
   const handleNewChat = useCallback(() => {
     setActiveConvId(generateConvId());
     setMessages([]);
+    setHistoryError(null);
   }, [setMessages]);
 
   // ── Delete conversation ───────────────────────────────────────────────────
 
   const handleDelete = useCallback(
     (convId: string) => {
-      if (!user?.email) return;
+      const email = userEmailRef.current;
+      if (!email) return;
       setConversations((prev) => prev.filter((c) => c.id !== convId));
 
       if (activeConvIdRef.current === convId) {
@@ -206,10 +244,13 @@ export default function ChatTab() {
 
       fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
         method: "DELETE",
-        headers: { "X-User-Email": user.email },
-      }).catch(() => {});
+        headers: { "X-User-Email": email },
+      }).catch((err) => {
+        console.error("[chat] Failed to delete conversation:", err);
+        setHistoryError("Failed to delete conversation.");
+      });
     },
-    [user?.email, handleNewChat],
+    [handleNewChat],
   );
 
   // ── Submit message ────────────────────────────────────────────────────────
@@ -341,6 +382,12 @@ export default function ChatTab() {
 
         {/* Messages area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {historyError && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {historyError}
+            </div>
+          )}
+
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
               <div>
