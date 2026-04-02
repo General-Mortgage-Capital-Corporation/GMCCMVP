@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -72,7 +73,7 @@ The body should be plain text with line breaks using \\n.`;
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.5, maxOutputTokens: 5000 },
         }),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(90_000),
       },
     );
 

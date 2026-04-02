@@ -2,9 +2,11 @@ import { tool } from "ai";
 import { z } from "zod";
 import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
 import { getPdf } from "@/lib/tools/flyer-store";
+import { buildHtmlBodyWithSignature } from "@/lib/signature-store";
 
 interface AuthContext {
   userEmail: string;
+  signatureHtml: string;
 }
 
 export function createSendEmailTool(auth: AuthContext) {
@@ -33,11 +35,23 @@ export function createSendEmailTool(auth: AuthContext) {
         return { error: "User not signed in. Sign in with Outlook to send emails." };
       }
 
+      if (!auth.signatureHtml) {
+        return {
+          error:
+            "No email signature found. Please go to Settings (gear icon) and set up your email signature before sending emails. " +
+            "Your signature must include your name, title, NMLS#, and contact info. " +
+            "The company compliance disclaimer is added automatically.",
+        };
+      }
+
+      // Build HTML email body with user signature + company disclaimer
+      const htmlBody = buildHtmlBodyWithSignature(input.body, auth.signatureHtml);
+
       const message: GraphMessage = {
         subject: input.subject,
         body: {
-          contentType: "Text",
-          content: input.body,
+          contentType: "HTML",
+          content: htmlBody,
         },
         toRecipients: [
           {

@@ -316,3 +316,14 @@ export async function clearChatMessages(userId: string, convId: string): Promise
     await setCacheValue(chatIndexKey(userId), filtered, CHAT_TTL);
   } catch { /* ignore */ }
 }
+
+/** Remove a single stale entry from the conversation index (when messages have expired). */
+export async function removeStaleIndexEntry(userId: string, convId: string): Promise<void> {
+  try {
+    const index = await getChatIndex(userId);
+    const filtered = index.filter((c) => c.id !== convId);
+    if (filtered.length !== index.length) {
+      await setCacheValue(chatIndexKey(userId), filtered, CHAT_TTL);
+    }
+  } catch { /* ignore */ }
+}

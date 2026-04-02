@@ -9,6 +9,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import ConversationSidebar from "./ConversationSidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSignatureHtml } from "@/lib/signature-store";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
 
 const SUGGESTED_PROMPTS = [
@@ -78,6 +79,9 @@ export default function ChatTab() {
           const msalToken = await getMsalAccessTokenRef.current(["Mail.Send"]).catch(() => null);
           if (msalToken) headers["X-MSAL-Token"] = msalToken;
           if (userEmailRef.current) headers["X-User-Email"] = userEmailRef.current;
+          // Pass email signature for server-side email sending
+          const sig = getSignatureHtml();
+          if (sig) headers["X-Email-Signature"] = btoa(unescape(encodeURIComponent(sig)));
           return headers;
         },
       }),
@@ -131,6 +135,12 @@ export default function ChatTab() {
           throw new Error(`Failed to load conversation (${r.status})`);
         }
         const data = await r.json();
+        if (data.expired) {
+          // Messages expired in Redis — remove stale entry from local list
+          setConversations((prev) => prev.filter((c) => c.id !== convId));
+          setHistoryError({ message: "This conversation has expired and was removed." });
+          return;
+        }
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages(data.messages);
         } else {

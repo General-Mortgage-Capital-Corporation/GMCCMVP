@@ -34,7 +34,16 @@ export async function POST(req: Request) {
   const msalToken = req.headers.get("X-MSAL-Token") ?? "";
   const userEmail = req.headers.get("X-User-Email") ?? "";
 
-  const authContext = { firebaseToken, msalToken, userEmail };
+  // Decode email signature (base64 UTF-8 from client)
+  const sigHeader = req.headers.get("X-Email-Signature") ?? "";
+  let signatureHtml = "";
+  if (sigHeader) {
+    try {
+      signatureHtml = decodeURIComponent(escape(atob(sigHeader)));
+    } catch { /* ignore decode errors */ }
+  }
+
+  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml };
 
   // Construct agent per-request with auth-bound tools
   const agent = new ToolLoopAgent({
@@ -52,7 +61,7 @@ export async function POST(req: Request) {
       // Phase 2 tools (auth-bound)
       queryAdmiral: createQueryAdmiralTool(authContext),
       researchRealtor: createResearchRealtorTool(),
-      draftEmail: createDraftEmailTool(),
+      draftEmail: createDraftEmailTool({ signatureHtml }),
       generateFlyer: createGenerateFlyerTool(authContext),
       sendEmail: createSendEmailTool(authContext),
       recordFollowUp: createRecordFollowUpTool(authContext),
