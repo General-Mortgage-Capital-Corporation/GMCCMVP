@@ -135,16 +135,10 @@ export default function ChatTab() {
           throw new Error(`Failed to load conversation (${r.status})`);
         }
         const data = await r.json();
-        if (data.expired) {
-          // Messages expired in Redis — remove stale entry from local list
-          setConversations((prev) => prev.filter((c) => c.id !== convId));
-          setHistoryError({ message: "This conversation has expired and was removed." });
-          return;
-        }
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages(data.messages);
         } else {
-          throw new Error("Conversation is empty or no longer available.");
+          throw new Error("Could not load this conversation. It may have expired — try again or start a new chat.");
         }
         clearHistoryError();
       } catch (err) {

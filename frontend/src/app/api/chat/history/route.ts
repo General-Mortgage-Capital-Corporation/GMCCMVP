@@ -4,7 +4,6 @@ import {
   setChatMessages,
   clearChatMessages,
   getChatIndex,
-  removeStaleIndexEntry,
 } from "@/lib/redis-cache";
 
 export const runtime = "nodejs";
@@ -19,12 +18,7 @@ export async function GET(req: NextRequest) {
   // If conversation ID provided, load that conversation
   if (convId) {
     const messages = await getChatMessages(userId, convId);
-    if (!messages || messages.length === 0) {
-      // Messages expired or missing — remove stale index entry
-      await removeStaleIndexEntry(userId, convId);
-      return NextResponse.json({ messages: [], expired: true });
-    }
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: messages ?? [] });
   }
 
   // Otherwise list all conversations
