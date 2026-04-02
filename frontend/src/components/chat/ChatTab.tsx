@@ -133,13 +133,10 @@ export default function ChatTab() {
         const data = await r.json() as { messages?: GmccAgentUIMessage[]; found?: boolean };
 
         if (data.found === false) {
-          setConversations((prev) => prev.filter((c) => c.id !== convId));
-          if (activeConvIdRef.current === convId) {
-            setMessages([]);
-          }
           setHistoryError({
-            message: "That conversation is no longer available (it may have expired).",
-            action: "retry-index",
+            message: "Could not load this conversation right now. It may be expired or temporarily unavailable.",
+            action: "retry-conversation",
+            convId,
           });
           return;
         }
