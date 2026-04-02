@@ -96,6 +96,16 @@ export default function ChatTab() {
 
   const clearHistoryError = useCallback(() => setHistoryError(null), []);
 
+  /** Build auth headers for chat history API calls. */
+  const getHistoryHeaders = useCallback(async (extra?: Record<string, string>) => {
+    const headers: Record<string, string> = {};
+    const email = userEmailRef.current;
+    if (email) headers["X-User-Email"] = email;
+    const idToken = await getIdTokenRef.current();
+    if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
+    return { ...headers, ...extra };
+  }, []);
+
   // ── Helper: fetch conversation list ───────────────────────────────────────
 
   const fetchIndex = useCallback(async () => {
@@ -103,7 +113,7 @@ export default function ChatTab() {
     if (!email) return [];
     try {
       const r = await fetch("/api/chat/history", {
-        headers: { "X-User-Email": email },
+        headers: await getHistoryHeaders(),
       });
       if (!r.ok) {
         throw new Error(`Failed to load conversation list (${r.status})`);
@@ -119,7 +129,7 @@ export default function ChatTab() {
       setHistoryError({ message, action: "retry-index" });
       return [];
     }
-  }, [clearHistoryError]);
+  }, [clearHistoryError, getHistoryHeaders]);
 
   // ── Helper: fetch messages for a conversation ─────────────────────────────
 
@@ -129,7 +139,7 @@ export default function ChatTab() {
       if (!email) return;
       try {
         const r = await fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
-          headers: { "X-User-Email": email },
+          headers: await getHistoryHeaders(),
         });
         if (!r.ok) {
           throw new Error(`Failed to load conversation (${r.status})`);
@@ -147,7 +157,7 @@ export default function ChatTab() {
         setHistoryError({ message, action: "retry-conversation", convId });
       }
     },
-    [setMessages, clearHistoryError],
+    [setMessages, clearHistoryError, getHistoryHeaders],
   );
 
   // ── Init: load index + most recent conversation ───────────────────────────
@@ -191,14 +201,12 @@ export default function ChatTab() {
           (p): p is { type: "text"; text: string } => p.type === "text",
         )?.text?.slice(0, 60) ?? "New conversation";
 
+      getHistoryHeaders({ "Content-Type": "application/json" }).then((hdrs) =>
       fetch("/api/chat/history", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Email": email,
-        },
+        headers: hdrs,
         body: JSON.stringify({ messages: msgs, conversationId: convId, title }),
-      })
+      }))
         .then((r) => {
           if (!r.ok) {
             throw new Error(`Failed to save conversation (${r.status})`);
@@ -224,7 +232,7 @@ export default function ChatTab() {
           setHistoryError({ message, action: "retry-save", convId });
         });
     },
-    [clearHistoryError],
+    [clearHistoryError, getHistoryHeaders],
   );
 
   useEffect(() => {
@@ -236,6 +244,10 @@ export default function ChatTab() {
       () => saveConversation(messages, activeConvIdRef.current),
       500,
     );
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [messages, status, saveConversation]);
 
   // ── New chat ──────────────────────────────────────────────────────────────
@@ -253,14 +265,14 @@ export default function ChatTab() {
 
       const r = await fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
         method: "DELETE",
-        headers: { "X-User-Email": email },
+        headers: await getHistoryHeaders(),
       });
       if (!r.ok) {
         throw new Error(`Failed to delete conversation (${r.status})`);
       }
       clearHistoryError();
     },
-    [clearHistoryError],
+    [clearHistoryError, getHistoryHeaders],
   );
 
   // ── Delete conversation ───────────────────────────────────────────────────
@@ -269,17 +281,22 @@ export default function ChatTab() {
     (convId: string) => {
       const email = userEmailRef.current;
       if (!email) return;
-      setConversations((prev) => prev.filter((c) => c.id !== convId));
 
+      // Switch away first if deleting active conversation
       if (activeConvIdRef.current === convId) {
         handleNewChat();
       }
 
-      deleteConversationRemote(convId).catch((err) => {
-        const message = err instanceof Error ? err.message : "Failed to delete conversation";
-        console.error("[chat] Failed to delete conversation:", err);
-        setHistoryError({ message, action: "retry-delete", convId });
-      });
+      // Remove from UI only after remote succeeds
+      deleteConversationRemote(convId)
+        .then(() => {
+          setConversations((prev) => prev.filter((c) => c.id !== convId));
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : "Failed to delete conversation";
+          console.error("[chat] Failed to delete conversation:", err);
+          setHistoryError({ message, action: "retry-delete", convId });
+        });
     },
     [handleNewChat, deleteConversationRemote],
   );

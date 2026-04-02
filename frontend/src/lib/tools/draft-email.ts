@@ -74,7 +74,7 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
         });
 
         // Build full preview: body + signature + company disclaimer
-        const signatureText = htmlToText(ctx!.signatureHtml);
+        const signatureText = htmlToText(ctx?.signatureHtml ?? "");
         const fullPreview = [
           body,
           "---",

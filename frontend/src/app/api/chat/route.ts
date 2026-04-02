@@ -27,7 +27,14 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || !Array.isArray(body.messages)) {
+    return new Response(JSON.stringify({ error: "messages array required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const { messages } = body;
 
   // Extract auth context from headers
   const firebaseToken = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";

@@ -86,7 +86,17 @@ The body should be plain text with line breaks using \\n.`;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-  const parsed = JSON.parse(cleaned) as { subject: string; body: string };
+
+  let parsed: { subject: string; body: string };
+  try {
+    parsed = JSON.parse(cleaned) as { subject: string; body: string };
+  } catch {
+    throw new Error(`Failed to parse email draft — model returned invalid JSON: ${cleaned.slice(0, 120)}`);
+  }
+
+  if (!parsed.subject || !parsed.body) {
+    throw new Error("Email draft missing subject or body");
+  }
 
   return { subject: parsed.subject, body: parsed.body };
 }
