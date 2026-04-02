@@ -1,12 +1,23 @@
 {
-  "program_name": "GMCC Diamond CRA",
+  "program_name": "GMCC CRA: Diamond CRA",
   "qm_status": "QM",
   "tiers": [
     {
       "tier_name": "Diamond Community Lending - Eligible Census Tract",
-      "transaction_types": ["Purchase", "Rate/Term Refi", "Cash-Out Refi"],
-      "property_types": ["SFR", "Condo", "PUD", "2-4 Units"],
-      "occupancy_types": ["Primary Residence"],
+      "transaction_types": [
+        "Purchase",
+        "Rate/Term Refi",
+        "Cash-Out Refi"
+      ],
+      "property_types": [
+        "SFR",
+        "Condo",
+        "PUD",
+        "2-4 Units"
+      ],
+      "occupancy_types": [
+        "Primary Residence"
+      ],
       "min_loan_amount": null,
       "max_loan_amount": 1149825,
       "max_ltv": 97.0,
@@ -14,7 +25,12 @@
       "min_fico": null,
       "min_reserves_months": null,
       "max_dti": 50.0,
-      "unit_count_limits": [1, 2, 3, 4],
+      "unit_count_limits": [
+        1,
+        2,
+        3,
+        4
+      ],
       "location_restrictions": [],
       "eligible_county_fips": [],
       "requires_lmi_tract": false,
@@ -31,7 +47,7 @@
   "general_notes": [
     "Diamond Community Lending Program (CLP) offers CRA pricing incentive on eligible census tracts across all 50 states (both GMCC and LO must be licensed in the state).",
     "Agency loan amounts: Conforming and High Balance. No jumbo.",
-    "No income restriction — no max income level required.",
+    "No income restriction \u2014 no max income level required.",
     "Primary residence only. 2-4 units OK. Fixed rate only.",
     "Max 97% LTV (MI required for LTV > 80%). Max DTI 50% per AUS findings.",
     "Non-occupant co-borrower allowed. FTHB not required. EAD not eligible.",

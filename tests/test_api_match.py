@@ -247,7 +247,7 @@ class TestExplainMatch:
 
         from matching.explain import explain_match
 
-        explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1")
+        explain_match("GMCC CRA: Cronus Jumbo CRA", {"price": 500000}, "Tier 1")
 
         mock_genai.Client.assert_called_once()
         mock_client.models.generate_content.assert_called_once()
@@ -263,7 +263,7 @@ class TestExplainMatch:
 
         from matching.explain import explain_match
 
-        result = explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1")
+        result = explain_match("GMCC CRA: Cronus Jumbo CRA", {"price": 500000}, "Tier 1")
 
         assert isinstance(result, str)
         assert len(result) > 0
@@ -283,7 +283,7 @@ class TestExplainMatch:
             "general_notes": ["CRA program for LMI tracts"],
             "tiers": [{"tier_name": "Tier 1", "additional_rules": {"description": "LMI tract"}}],
         }
-        explain_match("GMCC Jumbo CRA", {"price": 500000}, "Tier 1", program_rules=rules)
+        explain_match("GMCC CRA: Cronus Jumbo CRA", {"price": 500000}, "Tier 1", program_rules=rules)
 
         call_args = mock_client.models.generate_content.call_args
         prompt = call_args[1]["contents"]

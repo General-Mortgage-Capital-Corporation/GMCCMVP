@@ -26,15 +26,17 @@ from matching.property_types import PROPERTY_TYPE_UNITS, PROPERTY_TYPE_UNIT_RANG
 # "Additional Program Matches" — hidden from card badges, chip filters, and
 # best-match scoring.  Add new secondary program names here as they are
 # formalised into data/programs/ JSON files.
+# Community Lending Programs (non-government sourced) — shown under
+# "Community Lending Programs" in the property modal.
 SECONDARY_PROGRAM_NAMES: set[str] = {
-    "GMCC Hermes",
+    "GMCC CRA: Celebrity $10K Grant",
+    "GMCC CRA: Celebrity Community Opportunity",
+    "GMCC CRA: Celebrity Forgivable $10K DPA 2nd",
+    "GMCC CRA: Cronus Grand Slam",
+    "GMCC CRA: Cronus Special Conforming",
+    "GMCC CRA: Cronus Jumbo CRA",
+    "GMCC CRA: Diamond CRA",
     "GMCC Celebrity Jumbo",
-    "GMCC Celebrity Forgivable $15K",
-    "GMCC Community Opportunity",
-    "GMCC Massive",
-    "GMCC Bank Statement Self Employed",
-    "GMCC WVOE P&L",
-    "GMCC Diamond Express",
 }
 
 # Programs whose eligibility criteria are still pending formalisation.
