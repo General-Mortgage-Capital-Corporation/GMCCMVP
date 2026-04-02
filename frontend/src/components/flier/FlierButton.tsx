@@ -8,28 +8,28 @@ import EmailModal from "./EmailModal";
 const GMCC_PPT_FOLDER = "https://netorgft1191593.sharepoint.com/sites/LOTraining/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FLOTraining%2FShared%20Documents%2FGMCC%20PPT&viewid=591beb65%2D297e%2D416f%2D8cd2%2Dd6f131d2897a&csf=1&ovuser=9f605dae%2Dab54%2D4576%2D8337%2De008c4b7b2ce%2Cnaitik%2Epoddar%40gmccloan%2Ecom&OR=Teams%2DHL&CT=1773678041332&clickparams=eyJBcHBOYW1lIjoiVGVhbXMtRGVza3RvcCIsIkFwcFZlcnNpb24iOiIxNDE1LzI2MDIxMjE1MTIzIiwiSGFzRmVkZXJhdGVkVXNlciI6ZmFsc2V9&CID=ff9900a2%2D1013%2D0000%2D6083%2De298ce971416&cidOR=SPO&FolderCTID=0x012000CF752C56A7846845A87DA40CB38AE1E9&pageCorrelationId=c7a900a2%2D0046%2D0000%2D6083%2Dee003eccde92&timeStamp=1773698366725";
 
 export const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string; ratesheetUrl?: string }> = {
-  "GMCC Jumbo CRA":          { productId: "jumbo-cra", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
-  "GMCC Diamond CRA":        { productId: "diamond-community-lending", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20CRA%20programs.pptx?d=w8ff4ac9ad1cc4de08b6c4262a0a60302&csf=1&web=1&e=ZN2Si0" },
-  "GMCC Fabulous Jumbo":     { productId: "fabulous-program", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20Fabulous%20-%20AUS%20jumbo.pptx?d=wbd3caa7c5f294a2695e36a1555480b9b&csf=1&web=1&e=WF6PIU" },
-  "GMCC Grandslam":          { productId: "grandslam", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
-  "GMCC $10K Grant":         { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
-  "GMCC Special Conforming": { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
-  // Additional programs (shown under "Additional Programs" section)
-  "GMCC Celebrity Jumbo":      { productId: "celebrity-jumbo", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Celebrity%20Jumbo%20with%20Asset%20Depletion%20Updated%20on%2007-07-2024%20(1).pptx?d=wb9ce8eb4c48e4179a06c304cb549bb3a&csf=1&web=1&e=4pRUIh" },
-  "GMCC Massive":              { productId: "massive", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B69FD90A8-BA34-4567-9C72-672A2EC19394%7D&file=GMCC%20Massive%20-%20NON%20Qm.pptx&action=edit&mobileredirect=true" },
-  "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/Self-Service%20Fast-Closing/GMCC%20Universe%20Closing%20Resources/GMCC%20Universe%20Rate%20Sheet.pdf?csf=1&web=1&e=6MxTLq" },
+  // ── Hot Programs ──────────────────────────────────────────────────────────
   "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
+  "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/Self-Service%20Fast-Closing/GMCC%20Universe%20Closing%20Resources/GMCC%20Universe%20Rate%20Sheet.pdf?csf=1&web=1&e=6MxTLq" },
+  "GMCC Massive":              { productId: "massive", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B69FD90A8-BA34-4567-9C72-672A2EC19394%7D&file=GMCC%20Massive%20-%20NON%20Qm.pptx&action=edit&mobileredirect=true" },
+  "GMCC Diamond Express":      { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Diamond%20-%20Jumbo%20AUS%20.pptx?d=w390ee9388a094613a6bfbd6e8983d2e9&csf=1&web=1&e=JpDwhW" },
+  "GMCC DSCR Rental Flow":     { productId: "dscr", guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC Ocean":                { productId: "ocean", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Ocean%2002-06-2026%20v4.pptx?d=w1c903e89e42b47518d6a8329783a3ece&csf=1&web=1&e=zhf5fT", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Ocean%20Rate%20Sheet%202.3.2026.pdf?csf=1&web=1&e=pU18Bj" },
   "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
-  "GMCC Celebrity Forgivable $15K": { productId: "forgivable-15k", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%20Forgivable%20loan.pptx?d=w285e6457f8de42059865678d47c1b6a7&csf=1&web=1&e=omhTuc" },
   "GMCC Radiant":              { productId: "radiant", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Radiant%20AU%20Program%2012-26-2025.pptx?d=wc61f3d43cbd349f789ef9641cde9eb22&csf=1&web=1&e=hykKqt", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Radiant%20Rate%20Sheet%202.10.2026.pdf?csf=1&web=1&e=Xe0GOy" },
-  "GMCC Diamond Express":          { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Diamond%20-%20Jumbo%20AUS%20.pptx?d=w390ee9388a094613a6bfbd6e8983d2e9&csf=1&web=1&e=JpDwhW" },
+  "GMCC WVOE P&L":             { guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC Bank Statement Self Employed": { productId: "bank-statement", guidelineUrl: GMCC_PPT_FOLDER },
-  "GMCC DSCR Rental Flow":         { productId: "dscr", guidelineUrl: GMCC_PPT_FOLDER },
+  "GMCC Fabulous Jumbo":       { productId: "fabulous-program", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20Fabulous%20-%20AUS%20jumbo.pptx?d=wbd3caa7c5f294a2695e36a1555480b9b&csf=1&web=1&e=WF6PIU" },
 
-  // No flyer yet — guideline button only
-  "GMCC Community Opportunity":    { guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/GMCC%20Celebrity%20-%20Community%20program.pptx?d=wa3ccdd5bb1b348088858ee48b5faa8ce&csf=1&web=1&e=mc3fue" },
-  "GMCC WVOE P&L":                 { guidelineUrl: GMCC_PPT_FOLDER },
+  // ── Community Lending Programs (CRA) ──────────────────────────────────────
+  "GMCC CRA: Celebrity $10K Grant":              { productId: "celebrity-10k", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%2010K%20Grant%20(FHA%20only)-%20CA%20MA,%20GA,%20NC,%20SC%20%20v7%205-29-2025.pptx?d=w4721a487aad64e749e884ee57a4ce086&csf=1&web=1&e=YyakVa" },
+  "GMCC CRA: Celebrity Community Opportunity":   { guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/GMCC%20Celebrity%20-%20Community%20program.pptx?d=wa3ccdd5bb1b348088858ee48b5faa8ce&csf=1&web=1&e=mc3fue" },
+  "GMCC CRA: Celebrity Forgivable $10K DPA 2nd": { productId: "forgivable-15k", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Celebrity%20Forgivable%20loan.pptx?d=w285e6457f8de42059865678d47c1b6a7&csf=1&web=1&e=omhTuc" },
+  "GMCC CRA: Cronus Grand Slam":                 { productId: "grandslam", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
+  "GMCC CRA: Cronus Special Conforming":         { productId: "conforming-special", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Cronus%20SPCP,%20Home%20Run,%20CRA%208-8-2024.pptx?d=w719601fc686a4c14bfdbf08dc226ef0c&csf=1&web=1&e=bWeW06" },
+  "GMCC CRA: Cronus Jumbo CRA":                  { productId: "jumbo-cra", guidelineUrl:"https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Cronus%20Jumbo%20CRA%201.2.24.pdf?csf=1&web=1&e=iRQFYD" },
+  "GMCC CRA: Diamond CRA":                       { productId: "diamond-community-lending", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20CRA%20programs.pptx?d=w8ff4ac9ad1cc4de08b6c4262a0a60302&csf=1&web=1&e=ZN2Si0" },
+  "GMCC Celebrity Jumbo":      { productId: "celebrity-jumbo", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Celebrity%20Jumbo%20with%20Asset%20Depletion%20Updated%20on%2007-07-2024%20(1).pptx?d=wb9ce8eb4c48e4179a06c304cb549bb3a&csf=1&web=1&e=4pRUIh" },
 };
 
 /** Returns true if this program has a flyer that can be generated. */
@@ -37,14 +37,19 @@ export function programHasFlyer(name: string): boolean {
   return !!PROGRAM_CONFIG[name]?.productId;
 }
 
-/** Preferred display order for highlighted programs. Lower = first. Unlisted programs sort last. */
+/** Preferred display order for highlighted (hot) programs. Lower index = shown first. */
 const HIGHLIGHTED_ORDER: string[] = [
-  "GMCC Ocean",
-  "GMCC Universe",
-  "GMCC Radiant",
-  "GMCC Jumbo CRA",
   "GMCC Buy Without Sell First",
+  "GMCC Universe",
+  "GMCC Massive",
+  "GMCC Diamond Express",
   "GMCC DSCR Rental Flow",
+  "GMCC Ocean",
+  "GMCC Hermes",
+  "GMCC Radiant",
+  "GMCC WVOE P&L",
+  "GMCC Bank Statement Self Employed",
+  "GMCC Fabulous Jumbo",
 ];
 
 /** Sort programs by preferred display order. Programs not in the order list appear after those that are. */

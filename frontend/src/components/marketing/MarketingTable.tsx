@@ -59,7 +59,7 @@ const PER_PAGE = 20;
 
 const FLYER_URL = "https://mlo.joingmcc.com/marketing/flyers";
 const DIAMOND_DISCLAIMER =
-  "IMPORTANT: GMCC Diamond CRA eligibility shown is preliminary. Census tract and property eligibility must be verified. Verify at: https://hub.collateralanalytics.com/correspondentsearch";
+  "IMPORTANT: GMCC CRA: Diamond CRA eligibility shown is preliminary. Census tract and property eligibility must be verified. Verify at: https://hub.collateralanalytics.com/correspondentsearch";
 
 function escCsv(val: string): string {
   if (val.includes(",") || val.includes('"') || val.includes("\n")) {

@@ -492,7 +492,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
               {secondary.length > 0 && (
                 <div className="mt-6">
                   <div className="mb-3 flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-700">Additional Programs</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">Community Lending Programs</h3>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-500">
                       {secondary.length}
                     </span>
