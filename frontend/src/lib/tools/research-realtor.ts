@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { getBaseUrl } from "@/lib/tools/utils";
 
 export function createResearchRealtorTool() {
   return tool({
@@ -22,7 +23,7 @@ export function createResearchRealtorTool() {
       try {
         // Call existing realtor-research API route (handles Gemini + caching internally)
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/api/realtor-research`,
+          `${getBaseUrl()}/api/realtor-research`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

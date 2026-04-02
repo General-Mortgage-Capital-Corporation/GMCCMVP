@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
+import { getBaseUrl } from "@/lib/tools/utils";
 
 interface DraftEmailContext {
   signatureHtml: string;
@@ -42,7 +43,7 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
 
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/api/suggest-email`,
+          `${getBaseUrl()}/api/suggest-email`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

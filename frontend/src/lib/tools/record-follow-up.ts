@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { getBaseUrl } from "@/lib/tools/utils";
 
 interface AuthContext {
   firebaseToken: string;
@@ -42,7 +43,7 @@ export function createRecordFollowUpTool(auth: AuthContext) {
 
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/api/follow-up/record`,
+          `${getBaseUrl()}/api/follow-up/record`,
           {
             method: "POST",
             headers: {
