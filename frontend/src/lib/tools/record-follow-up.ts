@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getBaseUrl } from "@/lib/tools/utils";
+import { recordFollowUp } from "@/lib/services/follow-up";
 
 interface AuthContext {
   firebaseToken: string;
@@ -42,44 +42,29 @@ export function createRecordFollowUpTool(auth: AuthContext) {
       }
 
       try {
-        const res = await fetch(
-          `${getBaseUrl()}/api/follow-up/record`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${auth.firebaseToken}`,
-            },
-            body: JSON.stringify({
-              recipientEmail: input.recipientEmail,
-              recipientName: input.recipientName,
-              recipientType: input.recipientType,
-              subject: input.subject,
-              body: input.body?.slice(0, 500),
-              propertyAddress: input.propertyAddress,
-              programNames: input.programNames,
-              userEmail: auth.userEmail,
-              followUpDays: input.followUpDays,
-              followUpMode: input.followUpMode,
-            }),
-            signal: AbortSignal.timeout(15_000),
-          },
-        );
+        const result = await recordFollowUp({
+          firebaseToken: auth.firebaseToken,
+          userEmail: auth.userEmail,
+          recipientEmail: input.recipientEmail,
+          recipientName: input.recipientName,
+          recipientType: input.recipientType,
+          subject: input.subject,
+          body: input.body?.slice(0, 500),
+          propertyAddress: input.propertyAddress,
+          programNames: input.programNames,
+          followUpDays: input.followUpDays,
+          followUpMode: input.followUpMode,
+        });
 
-        if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as { error?: string };
-          return { error: err.error ?? "Failed to record follow-up." };
-        }
-
-        const data = (await res.json()) as { id: string };
         return {
           success: true,
-          followUpId: data.id,
+          followUpId: result.id,
           scheduledIn: `${input.followUpDays} days`,
           mode: input.followUpMode,
         };
-      } catch {
-        return { error: "Failed to record follow-up." };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to record follow-up.";
+        return { error: msg };
       }
     },
   });

@@ -11,17 +11,23 @@ export const runtime = "nodejs";
 /** GET — load a conversation or list all conversations */
 export async function GET(req: NextRequest) {
   const userId = req.headers.get("X-User-Email");
-  if (!userId) return NextResponse.json({ messages: [], conversations: [] });
+  if (!userId) {
+    console.warn("[chat-history] GET — no X-User-Email header");
+    return NextResponse.json({ messages: [], conversations: [] });
+  }
 
   const convId = req.nextUrl.searchParams.get("id");
 
   // If conversation ID provided, load that conversation
   if (convId) {
+    console.log(`[chat-history] GET messages for conv=${convId} user=${userId}`);
     const messages = await getChatMessages(userId, convId);
+    console.log(`[chat-history] Result: ${messages ? messages.length + " messages" : "null"}`);
     return NextResponse.json({ messages: messages ?? [] });
   }
 
   // Otherwise list all conversations
+  console.log(`[chat-history] GET index for user=${userId}`);
   const conversations = await getChatIndex(userId);
   return NextResponse.json({ conversations });
 }
@@ -38,7 +44,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
   }
 
-  await setChatMessages(userId, conversationId, messages, title ?? "Untitled");
+  const error = await setChatMessages(userId, conversationId, messages, title ?? "Untitled");
+  if (error) {
+    return NextResponse.json({ ok: false, error }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 

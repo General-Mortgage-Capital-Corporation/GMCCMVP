@@ -266,20 +266,56 @@ export interface ConversationMeta {
 }
 
 export async function getChatMessages(userId: string, convId: string): Promise<unknown[] | null> {
+  const key = chatKey(userId, convId);
   try {
-    const data = await getCacheValue<unknown[]>(chatKey(userId, convId));
-    return Array.isArray(data) ? data : null;
-  } catch { return null; }
+    const redis = getRedis();
+    if (!redis) {
+      console.warn("[chat-cache] Redis not configured — cannot load messages");
+      return null;
+    }
+    const data = await redis.get<unknown[]>(key);
+    if (data == null) {
+      console.log(`[chat-cache] GET ${key} → null (key missing or expired)`);
+      return null;
+    }
+    if (!Array.isArray(data)) {
+      console.error(`[chat-cache] GET ${key} → unexpected type: ${typeof data}`);
+      return null;
+    }
+    console.log(`[chat-cache] GET ${key} → ${data.length} messages`);
+    return data;
+  } catch (err) {
+    console.error(`[chat-cache] GET ${key} FAILED:`, err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
+/** Returns null on success, or an error string on failure. */
 export async function setChatMessages(
   userId: string,
   convId: string,
   messages: unknown[],
   title: string,
-): Promise<void> {
+): Promise<string | null> {
+  const key = chatKey(userId, convId);
   try {
-    await setCacheValue(chatKey(userId, convId), messages, CHAT_TTL);
+    // Check payload size — Upstash has a 1MB per-request limit
+    const payload = JSON.stringify(messages);
+    const sizeKB = Math.round(payload.length / 1024);
+    if (payload.length > 950_000) {
+      console.error(`[chat-cache] SET ${key} SKIPPED — payload too large: ${sizeKB}KB`);
+      return `Conversation too large to save (${sizeKB}KB). Upstash limit is ~1MB.`;
+    }
+
+    const redis = getRedis();
+    if (!redis) {
+      console.warn("[chat-cache] Redis not configured — cannot save messages");
+      return "Redis not configured";
+    }
+
+    await redis.set(key, messages, { ex: CHAT_TTL });
+    console.log(`[chat-cache] SET ${key} → ${messages.length} messages, ${sizeKB}KB, TTL=${CHAT_TTL}s`);
+
     // Update conversation index
     const index = await getChatIndex(userId);
     const existing = index.findIndex((c) => c.id === convId);
@@ -296,15 +332,32 @@ export async function setChatMessages(
     }
     // Keep max 20 conversations
     const trimmed = index.slice(0, 20);
-    await setCacheValue(chatIndexKey(userId), trimmed, CHAT_TTL);
-  } catch { /* ignore */ }
+    await redis.set(chatIndexKey(userId), trimmed, { ex: CHAT_TTL });
+    console.log(`[chat-cache] INDEX updated — ${trimmed.length} conversations`);
+    return null;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[chat-cache] SET ${key} FAILED:`, msg);
+    return `Save failed: ${msg}`;
+  }
 }
 
 export async function getChatIndex(userId: string): Promise<ConversationMeta[]> {
+  const key = chatIndexKey(userId);
   try {
-    const data = await getCacheValue<ConversationMeta[]>(chatIndexKey(userId));
-    return Array.isArray(data) ? (data as ConversationMeta[]) : [];
-  } catch { return []; }
+    const redis = getRedis();
+    if (!redis) {
+      console.warn("[chat-cache] Redis not configured — cannot load index");
+      return [];
+    }
+    const data = await redis.get<ConversationMeta[]>(key);
+    if (!Array.isArray(data)) return [];
+    console.log(`[chat-cache] INDEX ${key} → ${data.length} conversations`);
+    return data;
+  } catch (err) {
+    console.error(`[chat-cache] INDEX ${key} FAILED:`, err instanceof Error ? err.message : err);
+    return [];
+  }
 }
 
 export async function clearChatMessages(userId: string, convId: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getBaseUrl } from "@/lib/tools/utils";
+import { researchRealtor } from "@/lib/services/realtor-research";
 
 export function createResearchRealtorTool() {
   return tool({
@@ -21,41 +21,24 @@ export function createResearchRealtorTool() {
       }
 
       try {
-        // Call existing realtor-research API route (handles Gemini + caching internally)
-        const res = await fetch(
-          `${getBaseUrl()}/api/realtor-research`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, company, city, state }),
-            signal: AbortSignal.timeout(115_000),
-          },
-        );
-
-        if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as { error?: string };
-          return { error: err.error ?? "Research failed." };
-        }
-
-        const data = (await res.json()) as {
-          research: {
-            summary: string;
-            specialties: string[];
-            personalHooks: string[];
-            confidence: string;
-          };
-          cached: boolean;
-        };
+        const { research, cached } = await researchRealtor({
+          name,
+          email,
+          company,
+          city,
+          state,
+        });
 
         return {
-          summary: data.research.summary,
-          specialties: data.research.specialties,
-          personalHooks: data.research.personalHooks,
-          confidence: data.research.confidence,
-          cached: data.cached,
+          summary: research.summary,
+          specialties: research.specialties,
+          personalHooks: research.personalHooks,
+          confidence: research.confidence,
+          cached,
         };
-      } catch {
-        return { error: "Realtor research timed out or failed." };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Realtor research failed.";
+        return { error: msg };
       }
     },
   });

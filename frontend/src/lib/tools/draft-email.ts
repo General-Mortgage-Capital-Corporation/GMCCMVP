@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
-import { getBaseUrl } from "@/lib/tools/utils";
+import { generateEmailDraft } from "@/lib/services/email-draft";
 
 interface DraftEmailContext {
   signatureHtml: string;
@@ -42,42 +42,29 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
       }
 
       try {
-        const res = await fetch(
-          `${getBaseUrl()}/api/suggest-email`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipientType: input.recipientType,
-              userPrompt: input.userPrompt,
-              programName: input.programName,
-              propertyAddress: input.propertyAddress,
-              listingPrice: input.listingPrice,
-              realtorName: input.recipientName,
-              realtorEmail: input.recipientEmail,
-              loName: input.loName,
-              realtorResearch: input.realtorResearch,
-              hasSignature: true,
-            }),
-            signal: AbortSignal.timeout(100_000),
-          },
-        );
+        const { subject, body } = await generateEmailDraft({
+          recipientType: input.recipientType,
+          recipientName: input.recipientName,
+          recipientEmail: input.recipientEmail,
+          programName: input.programName,
+          propertyAddress: input.propertyAddress,
+          listingPrice: input.listingPrice,
+          loName: input.loName,
+          userPrompt: input.userPrompt,
+          realtorResearch: input.realtorResearch,
+          hasSignature: true,
+        });
 
-        if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as { error?: string };
-          return { error: err.error ?? "Email draft failed." };
-        }
-
-        const data = (await res.json()) as { subject: string; body: string };
         return {
-          subject: data.subject,
-          body: data.body,
+          subject,
+          body,
           signatureNote:
             "Your saved email signature and GMCC company disclaimer will be appended automatically when sent.",
           companyDisclaimer: COMPANY_DISCLAIMER,
         };
-      } catch {
-        return { error: "Email draft timed out or failed." };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Email draft failed.";
+        return { error: msg };
       }
     },
   });
