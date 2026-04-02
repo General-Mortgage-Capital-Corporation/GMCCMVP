@@ -18,8 +18,39 @@ interface ChatMessageProps {
   addToolOutput: AddToolOutputFn;
 }
 
+const TOOL_CHIP_LABELS: Record<string, string> = {
+  searchProperties: "Property Search",
+  matchPrograms: "Program Match",
+  lookupPrograms: "Programs",
+  queryAdmiral: "Admiral",
+  searchKnowledge: "Knowledge",
+  webSearch: "Web Search",
+  searchByProgram: "Coverage",
+  checkCRAEligibility: "CRA Check",
+  researchRealtor: "Realtor Research",
+  draftEmail: "Draft Email",
+  sendEmail: "Send Email",
+  generateFlyer: "Flyer",
+  generateCsv: "CSV",
+  recordFollowUp: "Follow-Up",
+  searchSentEmails: "Sent Emails",
+};
+
+function formatToolChip(toolName: string): string {
+  return TOOL_CHIP_LABELS[toolName] ?? toolName;
+}
+
 export default function ChatMessage({ message, addToolOutput }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const usedTools = !isUser
+    ? Array.from(
+        new Set(
+          message.parts
+            .filter((part) => isToolUIPart(part))
+            .map((part) => getToolName(part)),
+        ),
+      )
+    : [];
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -30,6 +61,19 @@ export default function ChatMessage({ message, addToolOutput }: ChatMessageProps
             : "bg-gray-50 text-gray-800 border border-gray-100"
         }`}
       >
+        {!isUser && usedTools.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {usedTools.map((tool) => (
+              <span
+                key={`${message.id}-tool-chip-${tool}`}
+                className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[0.65rem] font-medium text-gray-600"
+              >
+                {formatToolChip(tool)}
+              </span>
+            ))}
+          </div>
+        )}
+
         {message.parts.map((part, i) => {
           const key = `${message.id}-${i}`;
 

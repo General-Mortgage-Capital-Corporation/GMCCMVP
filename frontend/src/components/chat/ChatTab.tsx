@@ -25,6 +25,14 @@ interface ConversationMeta {
   messageCount: number;
 }
 
+type HistoryErrorAction = "retry-index" | "retry-conversation" | "retry-save" | "retry-delete";
+
+interface HistoryErrorState {
+  message: string;
+  action?: HistoryErrorAction;
+  convId?: string;
+}
+
 function generateConvId(): string {
   return `conv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -45,7 +53,7 @@ export default function ChatTab() {
   const activeConvIdRef = useRef<string>(generateConvId());
   const [activeConvId, setActiveConvIdState] = useState(activeConvIdRef.current);
   const [initDone, setInitDone] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<HistoryErrorState | null>(null);
 
   useEffect(() => {
     userEmailRef.current = user?.email ?? null;
@@ -80,6 +88,9 @@ export default function ChatTab() {
       transport,
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     });
+  const lastSaveAttemptRef = useRef<{ msgs: typeof messages; convId: string } | null>(null);
+
+  const clearHistoryError = useCallback(() => setHistoryError(null), []);
 
   // ── Helper: fetch conversation list ───────────────────────────────────────
 
@@ -96,15 +107,15 @@ export default function ChatTab() {
       const data = await r.json();
       const convs = (data.conversations ?? []) as ConversationMeta[];
       setConversations(convs);
-      setHistoryError(null);
+      clearHistoryError();
       return convs;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load conversation list";
       console.error("[chat] Failed to load index:", err);
-      setHistoryError(message);
+      setHistoryError({ message, action: "retry-index" });
       return [];
     }
-  }, []);
+  }, [clearHistoryError]);
 
   // ── Helper: fetch messages for a conversation ─────────────────────────────
 
@@ -125,14 +136,14 @@ export default function ChatTab() {
         } else {
           throw new Error("Conversation is empty or no longer available.");
         }
-        setHistoryError(null);
+        clearHistoryError();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load conversation";
         console.error("[chat] Failed to load conversation:", err);
-        setHistoryError(message);
+        setHistoryError({ message, action: "retry-conversation", convId });
       }
     },
-    [setMessages],
+    [setMessages, clearHistoryError],
   );
 
   // ── Init: load index + most recent conversation ───────────────────────────
@@ -168,6 +179,7 @@ export default function ChatTab() {
     (msgs: typeof messages, convId: string) => {
       const email = userEmailRef.current;
       if (!email || msgs.length === 0) return;
+      lastSaveAttemptRef.current = { msgs, convId };
 
       const firstUserMsg = msgs.find((m) => m.role === "user");
       const title =
@@ -187,7 +199,7 @@ export default function ChatTab() {
           if (!r.ok) {
             throw new Error(`Failed to save conversation (${r.status})`);
           }
-          setHistoryError(null);
+          clearHistoryError();
           return r;
         })
         .then(() => {
@@ -205,10 +217,10 @@ export default function ChatTab() {
         .catch((err) => {
           const message = err instanceof Error ? err.message : "Failed to save conversation";
           console.error("[chat] Failed to save conversation:", err);
-          setHistoryError(message);
+          setHistoryError({ message, action: "retry-save", convId });
         });
     },
-    [],
+    [clearHistoryError],
   );
 
   useEffect(() => {
@@ -227,8 +239,25 @@ export default function ChatTab() {
   const handleNewChat = useCallback(() => {
     setActiveConvId(generateConvId());
     setMessages([]);
-    setHistoryError(null);
+    clearHistoryError();
   }, [setMessages]);
+
+  const deleteConversationRemote = useCallback(
+    async (convId: string) => {
+      const email = userEmailRef.current;
+      if (!email) return;
+
+      const r = await fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
+        method: "DELETE",
+        headers: { "X-User-Email": email },
+      });
+      if (!r.ok) {
+        throw new Error(`Failed to delete conversation (${r.status})`);
+      }
+      clearHistoryError();
+    },
+    [clearHistoryError],
+  );
 
   // ── Delete conversation ───────────────────────────────────────────────────
 
@@ -242,16 +271,41 @@ export default function ChatTab() {
         handleNewChat();
       }
 
-      fetch(`/api/chat/history?id=${encodeURIComponent(convId)}`, {
-        method: "DELETE",
-        headers: { "X-User-Email": email },
-      }).catch((err) => {
+      deleteConversationRemote(convId).catch((err) => {
+        const message = err instanceof Error ? err.message : "Failed to delete conversation";
         console.error("[chat] Failed to delete conversation:", err);
-        setHistoryError("Failed to delete conversation.");
+        setHistoryError({ message, action: "retry-delete", convId });
       });
     },
-    [handleNewChat],
+    [handleNewChat, deleteConversationRemote],
   );
+
+  const retryHistoryAction = useCallback(() => {
+    if (!historyError) return;
+
+    if (historyError.action === "retry-index") {
+      void fetchIndex();
+      return;
+    }
+    if (historyError.action === "retry-conversation") {
+      const convId = historyError.convId ?? activeConvIdRef.current;
+      void fetchMessages(convId);
+      return;
+    }
+    if (historyError.action === "retry-save") {
+      const lastSave = lastSaveAttemptRef.current;
+      if (lastSave) {
+        saveConversation(lastSave.msgs, lastSave.convId);
+      }
+      return;
+    }
+    if (historyError.action === "retry-delete" && historyError.convId) {
+      void deleteConversationRemote(historyError.convId).catch((err) => {
+        const message = err instanceof Error ? err.message : "Failed to delete conversation";
+        setHistoryError({ message, action: "retry-delete", convId: historyError.convId });
+      });
+    }
+  }, [historyError, fetchIndex, fetchMessages, saveConversation, deleteConversationRemote]);
 
   // ── Submit message ────────────────────────────────────────────────────────
 
@@ -384,7 +438,25 @@ export default function ChatTab() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
           {historyError && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              {historyError}
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{historyError.message}</span>
+                {historyError.action && (
+                  <button
+                    type="button"
+                    onClick={retryHistoryAction}
+                    className="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                  >
+                    Retry
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={clearHistoryError}
+                  className="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
 

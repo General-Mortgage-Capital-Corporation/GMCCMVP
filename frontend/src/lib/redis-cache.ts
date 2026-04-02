@@ -237,7 +237,18 @@ export async function setCachedRealtorResearch(name: string, email: string, comp
 // Chat conversation persistence
 // ---------------------------------------------------------------------------
 
-const CHAT_TTL = 4 * 24 * 60 * 60; // 4 days
+const DEFAULT_CHAT_TTL_DAYS = 4;
+
+function getChatTtlSeconds(): number {
+  const raw = process.env.CHAT_TTL_DAYS;
+  const parsedDays = raw ? Number(raw) : DEFAULT_CHAT_TTL_DAYS;
+  if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+    return DEFAULT_CHAT_TTL_DAYS * 24 * 60 * 60;
+  }
+  return Math.floor(parsedDays * 24 * 60 * 60);
+}
+
+const CHAT_TTL = getChatTtlSeconds();
 
 function chatKey(userId: string, convId: string): string {
   return `chat:conv:${sha256(userId)}:${convId}`;
