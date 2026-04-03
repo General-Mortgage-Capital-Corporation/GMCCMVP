@@ -22,6 +22,7 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [dismissing, setDismissing] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<ViewTab>("follow-ups");
+  const [clearing, setClearing] = useState(false);
 
   // Inline compose state
   const [composingId, setComposingId] = useState<string | null>(null);
@@ -85,6 +86,26 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
       }
     } finally {
       setDismissing(null);
+    }
+  }
+
+  async function handleClearAll() {
+    if (!confirm("Delete all sent emails and follow-ups from the dashboard? This cannot be undone.")) return;
+    setClearing(true);
+    try {
+      const token = await getIdToken();
+      if (!token) return;
+      const res = await fetch("/api/follow-up/list", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setPendingItems([]);
+        setSentItems([]);
+        setRepliedItems([]);
+      }
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -331,11 +352,20 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-800">Email Dashboard</span>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClearAll}
+              disabled={clearing}
+              className="rounded px-2 py-1 text-[0.65rem] font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+            >
+              {clearing ? "Clearing..." : "Clear All"}
+            </button>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
+          </div>
         </div>
 
         {/* AI Disclaimer Banner */}
