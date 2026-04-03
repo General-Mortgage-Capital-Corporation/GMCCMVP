@@ -50,12 +50,34 @@ export async function POST(req: Request) {
     } catch { /* ignore decode errors */ }
   }
 
+  // Decode LO profile info (name, title, NMLS, phone)
+  const loHeader = req.headers.get("X-LO-Info") ?? "";
+  let loInfo: { name?: string; nmls?: string; phone?: string; email?: string; title?: string } = {};
+  if (loHeader) {
+    try {
+      loInfo = JSON.parse(decodeURIComponent(escape(atob(loHeader))));
+    } catch { /* ignore */ }
+  }
+
+  // Build user context block for the system prompt
+  const userContext = [
+    loInfo.name && `Name: ${loInfo.name}`,
+    loInfo.title && `Title: ${loInfo.title}`,
+    loInfo.nmls && `NMLS#: ${loInfo.nmls}`,
+    loInfo.phone && `Phone: ${loInfo.phone}`,
+    userEmail && `Email: ${userEmail}`,
+  ].filter(Boolean).join("\n");
+
+  const personalizedPrompt = userContext
+    ? `${SYSTEM_PROMPT}\n\n## Current User (Loan Officer)\n${userContext}\n\nAlways use this information when drafting emails, referencing the loan officer, or personalizing content. Never use placeholders like "[Your Name]" — use the real name above.`
+    : SYSTEM_PROMPT;
+
   const authContext = { firebaseToken, msalToken, userEmail, signatureHtml };
 
   // Construct agent per-request with auth-bound tools
   const agent = new ToolLoopAgent({
     model: "google/gemini-3-flash",
-    instructions: SYSTEM_PROMPT,
+    instructions: personalizedPrompt,
     tools: {
       // Phase 1 tools (no auth needed)
       searchProperties: searchPropertiesTool,

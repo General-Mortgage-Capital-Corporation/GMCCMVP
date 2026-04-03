@@ -10,6 +10,7 @@ import ChatMessage from "./ChatMessage";
 import ConversationSidebar from "./ConversationSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSignatureHtml } from "@/lib/signature-store";
+import { getLOInfo } from "@/lib/lo-info-store";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
 
 const SUGGESTED_PROMPTS = [
@@ -82,6 +83,9 @@ export default function ChatTab() {
           // Pass email signature for server-side email sending
           const sig = getSignatureHtml();
           if (sig) headers["X-Email-Signature"] = btoa(unescape(encodeURIComponent(sig)));
+          // Pass LO profile info so the agent knows the user's name/title/NMLS
+          const lo = getLOInfo();
+          if (lo.name) headers["X-LO-Info"] = btoa(unescape(encodeURIComponent(JSON.stringify(lo))));
           return headers;
         },
       }),
