@@ -283,12 +283,12 @@ export default function EmailModal({
       onClick={onClose}
     >
       <div
-        className="relative flex w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
-          <span className="text-sm font-semibold text-gray-800">
+          <span className="text-base font-semibold text-gray-800">
             Email Flyer — {programName}
           </span>
           <button
@@ -308,7 +308,7 @@ export default function EmailModal({
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className={`mr-4 border-b-2 pb-2 text-xs font-medium transition-colors ${
+                className={`mr-4 border-b-2 pb-2 text-sm font-medium transition-colors ${
                   tab === id
                     ? "border-red-600 text-red-600"
                     : "border-transparent text-gray-500 hover:text-gray-700"
@@ -323,8 +323,8 @@ export default function EmailModal({
             {sent ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
                 <div className="text-2xl mb-1">✓</div>
-                <p className="text-sm font-medium text-emerald-800">Email sent successfully!</p>
-                <p className="text-xs text-emerald-600 mt-0.5">
+                <p className="text-base font-medium text-emerald-800">Email sent successfully!</p>
+                <p className="text-sm text-emerald-600 mt-0.5">
                   Sent to {toEmail}{ccEmail.trim() ? ` (CC: ${ccEmail.trim()})` : ""}{sentWithSig ? " — with your signature attached" : ""}.
                 </p>
                 <button
@@ -340,7 +340,7 @@ export default function EmailModal({
                 <div className="space-y-2">
                   {showNameField && (
                     <div>
-                      <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                      <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                         Recipient Name
                       </label>
                       <input
@@ -348,12 +348,12 @@ export default function EmailModal({
                         value={toName}
                         onChange={(e) => setToName(e.target.value)}
                         placeholder={tab === "realtor" ? "Realtor name" : "Borrower name"}
-                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className="w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                       />
                     </div>
                   )}
                   <div>
-                    <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                    <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                       To Email
                     </label>
                     <input
@@ -362,14 +362,14 @@ export default function EmailModal({
                       onChange={(e) => setToEmail(e.target.value)}
                       readOnly={tab === "myself"}
                       placeholder="recipient@example.com"
-                      className={`w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
+                      className={`w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
                         tab === "myself" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
                   </div>
                   {tab !== "myself" && (
                     <div>
-                      <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                      <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                         CC <span className="normal-case font-normal text-gray-400">(optional)</span>
                       </label>
                       <input
@@ -377,7 +377,7 @@ export default function EmailModal({
                         value={ccEmail}
                         onChange={(e) => setCcEmail(e.target.value)}
                         placeholder="cc@example.com"
-                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className="w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                       />
                     </div>
                   )}
@@ -393,7 +393,7 @@ export default function EmailModal({
                   )}
 
                   <div>
-                    <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                    <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                       Subject
                     </label>
                     <input
@@ -401,19 +401,19 @@ export default function EmailModal({
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
                       placeholder="Email subject"
-                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                      className="w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                     />
                   </div>
                   <div>
-                    <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                    <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                       Body
                     </label>
                     <textarea
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
-                      rows={6}
+                      rows={8}
                       placeholder="Email body..."
-                      className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
+                      className="w-full rounded-md border border-gray-200 px-3.5 py-2 text-base leading-relaxed text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
                     />
                   </div>
                 </div>
@@ -421,10 +421,10 @@ export default function EmailModal({
                 {/* AI Assist — not shown for "myself" (auto-generated) */}
                 {tab !== "myself" && (
                   <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
-                    <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-violet-700">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
                       AI Assist — Gemini
                     </p>
-                    <p className="text-xs text-violet-600">
+                    <p className="text-sm text-violet-600">
                       Describe how you'd like the email written (tone, focus, length, etc.)
                     </p>
                     <div className="flex gap-2">
@@ -438,12 +438,12 @@ export default function EmailModal({
                             : 'e.g. "Friendly, explain the program briefly"'
                         }
                         rows={1}
-                        className="flex-1 resize-none rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                        className="flex-1 resize-none rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
                       />
                       <button
                         onClick={handleAiSuggest}
                         disabled={aiLoading || !aiPrompt.trim()}
-                        className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-40"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-40"
                       >
                         {aiLoading ? <LoadingSpinner size="sm" /> : null}
                         {aiLoading ? "Generating…" : "Generate"}
@@ -458,7 +458,7 @@ export default function EmailModal({
                 )}
 
                 {/* Attachment indicator */}
-                <div className="flex items-center gap-2 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                <div className="flex items-center gap-2 rounded-md border border-gray-100 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-500">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                     <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
                     <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -468,14 +468,14 @@ export default function EmailModal({
 
                 {/* Signature status */}
                 {hasSignature() ? (
-                  <div className="flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                  <div className="flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     Your signature + company disclaimer will be attached
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4h2v5H7V4zm0 6h2v2H7v-2z" fill="currentColor" />
                     </svg>
@@ -504,14 +504,14 @@ export default function EmailModal({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={onClose}
-                      className="text-xs text-gray-400 hover:text-gray-600"
+                      className="text-sm text-gray-400 hover:text-gray-600"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleSend}
                       disabled={sending}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       {sending && <LoadingSpinner size="sm" />}
                       {sending ? "Sending…" : "Send Email"}
