@@ -9,6 +9,13 @@ interface AuthContext {
   signatureHtml: string;
 }
 
+// Track sent emails within this request to prevent duplicates from auto-recovery
+const sentEmails = new Set<string>();
+
+function dedupKey(to: string, subject: string): string {
+  return `${to.toLowerCase()}::${subject.toLowerCase()}`;
+}
+
 export function createSendEmailTool(auth: AuthContext) {
   return tool({
     description:
@@ -31,6 +38,17 @@ export function createSendEmailTool(auth: AuthContext) {
         .describe("Filename for the attachment, e.g. 'GMCC-Jumbo-CRA-flier.pdf'"),
     }),
     execute: async (input) => {
+      // Prevent duplicate sends from auto-recovery retries
+      const key = dedupKey(input.to, input.subject);
+      if (sentEmails.has(key)) {
+        return {
+          success: true,
+          sentTo: input.to,
+          subject: input.subject,
+          note: "This email was already sent (duplicate prevented).",
+        };
+      }
+
       if (!auth.userEmail) {
         return { error: "User not signed in. Sign in with Outlook to send emails." };
       }
@@ -91,6 +109,9 @@ export function createSendEmailTool(auth: AuthContext) {
       if (!result.ok) {
         return { error: result.error ?? "Failed to send email." };
       }
+
+      // Mark as sent to prevent duplicates from auto-recovery
+      sentEmails.add(key);
 
       return {
         success: true,

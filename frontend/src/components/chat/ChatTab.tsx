@@ -344,8 +344,9 @@ export default function ChatTab() {
   const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentSnapshot = messages.map((m) => `${m.id}:${m.parts.length}`).join("|");
 
+  // Auto-retry on error — only once, and only if not already a retry message
   useEffect(() => {
-    if (status === "error" && messages.length > 0 && retryCount.current < 2) {
+    if (status === "error" && messages.length > 0 && retryCount.current < 1) {
       const lastMsg = messages[messages.length - 1];
       const lastText = lastMsg?.parts?.[0];
       if (
@@ -359,7 +360,7 @@ export default function ChatTab() {
       const timer = setTimeout(() => {
         retryCount.current += 1;
         sendMessage({ text: "Continue from where you left off." });
-      }, 1500);
+      }, 2000);
       return () => clearTimeout(timer);
     }
     if (status === "ready") {
@@ -367,6 +368,8 @@ export default function ChatTab() {
     }
   }, [status, messages, sendMessage]);
 
+  // Stall detection — stop the stream but do NOT auto-send a retry.
+  // The user will see the "Continue" button instead.
   useEffect(() => {
     if (stallTimer.current) clearTimeout(stallTimer.current);
     const isProcessingNow = status === "streaming" || status === "submitted";
@@ -376,20 +379,15 @@ export default function ChatTab() {
         lastPartsSnapshot.current = currentSnapshot;
       }
       stallTimer.current = setTimeout(() => {
-        if (retryCount.current < 2) {
-          retryCount.current += 1;
-          stop();
-          setTimeout(() => {
-            sendMessage({ text: "Continue from where you left off." });
-          }, 1000);
-        }
-      }, 90_000);
+        console.warn("[chat] Stream stalled for 120s — stopping");
+        stop();
+      }, 120_000);
     }
 
     return () => {
       if (stallTimer.current) clearTimeout(stallTimer.current);
     };
-  }, [currentSnapshot, status, messages.length, stop, sendMessage]);
+  }, [currentSnapshot, status, messages.length, stop]);
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
 
