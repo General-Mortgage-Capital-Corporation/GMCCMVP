@@ -606,16 +606,30 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                 </button>
               </div>
 
-              <button
-                onClick={() => setShowSummaryModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                Summary &amp; Email
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed"
+                  title="Pricing comparison engine coming soon"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <path d="M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+                  </svg>
+                  Compare Pricing
+                  <span className="rounded bg-gray-200 px-1 py-0.5 text-[0.55rem] font-semibold uppercase leading-none tracking-wider text-gray-500">Soon</span>
+                </button>
+                <button
+                  onClick={() => setShowSummaryModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  Summary &amp; Email
+                </button>
+              </div>
             </div>
           </div>
         )}
