@@ -1,97 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { generateEmailDraft } from "@/lib/services/email-draft";
 
 export const runtime = "nodejs";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
-const GEMINI_MODEL = "gemini-2.5-flash";
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json({ error: "AI suggestions not configured." }, { status: 503 });
-  }
-
   const body = await req.json().catch(() => null);
   if (!body?.recipientType || !body?.userPrompt) {
     return NextResponse.json({ error: "recipientType and userPrompt are required." }, { status: 400 });
   }
 
-  const {
-    recipientType,
-    userPrompt,
-    programName,
-    propertyAddress,
-    listingPrice,
-    realtorName,
-    realtorEmail,
-    loName,
-  } = body as Record<string, string>;
-  const hasSignature = !!(body as Record<string, unknown>).hasSignature;
-  const realtorResearch = (body as Record<string, unknown>).realtorResearch as string | undefined;
-
-  const recipientLabel =
-    recipientType === "realtor" ? `a real estate agent named ${realtorName || "the agent"}` :
-    recipientType === "borrower" ? "a prospective home buyer (borrower)" :
-    "themselves (self-reference note)";
-
-  const priceFormatted = listingPrice
-    ? `$${Number(listingPrice).toLocaleString()}`
-    : "price not specified";
-
-  const researchBlock = realtorResearch
-    ? `\n\nResearch on the recipient:\n${realtorResearch}\n\nPersonalization guidance: Use the research to make a genuine connection to the loan program being marketed. For example, if the agent specializes in an area where this program shines, mention that. If they work with first-time buyers and the program suits that, connect those dots. Pick the most relevant detail — don't force it or list everything.`
-    : "";
-
-  const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write an email.
-
-Context:
-- Loan Officer: ${loName || "the loan officer"} at GMCC
-- Recipient: ${recipientLabel}${realtorEmail ? ` (${realtorEmail})` : ""}
-- Property: ${propertyAddress || "property address not specified"}, listed at ${priceFormatted}
-- GMCC Loan Program: ${programName || "GMCC program"}
-- A PDF flier for this program will be attached to the email${researchBlock}
-
-The loan officer's instructions: ${userPrompt}
-
-Tone: Professional but warm and conversational — like a knowledgeable colleague reaching out, not a corporate mass email. Write like a real person, not a template.
-
-Write a concise email (2–4 short paragraphs). Include an appropriate salutation (e.g. "Hi [Name],") at the top.
-${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing (e.g. "Best regards,\\n${loName || "the loan officer"}") at the bottom. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
-
-Respond ONLY with valid JSON in this exact format (no markdown, no code block):
-{"subject":"...","body":"..."}
-
-The body should be plain text with line breaks using \\n.`;
-
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 5000 },
-        }),
-        signal: AbortSignal.timeout(30_000),
-      },
-    );
+    const result = await generateEmailDraft({
+      recipientType: body.recipientType,
+      recipientName: body.realtorName,
+      recipientEmail: body.realtorEmail,
+      programName: body.programName,
+      propertyAddress: body.propertyAddress,
+      listingPrice: body.listingPrice,
+      loName: body.loName,
+      userPrompt: body.userPrompt,
+      realtorResearch: body.realtorResearch,
+      hasSignature: !!body.hasSignature,
+    });
 
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
-      const detail = errBody.error?.message ?? `Gemini HTTP ${res.status}`;
-      return NextResponse.json({ error: `AI service error: ${detail}` }, { status: 502 });
-    }
-
-    const data = await res.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-    // Strip markdown code blocks if Gemini wraps the JSON
-    const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-    const parsed = JSON.parse(cleaned) as { subject: string; body: string };
-
-    return NextResponse.json({ subject: parsed.subject, body: parsed.body });
+    return NextResponse.json(result);
   } catch (err) {
     console.error("[suggest-email] error:", err);
     const msg = err instanceof Error ? err.message : String(err);

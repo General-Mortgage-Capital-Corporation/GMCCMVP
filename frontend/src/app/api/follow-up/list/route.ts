@@ -66,3 +66,40 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ items: items.slice(0, 50) });
 }
+
+/** DELETE — clear all sent emails for the authenticated user */
+export async function DELETE(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization");
+  const idToken = authHeader?.replace("Bearer ", "");
+  if (!idToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const uid = await verifyIdToken(idToken);
+  if (!uid) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  }
+
+  const db = getDb();
+  if (!db) {
+    return NextResponse.json({ error: "Firestore not configured" }, { status: 503 });
+  }
+
+  const snapshot = await db
+    .collection("sentEmails")
+    .where("userId", "==", uid)
+    .limit(500)
+    .get();
+
+  if (snapshot.empty) {
+    return NextResponse.json({ deleted: 0 });
+  }
+
+  const batch = db.batch();
+  for (const doc of snapshot.docs) {
+    batch.delete(doc.ref);
+  }
+  await batch.commit();
+
+  return NextResponse.json({ deleted: snapshot.size });
+}

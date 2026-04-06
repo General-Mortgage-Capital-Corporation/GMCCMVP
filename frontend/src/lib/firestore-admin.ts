@@ -58,3 +58,18 @@ export async function verifyIdToken(idToken: string): Promise<string | null> {
     return null;
   }
 }
+
+/** Verify a Firebase ID token and return the uid + email. Returns null on failure. */
+export async function verifyIdTokenWithEmail(
+  idToken: string,
+): Promise<{ uid: string; email: string } | null> {
+  const auth = getAdminAuth();
+  if (!auth) return null;
+  try {
+    const decoded = await auth.verifyIdToken(idToken);
+    if (!decoded.email) return null;
+    return { uid: decoded.uid, email: decoded.email.toLowerCase() };
+  } catch {
+    return null;
+  }
+}
