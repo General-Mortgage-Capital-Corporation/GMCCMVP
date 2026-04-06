@@ -1,11 +1,28 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { readFileSync, readdirSync } from "fs";
+import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
-// Directories
-const KNOWLEDGE_DIR = join(process.cwd(), "..", "data", "knowledge");
-const PROGRAMS_DIR = join(process.cwd(), "..", "data", "programs");
+// Resolve data directories. The data lives at <repo-root>/data/{knowledge,programs}.
+// Locally (`npm run dev` from frontend/), process.cwd() is `frontend/` so we
+// reach it via `../data`. On Vercel, outputFileTracingRoot is hoisted to the
+// repo root in next.config.ts, so process.cwd() inside the deployed function
+// is that root and we reach the data via `data` directly. Try both so this
+// works in either environment without conditional env checks.
+function resolveDataDir(name: "knowledge" | "programs"): string {
+  const candidates = [
+    join(process.cwd(), "data", name),
+    join(process.cwd(), "..", "data", name),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  // Fall back to the first candidate so error messages are stable.
+  return candidates[0];
+}
+
+const KNOWLEDGE_DIR = resolveDataDir("knowledge");
+const PROGRAMS_DIR = resolveDataDir("programs");
 
 // ---------------------------------------------------------------------------
 // Types

@@ -5,22 +5,52 @@ import {
   clearChatMessages,
   getChatIndex,
 } from "@/lib/redis-cache";
-import { verifyIdToken } from "@/lib/firestore-admin";
+import { verifyIdTokenWithEmail } from "@/lib/firestore-admin";
 
 export const runtime = "nodejs";
 
-/** Verify Firebase token and return user email, or null + response. */
+/**
+ * Verify Firebase token and return the authenticated user's email.
+ *
+ * Auth contract:
+ * - Authorization: Bearer <Firebase ID token> is REQUIRED.
+ * - X-User-Email is used as the storage key, but it MUST match the email
+ *   embedded in the verified token. This prevents an attacker with a
+ *   valid token for their own account from spoofing another user's email
+ *   to read/write/delete that user's chat history.
+ */
 async function authenticateRequest(
   req: NextRequest,
 ): Promise<{ userId: string } | { response: NextResponse }> {
-  const userId = req.headers.get("X-User-Email");
-  const idToken = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!userId) return { response: NextResponse.json({ messages: [], conversations: [] }) };
-  if (idToken) {
-    const uid = await verifyIdToken(idToken);
-    if (!uid) return { response: NextResponse.json({ error: "Invalid token" }, { status: 401 }) };
+  const headerEmail = req.headers.get("X-User-Email")?.toLowerCase() ?? "";
+  const idToken = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+
+  if (!idToken || !headerEmail) {
+    return {
+      response: NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      ),
+    };
   }
-  return { userId };
+
+  const verified = await verifyIdTokenWithEmail(idToken);
+  if (!verified) {
+    return {
+      response: NextResponse.json({ error: "Invalid token" }, { status: 401 }),
+    };
+  }
+
+  if (verified.email !== headerEmail) {
+    return {
+      response: NextResponse.json(
+        { error: "Token/email mismatch" },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return { userId: verified.email };
 }
 
 /** GET — load a conversation or list all conversations */

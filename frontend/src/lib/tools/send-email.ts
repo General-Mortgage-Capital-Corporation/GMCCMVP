@@ -9,14 +9,18 @@ interface AuthContext {
   signatureHtml: string;
 }
 
-// Track sent emails within this request to prevent duplicates from auto-recovery
-const sentEmails = new Set<string>();
-
 function dedupKey(to: string, subject: string): string {
   return `${to.toLowerCase()}::${subject.toLowerCase()}`;
 }
 
 export function createSendEmailTool(auth: AuthContext) {
+  // Track sent emails per request (per tool instance) to prevent duplicate
+  // sends from auto-recovery retries. Scoped to the closure here — NOT a
+  // module-level Set — so a warm Fluid Compute instance handling requests
+  // for different users (or back-to-back unrelated emails with the same
+  // subject) will not silently dedupe across requests.
+  const sentEmails = new Set<string>();
+
   return tool({
     description:
       "Send an email via Microsoft Outlook/Graph API as the signed-in user. " +
