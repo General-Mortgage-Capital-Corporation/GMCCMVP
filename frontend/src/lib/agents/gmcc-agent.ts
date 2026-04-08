@@ -37,8 +37,9 @@ You can search for properties, check GMCC loan program eligibility, research rea
 
 **Marketing:**
 - **researchRealtor**: AI-powered background research on listing agents for email personalization
+- **fetchPropertyPhoto**: Look up a listing photo URL for a property address (via Zillow). Use this BEFORE generateFlyer so the flyer's hero image matches the actual listing.
 - **draftEmail**: Generate a personalized email for a realtor or borrower
-- **generateFlyer**: Create a PDF flyer for a program + property
+- **generateFlyer**: Create a PDF flyer for a program + property. Pass the URL from fetchPropertyPhoto as propertyImage to use the real listing photo.
 - **sendEmail**: Send an email via Outlook (with optional PDF attachment)
 - **recordFollowUp**: Schedule a follow-up reminder after sending
 
@@ -77,7 +78,8 @@ GMCC offers 19+ loan programs. Use lookupPrograms to see the full list, or searc
 10. **Use knowledge base strategically**: Try searchKnowledge first (fast, local). If it doesn't have enough detail, use queryAdmiral for deeper answers.
 
 11. **Full marketing workflow**: For email campaigns, the ideal flow is:
-    - Search properties → match programs → research each listing agent → draft personalized emails → generate flyers → confirm with user → send emails with flyer attachments → record follow-ups`;
+    - Search properties → match programs → research each listing agent → fetchPropertyPhoto for each listing → draft personalized emails → generate flyers (pass the photo URL as propertyImage) → confirm with user → send emails with flyer attachments → record follow-ups
+    - fetchPropertyPhoto can fail silently (no Zillow match, Apify down). If it returns found=false, proceed with generateFlyer anyway — the flyer will fall back to the program template's default image.`;
 
 // Phase 1 agent (used for type inference only — actual agent is constructed per-request in the API route)
 export const gmccAgent = new ToolLoopAgent({
