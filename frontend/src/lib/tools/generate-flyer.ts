@@ -52,6 +52,8 @@ export function createGenerateFlyerTool(auth: AuthContext) {
       "Generate a PDF flyer for a GMCC program + property combination. " +
       "Pass the program name as it appears in match results (e.g. 'GMCC CRA: Cronus Jumbo CRA'). " +
       "Returns the flyer as base64 PDF that can be attached to emails. " +
+      "Pass propertyImage (a URL from fetchPropertyPhoto) to use the real listing " +
+      "photo as the flyer hero image — otherwise the program's default image is used. " +
       "Requires the user to be signed in.",
     inputSchema: z.object({
       programName: z
@@ -59,6 +61,13 @@ export function createGenerateFlyerTool(auth: AuthContext) {
         .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC CRA: Diamond CRA'"),
       address: z.string().optional().describe("Property address"),
       listingPrice: z.string().optional().describe("Listing price"),
+      propertyImage: z
+        .url()
+        .optional()
+        .describe(
+          "Public URL of the property's hero photo (ideally from fetchPropertyPhoto). " +
+            "Used as the flyer's main image. Omit to use the program template's default image.",
+        ),
       realtorName: z.string().optional(),
       realtorPhone: z.string().optional(),
       realtorEmail: z.string().optional(),
@@ -81,11 +90,14 @@ export function createGenerateFlyerTool(auth: AuthContext) {
           productId,
           data: {
             loanOfficer: { userId: auth.userEmail },
-            ...(input.address || input.listingPrice
+            ...(input.address || input.listingPrice || input.propertyImage
               ? {
                   property: {
                     ...(input.address ? { address: input.address } : {}),
                     ...(input.listingPrice ? { listingPrice: input.listingPrice } : {}),
+                    // Cloud Function expects the image URL under `photo`
+                    // (matches /api/generate-flier/route.ts:46).
+                    ...(input.propertyImage ? { photo: input.propertyImage } : {}),
                   },
                 }
               : {}),
