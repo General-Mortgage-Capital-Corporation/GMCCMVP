@@ -42,6 +42,20 @@ function excludeTypes(listing: RentCastListing) {
 export default function Home() {
   const { user, signIn, getIdToken } = useAuth();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  // Announcement banner for the AI Marketing Agent.
+  //
+  // Behavior: shows on up to AGENT_ANNOUNCE_MAX_VIEWS page loads, then hides
+  // itself so LOs get multiple chances to notice it without it becoming
+  // permanent noise. Explicit × dismiss OR visiting the chat tab hides it
+  // immediately and forever (on that browser).
+  //
+  // Persisted under a versioned localStorage key so bumping
+  // AGENT_ANNOUNCE_VERSION will reset the counter and re-announce to
+  // everyone later on.
+  const AGENT_ANNOUNCE_VERSION = "v1";
+  const AGENT_ANNOUNCE_KEY = `gmcc-announce-agent-${AGENT_ANNOUNCE_VERSION}`;
+  const AGENT_ANNOUNCE_MAX_VIEWS = 5;
+  const [agentAnnounceVisible, setAgentAnnounceVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpCount, setFollowUpCount] = useState(0);
@@ -159,6 +173,55 @@ export default function Home() {
       .then((r) => setProgramLocations(r.programs))
       .catch(() => {});
   }, []);
+
+  // Load AI agent announcement state from localStorage on mount.
+  //
+  // Storage format (string):
+  //   "dismissed"     → user explicitly closed or visited chat; never show.
+  //   "<integer>"     → number of times shown so far. Show again iff < MAX.
+  //   (no value)      → first ever visit; show and record "1".
+  //
+  // This effect runs once on mount, counts this page load as a view if the
+  // banner is still eligible, and writes the incremented count back.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(AGENT_ANNOUNCE_KEY);
+      if (stored === "dismissed") {
+        setAgentAnnounceVisible(false);
+        return;
+      }
+      const views = stored ? parseInt(stored, 10) : 0;
+      if (Number.isNaN(views) || views >= AGENT_ANNOUNCE_MAX_VIEWS) {
+        setAgentAnnounceVisible(false);
+        return;
+      }
+      // Eligible — show it and count this view.
+      setAgentAnnounceVisible(true);
+      localStorage.setItem(AGENT_ANNOUNCE_KEY, String(views + 1));
+    } catch {
+      // localStorage blocked → keep banner hidden rather than flashing it on
+      // every page load with no way to remember a dismissal.
+      setAgentAnnounceVisible(false);
+    }
+    // AGENT_ANNOUNCE_KEY / MAX_VIEWS are stable constants derived from
+    // literals above — intentionally omitted from deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Permanently dismiss the announcement once the user actually opens the
+  // chat tab — they've discovered it, no reason to keep nagging.
+  useEffect(() => {
+    if (activeTab === "chat" && agentAnnounceVisible) {
+      setAgentAnnounceVisible(false);
+      try { localStorage.setItem(AGENT_ANNOUNCE_KEY, "dismissed"); } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, agentAnnounceVisible]);
+
+  function dismissAgentAnnouncement() {
+    setAgentAnnounceVisible(false);
+    try { localStorage.setItem(AGENT_ANNOUNCE_KEY, "dismissed"); } catch { /* ignore */ }
+  }
 
   // ── Follow-up notification count ───────────────────────────────────────
   const refreshFollowUpCount = useCallback(async () => {
@@ -458,6 +521,56 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* AI Marketing Agent announcement banner */}
+      {agentAnnounceVisible && (
+        <div className="border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <span className="inline-flex shrink-0 items-center rounded-full bg-blue-600 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-white">
+                New
+              </span>
+              <p className="min-w-0 text-sm text-blue-900">
+                <span className="font-semibold">AI Marketing Agent</span>
+                <span className="hidden sm:inline">
+                  {" "}— describe what you want and it searches, matches programs, drafts emails, and attaches flyers for you. Try it in the{" "}
+                  <span className="font-medium">AI Agent</span> tab.
+                </span>
+                <span className="sm:hidden"> is live in the AI Agent tab.</span>
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href="https://youtu.be/e2KjpPjIjmQ"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                  <path d="M5 3.5v9l7-4.5-7-4.5z" />
+                </svg>
+                <span className="hidden sm:inline">Watch demo</span>
+                <span className="sm:hidden">Demo</span>
+              </a>
+              <button
+                onClick={() => handleTabChange("chat")}
+                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Try it
+              </button>
+              <button
+                onClick={dismissAgentAnnouncement}
+                className="p-2 text-blue-400 transition-colors hover:text-blue-600"
+                aria-label="Dismiss"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sign-in nudge banner */}
       {!user && !bannerDismissed && (
