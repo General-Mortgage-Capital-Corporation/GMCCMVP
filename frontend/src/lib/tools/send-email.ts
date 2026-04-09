@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
-import { getPdf } from "@/lib/tools/flyer-store";
+import { getArtifact } from "@/lib/tools/flyer-store";
 import { buildHtmlBodyWithSignature } from "@/lib/signature-store";
 
 interface AuthContext {
@@ -94,7 +94,8 @@ export function createSendEmailTool(auth: AuthContext) {
 
       // Resolve flyer PDF from server-side store
       if (input.flyerRef) {
-        const pdfBase64 = getPdf(input.flyerRef);
+        const pdfEntry = await getArtifact(input.flyerRef);
+        const pdfBase64 = pdfEntry?.base64 ?? null;
         if (!pdfBase64) {
           return { error: `Flyer "${input.flyerRef}" not found or expired. Please regenerate.` };
         }

@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { storePdf } from "@/lib/tools/flyer-store";
+import { storeArtifact } from "@/lib/tools/flyer-store";
 
 const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 
@@ -134,7 +134,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
         const base64 = Buffer.from(pdfBytes).toString("base64");
 
         // Store PDF server-side to avoid bloating conversation context
-        const flyerRef = storePdf(base64);
+        const flyerRef = await storeArtifact("pdf", base64);
 
         return {
           success: true,
