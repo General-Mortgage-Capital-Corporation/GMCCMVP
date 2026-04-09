@@ -9,6 +9,7 @@ import SearchResultsPart from "./parts/SearchResultsPart";
 import MatchResultsPart from "./parts/MatchResultsPart";
 import GenericToolPart from "./parts/GenericToolPart";
 import EmailPreviewPart from "./parts/EmailPreviewPart";
+import CsvDownloadPart from "./parts/CsvDownloadPart";
 import MarkdownText from "./MarkdownText";
 
 type AddToolOutputFn = ReturnType<typeof useChat<GmccAgentUIMessage>>["addToolOutput"];
@@ -127,6 +128,17 @@ export default function ChatMessage({ message, addToolOutput }: ChatMessageProps
                 <EmailPreviewPart
                   key={key}
                   toolName={toolName}
+                  state={part.state}
+                  output={output}
+                />
+              );
+            }
+
+            // generateCsv gets a download button + row preview
+            if (toolName === "generateCsv") {
+              return (
+                <CsvDownloadPart
+                  key={key}
                   state={part.state}
                   output={output}
                 />

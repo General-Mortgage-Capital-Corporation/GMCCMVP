@@ -26,13 +26,18 @@ interface MatchResult {
 
 export default function MatchResultsPart({ part }: MatchResultsPartProps) {
   if (part.state === "input-streaming" || part.state === "input-available") {
+    // Count may come from either the inline listings or a server-side
+    // datasetRef (which we can't introspect from the client). Fall back
+    // to "a batch of" when only the ref is present.
     const count =
-      part.state === "input-available" ? part.input.listings.length : 0;
+      part.state === "input-available"
+        ? (part.input.listings?.length ?? 0)
+        : 0;
     return (
       <div className="my-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-400" />
-          Checking {count || "…"} properties against GMCC programs…
+          Checking {count > 0 ? count : "a batch of"} properties against GMCC programs…
         </div>
       </div>
     );

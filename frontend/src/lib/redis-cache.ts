@@ -69,32 +69,64 @@ async function writeLocalCacheStore(store: LocalCacheStore): Promise<void> {
   await writeFile(LOCAL_CACHE_FILE, JSON.stringify(store, null, 2), "utf8");
 }
 
+// ── Local cache serialization ────────────────────────────────────────────
+//
+// The local file cache is a read-modify-write store: every mutation reads
+// the whole JSON, edits it, and writes it back. Multiple concurrent writes
+// would race — each reads the same initial state, then the last write
+// wins and clobbers the others. This bit us when searchProperties fired
+// a fire-and-forget rentcast cache write in parallel with an awaited
+// storeDataset write — the rentcast write consistently overwrote the
+// dataset entry, causing the immediately-following matchPrograms to
+// report "Dataset … not found".
+//
+// Fix: funnel every mutation through a single promise chain. Reads are
+// also routed through the chain so they see the post-write state of any
+// pending mutation (critical for the searchProperties → matchPrograms
+// handoff that happens within the same request).
+
+let _localCacheChain: Promise<unknown> = Promise.resolve();
+
+function runLocalCacheOp<T>(op: () => Promise<T>): Promise<T> {
+  const next = _localCacheChain.then(op, op);
+  // Keep the chain alive even if this op throws, and don't hold refs to
+  // old results in memory.
+  _localCacheChain = next.catch(() => undefined);
+  return next;
+}
+
 async function getLocalCacheValue<T>(key: string): Promise<T | null> {
-  const store = await readLocalCacheStore();
-  const entry = store.entries[key];
-  if (!entry) return null;
-  if (entry.expiresAt != null && entry.expiresAt <= Date.now()) {
-    delete store.entries[key];
-    await writeLocalCacheStore(store);
-    return null;
-  }
-  return entry.value as T;
+  return runLocalCacheOp(async () => {
+    const store = await readLocalCacheStore();
+    const entry = store.entries[key];
+    if (!entry) return null;
+    if (entry.expiresAt != null && entry.expiresAt <= Date.now()) {
+      delete store.entries[key];
+      await writeLocalCacheStore(store);
+      return null;
+    }
+    return entry.value as T;
+  });
 }
 
 async function setLocalCacheValue(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
-  const store = await readLocalCacheStore();
-  store.entries[key] = {
-    value,
-    expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
-  };
-  await writeLocalCacheStore(store);
+  return runLocalCacheOp(async () => {
+    const store = await readLocalCacheStore();
+    store.entries[key] = {
+      value,
+      expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
+    };
+    await writeLocalCacheStore(store);
+  });
 }
 
 async function deleteLocalCacheValue(key: string): Promise<void> {
-  const store = await readLocalCacheStore();
-  if (!(key in store.entries)) return;
-  delete store.entries[key];
-  await writeLocalCacheStore(store);
+  return runLocalCacheOp(async () => {
+    const store = await readLocalCacheStore();
+    if (!(key in store.entries)) return;
+    delete store.entries[key];
+    await writeLocalCacheStore(store);
+  });
 }
 
 async function getCacheValue<T>(key: string): Promise<T | null> {
@@ -230,6 +262,57 @@ export async function getCachedRealtorResearch(name: string, email: string, comp
 export async function setCachedRealtorResearch(name: string, email: string, company: string, research: AgentResearch): Promise<void> {
   try {
     await setCacheValue(realtorCacheKey(name, email, company), research, REALTOR_TTL);
+  } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// Agent binary artifacts (PDFs, CSVs) — 30-minute TTL
+// ---------------------------------------------------------------------------
+//
+// These replace the old in-memory Maps in lib/tools/flyer-store.ts and
+// lib/tools/dataset-store.ts. The Maps broke in two scenarios:
+//   1. Next.js dev HMR reloads the module → Map reinitialized empty → the
+//      download button 404s on the csvRef that was valid moments earlier.
+//   2. Vercel Fluid Compute: the download request can land on a different
+//      warm instance from the one that generated the artifact, with an
+//      empty Map.
+// Moving to the shared Redis/local-cache layer fixes both.
+
+const AGENT_ARTIFACT_TTL = 30 * 60; // 30 minutes
+const AGENT_DATASET_TTL = 30 * 60;  // 30 minutes
+
+interface AgentArtifactEntry {
+  kind: "pdf" | "csv";
+  base64: string;
+  filename?: string;
+}
+
+export async function getAgentArtifact(ref: string): Promise<AgentArtifactEntry | null> {
+  try {
+    return await getCacheValue<AgentArtifactEntry>(`agent:artifact:${ref}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function setAgentArtifact(ref: string, entry: AgentArtifactEntry): Promise<void> {
+  try {
+    await setCacheValue(`agent:artifact:${ref}`, entry, AGENT_ARTIFACT_TTL);
+  } catch { /* ignore */ }
+}
+
+export async function getAgentDataset(ref: string): Promise<unknown[] | null> {
+  try {
+    const data = await getCacheValue<unknown[]>(`agent:dataset:${ref}`);
+    return Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setAgentDataset(ref: string, rows: unknown[]): Promise<void> {
+  try {
+    await setCacheValue(`agent:dataset:${ref}`, rows, AGENT_DATASET_TTL);
   } catch { /* ignore */ }
 }
 

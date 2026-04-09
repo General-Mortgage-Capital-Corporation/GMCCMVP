@@ -8,6 +8,7 @@ import {
   type Listing,
 } from "@/lib/rentcast";
 import { getCachedRentcastSearch, setCachedRentcastSearch } from "@/lib/redis-cache";
+import { storeDataset, type DatasetRow } from "@/lib/tools/dataset-store";
 
 const API_KEY = process.env.RENTCAST_API_KEY ?? "";
 
@@ -30,24 +31,50 @@ export const searchPropertiesTool = tool({
   description:
     "Search for active real estate listings near an address, city, or zip code. " +
     "Returns properties with address, price, beds, baths, sqft, days on market, and listing agent info. " +
-    "Supports filtering by property type, price range, bedrooms, and sorting. " +
-    "By default shows 25 results — if there are more available, the response will say so and you should let the user know they can request more.",
+    "Supports filtering by property type, price range, bedrooms, and sorting.\n\n" +
+    "IMPORTANT — pick maxResults based on intent, do NOT always use the default:\n" +
+    "• Location browsing ('near me', 'close to X', 'around this area') → 25 (closest first)\n" +
+    "• 'Show me a few', 'top 5', 'top 10' → match the exact number asked\n" +
+    "• Mass marketing, email campaigns, realtor outreach in a city/county → 100 (the cap)\n" +
+    "• 'How many listings in X', statistics/counts → 100 (need the full picture)\n" +
+    "• 'Show me all / every listing' → 100 (and tell the user 100 is the per-call ceiling if more exist)\n" +
+    "• Program-matching/CRA analysis across a market → 100\n" +
+    "If the response has moreAvailable=true, tell the user how many were found vs shown and suggest narrowing by program, price, bedrooms, or property type.",
   inputSchema: z.object({
-    query: z.string().describe("Address, city name, or zip code to search near"),
+    query: z
+      .string()
+      .optional()
+      .describe(
+        "Full address, landmark, or zip code for a radius search — only use this when the user wants listings 'near' a specific point. " +
+          "For whole-city searches (e.g. 'listings in Campbell CA'), prefer the city + state inputs instead.",
+      ),
+    city: z
+      .string()
+      .optional()
+      .describe(
+        "City name for an exact-city filter (e.g. 'Campbell', 'San Jose'). " +
+          "When provided, MUST be paired with state. Returns only listings whose city matches exactly — " +
+          "this is what you want for 'all listings in <city>' or mass-marketing questions. Do NOT combine with query.",
+      ),
+    state: z
+      .string()
+      .length(2)
+      .optional()
+      .describe("Two-letter state code (e.g. 'CA', 'NY'). Required when city is provided."),
     radius: z
       .number()
       .min(1)
       .max(50)
       .default(5)
-      .describe("Search radius in miles (1-50). Default 5."),
+      .describe("Search radius in miles (1-50). Only used with query or latitude/longitude. Default 5."),
     latitude: z
       .number()
       .optional()
-      .describe("Optional latitude for precise center point"),
+      .describe("Optional latitude for precise center point (pair with longitude)"),
     longitude: z
       .number()
       .optional()
-      .describe("Optional longitude for precise center point"),
+      .describe("Optional longitude for precise center point (pair with latitude)"),
     // Filters — passed to RentCast API
     propertyType: z
       .enum(["Single Family", "Condo", "Townhouse", "Multi-Family", "Manufactured", "Apartment"])
@@ -74,9 +101,17 @@ export const searchPropertiesTool = tool({
       .default(DEFAULT_SHOW)
       .describe("How many results to return (5-100). Default 25. Use higher values when user asks to see more."),
   }),
-  execute: async ({ query, radius, latitude, longitude, propertyType, minPrice, maxPrice, bedrooms, bathrooms, sortBy, sortOrder, maxResults }) => {
+  execute: async ({ query, city, state, radius, latitude, longitude, propertyType, minPrice, maxPrice, bedrooms, bathrooms, sortBy, sortOrder, maxResults }) => {
     if (!API_KEY) {
       return { error: "RentCast API key not configured.", listings: [] };
+    }
+
+    // Validate mode: exactly one of (city+state), (lat+lng), (query), or (zip via query).
+    if (city && !state) {
+      return { error: "When searching by city, state is required (e.g. state: 'CA').", listings: [] };
+    }
+    if (!city && !query && latitude == null && longitude == null) {
+      return { error: "Provide either city+state, a query (address/zip), or latitude+longitude.", listings: [] };
     }
 
     try {
@@ -85,14 +120,21 @@ export const searchPropertiesTool = tool({
         limit: String(MAX_LIMIT),
       });
 
-      const isZip = /^\d{5}$/.test(query);
-      if (isZip) {
-        params.set("zipCode", query);
+      // Priority order:
+      //   1. city + state → exact city filter (no radius geocoding drift)
+      //   2. latitude + longitude → precise center point
+      //   3. query as 5-digit zip → zipCode filter
+      //   4. query as address → address + radius (may bleed into neighbors)
+      if (city && state) {
+        params.set("city", city);
+        params.set("state", state.toUpperCase());
       } else if (latitude != null && longitude != null) {
         params.set("latitude", String(latitude));
         params.set("longitude", String(longitude));
         params.set("radius", String(radius));
-      } else {
+      } else if (query && /^\d{5}$/.test(query)) {
+        params.set("zipCode", query);
+      } else if (query) {
         params.set("address", query);
         params.set("radius", String(radius));
       }
@@ -140,24 +182,51 @@ export const searchPropertiesTool = tool({
       const totalAvailable = listings.length;
       const cap = Math.min(maxResults, totalAvailable);
 
-      // Return compact summary
-      const compact = listings.slice(0, cap).map((l) => ({
-        address: l.formattedAddress ?? "Unknown",
-        price: l.price ?? null,
-        propertyType: (l as Record<string, unknown>).propertyType as string | undefined ?? null,
-        bedrooms: (l as Record<string, unknown>).bedrooms as number | undefined ?? null,
-        bathrooms: (l as Record<string, unknown>).bathrooms as number | undefined ?? null,
-        sqft: (l as Record<string, unknown>).squareFootage as number | undefined ?? null,
-        daysOnMarket: (l as Record<string, unknown>).daysOnMarket as number | undefined ?? null,
-        distance: l.distance ? Math.round(l.distance * 10) / 10 : null,
-        listingAgent: (l as Record<string, unknown>).listingAgent as Record<string, unknown> | undefined ?? null,
-        listingOffice: (l as Record<string, unknown>).listingOffice as Record<string, unknown> | undefined ?? null,
-        latitude: l.latitude,
-        longitude: l.longitude,
-        state: (l as Record<string, unknown>).state as string | undefined,
-        county: (l as Record<string, unknown>).county as string | undefined,
-        countyFips: l.countyFips,
-        stateFips: l.stateFips,
+      // Flatten to the shared DatasetRow shape. This is the FULL record —
+      // stored server-side under a datasetRef so generateCsv can pull it
+      // back without round-tripping every field through the LLM.
+      const fullRows: DatasetRow[] = listings.slice(0, cap).map((l) => {
+        const raw = l as Record<string, unknown>;
+        const agent = (raw.listingAgent ?? {}) as Record<string, unknown>;
+        const office = (raw.listingOffice ?? {}) as Record<string, unknown>;
+        const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+        const num = (v: unknown) => (typeof v === "number" ? v : undefined);
+        return {
+          address: str(l.formattedAddress) ?? "Unknown",
+          city: str(raw.city) ?? null,
+          state: str(raw.state) ?? null,
+          zipCode: str(raw.zipCode) ?? null,
+          county: str(raw.county) ?? null,
+          propertyType: str(raw.propertyType) ?? null,
+          price: num(raw.price) ?? null,
+          bedrooms: num(raw.bedrooms) ?? null,
+          bathrooms: num(raw.bathrooms) ?? null,
+          sqft: num(raw.squareFootage) ?? null,
+          daysOnMarket: num(raw.daysOnMarket) ?? null,
+          distance: l.distance ? Math.round(l.distance * 10) / 10 : null,
+          listingAgentName: str(agent.name) ?? null,
+          listingAgentEmail: str(agent.email) ?? null,
+          listingAgentPhone: str(agent.phone) ?? null,
+          listingOfficeName: str(office.name) ?? null,
+          latitude: l.latitude,
+          longitude: l.longitude,
+          countyFips: l.countyFips,
+          stateFips: l.stateFips,
+        };
+      });
+
+      const datasetRef = await storeDataset(fullRows);
+
+      // Compact display view for the LLM — ~5 fields per row instead of 20.
+      // Keeps the tool result under a few KB even at 100 listings so the
+      // model doesn't stall on tool-output → next-turn roundtrips.
+      const compact = fullRows.map((r) => ({
+        address: r.address,
+        city: r.city,
+        price: r.price,
+        bedrooms: r.bedrooms,
+        bathrooms: r.bathrooms,
+        daysOnMarket: r.daysOnMarket,
       }));
 
       return {
@@ -167,6 +236,10 @@ export const searchPropertiesTool = tool({
         ...(totalAvailable > cap
           ? { note: `Showing ${cap} of ${totalAvailable} properties. Ask me to show more or adjust filters if needed.` }
           : {}),
+        // datasetRef points at the full rows on the server. Pass this to
+        // matchPrograms or generateCsv to operate on the full dataset
+        // without round-tripping every field through the LLM.
+        datasetRef,
         listings: compact,
       };
     } catch (err) {

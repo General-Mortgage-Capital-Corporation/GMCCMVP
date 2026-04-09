@@ -188,16 +188,21 @@ export default function SignatureEditor() {
         onInput={updateEmpty}
         onPaste={updateEmpty}
         className="min-h-[120px] max-h-[300px] overflow-y-auto rounded-b-lg border border-t-0 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 [&_a]:text-blue-600 [&_a]:underline [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
-        data-placeholder="Paste your email signature here, or type one..."
+        data-placeholder={"Your Name\nLoan Officer  ·  NMLS# 0000000\nphone  ·  email@gmccloan.com\n\nPaste an existing signature from Outlook/Gmail, or type one above."}
         style={{ wordBreak: "break-word" }}
       />
 
-      {/* Placeholder styling for empty contentEditable */}
+      {/* Placeholder styling for empty contentEditable. white-space: pre-line
+          honors \n characters in the data-placeholder attribute so the
+          multi-line template renders as separate lines. */}
       <style>{`
         [contenteditable][data-placeholder]:empty::before {
           content: attr(data-placeholder);
           color: #9ca3af;
           pointer-events: none;
+          white-space: pre-line;
+          display: block;
+          line-height: 1.45;
         }
       `}</style>
 
