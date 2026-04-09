@@ -7,7 +7,25 @@ import { formatNumber, formatCurrency, formatPct } from "@/lib/utils";
 // Criterion status icons
 // ---------------------------------------------------------------------------
 
-export function StatusIcon({ status }: { status: CriterionStatus }) {
+/**
+ * StatusIcon
+ *
+ * By default renders:
+ *   pass       → green check
+ *   fail       → red X
+ *   unverified → neutral grey question-mark
+ *
+ * Pass `variant="warning"` to override the unverified icon to an amber
+ * warning triangle — used for unit_count on Multi-Family listings where
+ * the ambiguity is load-bearing and should catch the LO's eye.
+ */
+export function StatusIcon({
+  status,
+  variant,
+}: {
+  status: CriterionStatus;
+  variant?: "warning";
+}) {
   if (status === "pass") {
     return (
       <span className="mt-0.5 shrink-0 text-emerald-500">
@@ -22,6 +40,18 @@ export function StatusIcon({ status }: { status: CriterionStatus }) {
       <span className="mt-0.5 shrink-0 text-red-500">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
           <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
+  // unverified
+  if (variant === "warning") {
+    return (
+      <span className="mt-0.5 shrink-0 text-amber-500">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5l6.5 12H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M8 6v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="8" cy="11.75" r="0.9" fill="currentColor" />
         </svg>
       </span>
     );
@@ -155,17 +185,46 @@ export function CensusPanel({ census }: { census: CensusData }) {
 export function CriteriaGrid({ criteria }: { criteria: CriterionResult[] }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {criteria.map((c, idx) => (
-        <div key={`${c.criterion}-${idx}`} className="flex items-start gap-1.5">
-          <StatusIcon status={c.status} />
-          <div>
-            <div className="text-xs uppercase tracking-wide text-gray-400">
-              {c.criterion.replace(/_/g, " ")}
+      {criteria.map((c, idx) => {
+        // Unit count on an unverified Multi-Family / Apartment listing is the
+        // single most important warning on this panel — it's the difference
+        // between "this is a duplex that qualifies for CRA" and "this is a
+        // 14-unit apartment building that legally cannot qualify." Give it a
+        // full-width amber callout so it can't be skimmed past.
+        const isUnitCountWarning =
+          c.criterion === "unit_count" && c.status === "unverified";
+
+        if (isUnitCountWarning) {
+          return (
+            <div
+              key={`${c.criterion}-${idx}`}
+              className="sm:col-span-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5"
+            >
+              <StatusIcon status={c.status} variant="warning" />
+              <div className="min-w-0">
+                <div className="text-[0.7rem] font-semibold uppercase tracking-wide text-amber-700">
+                  Unit count not verified — action required
+                </div>
+                <div className="mt-0.5 text-[0.8125rem] leading-relaxed text-amber-900">
+                  {c.detail}
+                </div>
+              </div>
             </div>
-            <div className="text-[0.8125rem] text-gray-700">{c.detail}</div>
+          );
+        }
+
+        return (
+          <div key={`${c.criterion}-${idx}`} className="flex items-start gap-1.5">
+            <StatusIcon status={c.status} />
+            <div>
+              <div className="text-xs uppercase tracking-wide text-gray-400">
+                {c.criterion.replace(/_/g, " ")}
+              </div>
+              <div className="text-[0.8125rem] text-gray-700">{c.detail}</div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

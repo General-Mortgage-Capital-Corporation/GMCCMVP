@@ -17,13 +17,21 @@ PROPERTY_TYPE_UNITS: dict[str, int | None] = {
     "Single Family": 1,
     "Condo": 1,
     "Townhouse": 1,
-    "Multi-Family": None,  # Range: 2-4, checked via PROPERTY_TYPE_UNIT_RANGES
+    "Multi-Family": None,  # Unknown — RentCast covers duplex through 50+ units
     "Manufactured": 1,
     "Apartment": None,  # Unknown
     "Land": None,  # N/A
 }
 
-# For types where exact unit count is unknown but the range is bounded
-PROPERTY_TYPE_UNIT_RANGES: dict[str, list[int]] = {
-    "Multi-Family": [2, 3, 4],
-}
+# For types where exact unit count is unknown but the range is bounded.
+#
+# NOTE: Multi-Family was previously listed here as [2, 3, 4]. That was wrong —
+# RentCast's "Multi-Family" classification covers everything from a duplex up
+# to 50+ unit apartment buildings. The old range made check_unit_count pass
+# (2, 3, and 4 are all within typical CRA 1-4 unit limits), which silently
+# marked 5+ unit buildings as "Eligible" for programs they legally cannot
+# qualify for. We now fall through to the UNVERIFIED branch, which the
+# matcher surfaces as "Potentially Eligible" with a note instructing the
+# caller (UI or agent) to verify the actual unit count via another source
+# (Redfin, Zillow, the listing itself) before acting on the result.
+PROPERTY_TYPE_UNIT_RANGES: dict[str, list[int]] = {}
