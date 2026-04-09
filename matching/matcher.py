@@ -89,10 +89,22 @@ def check_property_type(
         )
 
     if mapped in tier.property_types:
+        # For Multi-Family / Apartment, don't imply we've confirmed unit count.
+        # RentCast's "Multi-Family" covers duplex → 50+ unit apartment buildings,
+        # and "Apartment" is similarly ambiguous. The property-type CATEGORY
+        # check still passes (the tier does allow 2-4 Units), but the actual
+        # unit count gets flagged separately in check_unit_count.
+        if listing_type in ("Multi-Family", "Apartment"):
+            detail = (
+                f"RentCast classified this as {listing_type} "
+                f"(actual unit count not reported — see unit_count below)"
+            )
+        else:
+            detail = f"{listing_type} maps to {mapped}"
         return CriterionResult(
             criterion="property_type",
             status=CriterionStatus.PASS,
-            detail=f"{listing_type} maps to {mapped}",
+            detail=detail,
         )
 
     return CriterionResult(
@@ -477,7 +489,10 @@ def check_unit_count(
 
     inferred_units = PROPERTY_TYPE_UNITS.get(listing_type)
     if inferred_units is None:
-        # Check if a known range exists (e.g. Multi-Family = 2-4 units)
+        # Check if a known range exists (left empty for Multi-Family — see
+        # property_types.py for why). If a range IS present, treat it as the
+        # exact bounded range: PASS only when the full range fits inside the
+        # tier's unit_count_limits, UNVERIFIED when partial, FAIL when none.
         unit_range = PROPERTY_TYPE_UNIT_RANGES.get(listing_type)
         if unit_range:
             if all(u in tier.unit_count_limits for u in unit_range):
@@ -496,6 +511,23 @@ def check_unit_count(
                 criterion="unit_count",
                 status=CriterionStatus.FAIL,
                 detail=f"{listing_type} ({unit_range[0]}-{unit_range[-1]} units), none within limits {tier.unit_count_limits}",
+            )
+        # Multi-Family and Apartment fall through here. RentCast doesn't
+        # tell us the unit count for these — it could be a duplex (qualifies
+        # for 1-4 unit programs) or a 50-unit apartment building (doesn't).
+        # We intentionally return UNVERIFIED so the result bubbles up as
+        # "Potentially Eligible" with a clear warning, rather than the
+        # previous behavior of blindly passing 2-4-unit programs.
+        if listing_type in ("Multi-Family", "Apartment"):
+            return CriterionResult(
+                criterion="unit_count",
+                status=CriterionStatus.UNVERIFIED,
+                detail=(
+                    f"{listing_type} listings don't expose unit count via RentCast — "
+                    f"verify actual unit count (Zillow, Redfin, or listing details) "
+                    f"against this tier's limit of {tier.unit_count_limits} before acting. "
+                    f"Buildings with 5+ units will NOT qualify."
+                ),
             )
         return CriterionResult(
             criterion="unit_count",

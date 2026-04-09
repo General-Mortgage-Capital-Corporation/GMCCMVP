@@ -34,7 +34,16 @@ export function haversine(
 // Address normalization
 // ---------------------------------------------------------------------------
 
-const SUFFIXES: Record<string, string> = {
+// Address abbreviations applied by normalizeAddress(). Covers both street-type
+// suffixes (avenue → ave) and directional prefixes (south → s, northeast → ne).
+// Directionals were missing before, which meant "955 South Normandie Ave" and
+// "955 S Normandie Ave" normalized to different strings — causing the
+// /api/search exact-match heuristic to miss and fall back to the whole radius
+// list. The sort order in the replace loop matters: longer forms must run
+// first so "northeast" doesn't get partially rewritten to "neast" by a "north"
+// replacement. See the ADDRESS_ABBREVIATIONS_SORTED array below.
+const ADDRESS_ABBREVIATIONS: Record<string, string> = {
+  // Street-type suffixes
   avenue: "ave",
   street: "st",
   drive: "dr",
@@ -49,7 +58,22 @@ const SUFFIXES: Record<string, string> = {
   highway: "hwy",
   trail: "trl",
   square: "sq",
+  // Directional prefixes — ordered intentionally in descending length so
+  // compound directions are matched before their component cardinals.
+  northeast: "ne",
+  northwest: "nw",
+  southeast: "se",
+  southwest: "sw",
+  north: "n",
+  south: "s",
+  east: "e",
+  west: "w",
 };
+
+// Sort once by descending full-form length so longer tokens replace first.
+const ADDRESS_ABBREVIATIONS_SORTED = Object.entries(ADDRESS_ABBREVIATIONS).sort(
+  (a, b) => b[0].length - a[0].length,
+);
 
 export function normalizeAddress(addr: string): string {
   let s = addr
@@ -58,7 +82,7 @@ export function normalizeAddress(addr: string): string {
     .replace(/,?\s*usa$/i, "")
     .replace(/\b\d{5}(-\d{4})?\b/g, "")
     .replace(/[,.]/g, "");
-  for (const [full, abbr] of Object.entries(SUFFIXES)) {
+  for (const [full, abbr] of ADDRESS_ABBREVIATIONS_SORTED) {
     s = s.replace(new RegExp(`\\b${full}\\b`, "g"), abbr);
   }
   return s.replace(/\s+/g, " ").trim();

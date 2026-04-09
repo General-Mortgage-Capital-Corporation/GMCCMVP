@@ -182,10 +182,21 @@ function sha256(input: string): string {
 // Zillow photos cache
 // ---------------------------------------------------------------------------
 
+import { normalizeAddress } from "./rentcast";
+
+/**
+ * Derive a stable Zillow cache key. We normalize the address (collapses
+ * "South" ↔ "S", "Avenue" ↔ "Ave", strips zip codes, etc.) so cosmetic
+ * spelling variants hit the same cache entry instead of re-scraping
+ * Apify every time and potentially resolving to a different listing.
+ */
+function zillowCacheKey(address: string): string {
+  return `zillow:photos:${sha256(normalizeAddress(address))}`;
+}
+
 export async function getCachedZillowPhotos(address: string): Promise<string[] | null> {
   try {
-    const key = `zillow:photos:${sha256(address.toLowerCase().trim())}`;
-    const data = await getCacheValue<string[]>(key);
+    const data = await getCacheValue<string[]>(zillowCacheKey(address));
     if (Array.isArray(data) && data.length > 0) return data;
     return null;
   } catch {
@@ -196,8 +207,7 @@ export async function getCachedZillowPhotos(address: string): Promise<string[] |
 export async function setCachedZillowPhotos(address: string, photos: string[]): Promise<void> {
   if (photos.length === 0) return;
   try {
-    const key = `zillow:photos:${sha256(address.toLowerCase().trim())}`;
-    await setCacheValue(key, photos, ZILLOW_TTL);
+    await setCacheValue(zillowCacheKey(address), photos, ZILLOW_TTL);
   } catch { /* ignore */ }
 }
 

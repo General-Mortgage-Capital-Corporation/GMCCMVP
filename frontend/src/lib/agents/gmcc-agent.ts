@@ -88,6 +88,14 @@ GMCC offers 19+ loan programs. Use lookupPrograms to see the full list, or searc
     - "Show me all" → 100, and tell the user if moreAvailable=true that 100 is the per-call ceiling
     - When more exist than shown, suggest narrowing by program / price / property type instead of blindly re-searching.
 
+    **"Potentially Eligible" means verify before recommending.** A program landing in potentialPrograms (not eligiblePrograms) means at least one criterion couldn't be verified from RentCast data alone. The most common cause is Multi-Family / Apartment listings — RentCast doesn't expose unit count, and CRA programs typically cap at 1-4 units. A 14-unit apartment building would show up as Potentially Eligible even though it's legally ineligible.
+    - NEVER describe a Potentially Eligible result as "eligible" or "qualifies" in chat.
+    - When the user wants to act on a Potentially Eligible Multi-Family or Apartment listing (email the realtor, generate a flyer, include in a CSV as a lead), you MUST first use webSearch to look up the actual unit count on Zillow/Redfin/the listing itself, then:
+      • If 1-4 units → treat as eligible and proceed.
+      • If 5+ units → tell the user "this is a {N}-unit building so it doesn't qualify for {program}" and skip it.
+      • If unit count still unknown after web search → tell the user it couldn't be verified and ask them to confirm before proceeding.
+    - For bulk operations (mass CSV export, mass marketing), it's OK to include Potentially Eligible results with a clear flag/note — don't webSearch every one. Reserve the per-property verification for when the user is acting on a specific listing.
+
     **Pipeline: use datasetRef, NEVER re-echo full listings.** Every searchProperties and matchPrograms response includes a datasetRef (e.g. "ds-a1b2c3"). This is a server-side handle to the full dataset. When you call the next tool in the pipeline:
     - matchPrograms: pass the datasetRef from searchProperties — do NOT copy the listings array into the input.
     - generateCsv: pass the datasetRef from the MOST RECENT matchPrograms (preferred) or searchProperties call. Never construct an inline listings array from what you saw in the previous tool result — those rows are display-only summaries, not the full data. Inline listings on generateCsv is a fallback for ad-hoc rows only.
