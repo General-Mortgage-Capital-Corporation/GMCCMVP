@@ -79,9 +79,22 @@ export function normalizeAddress(addr: string): string {
   let s = addr
     .toLowerCase()
     .trim()
+    // Strip trailing ", USA" / "USA"
     .replace(/,?\s*usa$/i, "")
-    .replace(/\b\d{5}(-\d{4})?\b/g, "")
+    // Strip zip codes — but ONLY when they look like a zip (preceded by a
+    // state abbreviation or comma, or at the very end after whitespace).
+    // The old regex /\b\d{5}\b/ was too greedy: it matched 5-digit STREET
+    // NUMBERS like 15000, silently erasing them and causing false matches
+    // between completely different addresses.
+    .replace(/(?:,\s*|\s+)\d{5}(-\d{4})?(?=\s*$)/g, "")
+    // Strip commas and periods
     .replace(/[,.]/g, "");
+
+  // Normalize unit designators: #, Apt, Ste, Suite all → "unit"
+  // so "Unit 153", "#153", "Apt 153" all compare equal.
+  s = s.replace(/\b(?:apt|apartment|ste|suite)\s*/gi, "unit ");
+  s = s.replace(/#(\d)/g, "unit $1");
+
   for (const [full, abbr] of ADDRESS_ABBREVIATIONS_SORTED) {
     s = s.replace(new RegExp(`\\b${full}\\b`, "g"), abbr);
   }
