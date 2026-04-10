@@ -161,8 +161,13 @@ export default function CRACheckTab() {
         const searchRes = await fetch(`/api/search?${searchParams}`);
         if (!searchRes.ok) throw new Error("Search failed");
         const searchData = (await searchRes.json()) as SearchResponse;
-        if (searchData.success && searchData.listings.length > 0) {
-          // Use the first (best) match
+        if (searchData.success && searchData.listings.length > 0 && searchData.exact_match) {
+          // Only use RentCast data when it's a genuine match for the address
+          // the user entered. When exact_match is false, RentCast returned
+          // nearby listings sorted by distance — the first one could be a
+          // completely different property (different unit, different street)
+          // with the wrong price, type, and photos. Better to proceed with
+          // address-only matching than to show misleading property details.
           rentcastListing = searchData.listings[0];
         }
       } catch {
