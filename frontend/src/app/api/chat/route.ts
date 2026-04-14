@@ -22,6 +22,7 @@ import { createGenerateCsvTool } from "@/lib/tools/generate-csv";
 import { checkCRAEligibilityTool } from "@/lib/tools/check-cra-eligibility";
 import { createSearchSentEmailsTool } from "@/lib/tools/search-sent-emails";
 import { fetchPropertyPhotoTool } from "@/lib/tools/fetch-property-photo";
+import { lookupPropertyTool } from "@/lib/tools/lookup-property";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
 
 export const runtime = "nodejs";
@@ -37,6 +38,14 @@ export async function POST(req: Request) {
   }
   const { messages } = body;
 
+  // Guard against abuse: cap conversation size
+  if (messages.length > 200) {
+    return new Response(JSON.stringify({ error: "Conversation too long" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   // Extract auth context from headers
   const firebaseToken = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
   const msalToken = req.headers.get("X-MSAL-Token") ?? "";
@@ -47,7 +56,11 @@ export async function POST(req: Request) {
   let signatureHtml = "";
   if (sigHeader) {
     try {
-      signatureHtml = decodeURIComponent(escape(atob(sigHeader)));
+      const raw = decodeURIComponent(escape(atob(sigHeader)));
+      // Strip script tags and event handlers to prevent HTML injection in emails
+      signatureHtml = raw
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, "");
     } catch { /* ignore decode errors */ }
   }
 
@@ -60,13 +73,16 @@ export async function POST(req: Request) {
     } catch { /* ignore */ }
   }
 
+  // Sanitize LO fields before interpolating into system prompt (prevent prompt injection)
+  const sanitizeField = (s?: string) => s?.replace(/[\n\r]/g, " ").slice(0, 100) ?? "";
+
   // Build user context block for the system prompt
   const userContext = [
-    loInfo.name && `Name: ${loInfo.name}`,
-    loInfo.title && `Title: ${loInfo.title}`,
-    loInfo.nmls && `NMLS#: ${loInfo.nmls}`,
-    loInfo.phone && `Phone: ${loInfo.phone}`,
-    userEmail && `Email: ${userEmail}`,
+    loInfo.name && `Name: ${sanitizeField(loInfo.name)}`,
+    loInfo.title && `Title: ${sanitizeField(loInfo.title)}`,
+    loInfo.nmls && `NMLS#: ${sanitizeField(loInfo.nmls)}`,
+    loInfo.phone && `Phone: ${sanitizeField(loInfo.phone)}`,
+    userEmail && `Email: ${userEmail.slice(0, 100)}`,
   ].filter(Boolean).join("\n");
 
   const personalizedPrompt = userContext
@@ -101,6 +117,7 @@ export async function POST(req: Request) {
       checkCRAEligibility: checkCRAEligibilityTool,
       searchSentEmails: createSearchSentEmailsTool(authContext),
       fetchPropertyPhoto: fetchPropertyPhotoTool,
+      lookupProperty: lookupPropertyTool,
     },
     stopWhen: stepCountIs(25),
     temperature: 0.3,

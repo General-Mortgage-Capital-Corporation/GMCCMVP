@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
 import type { useChat } from "@ai-sdk/react";
+import MarkdownText from "../MarkdownText";
 
 type AddToolOutputFn = ReturnType<typeof useChat<GmccAgentUIMessage>>["addToolOutput"];
 
@@ -42,7 +43,9 @@ export default function AskUserPart({ part, addToolOutput }: AskUserPartProps) {
   if (part.state === "output-available") {
     return (
       <div className="my-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
-        <p className="text-xs font-medium text-blue-800">{part.input.question}</p>
+        <div className="text-xs font-medium text-blue-800">
+          <MarkdownText>{part.input.question}</MarkdownText>
+        </div>
         <p className="mt-1 text-xs text-blue-600">Your answer: {part.output}</p>
       </div>
     );
@@ -54,9 +57,13 @@ export default function AskUserPart({ part, addToolOutput }: AskUserPartProps) {
 
   return (
     <div className="my-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
-      <p className="text-sm font-medium text-blue-800">{question}</p>
+      <div className="text-sm font-medium text-blue-800">
+        <MarkdownText>{question}</MarkdownText>
+      </div>
       {context && (
-        <p className="mt-1 text-xs text-blue-600">{context}</p>
+        <div className="mt-1 text-xs text-blue-600">
+          <MarkdownText>{context}</MarkdownText>
+        </div>
       )}
       <div className="mt-2 flex gap-2">
         <input

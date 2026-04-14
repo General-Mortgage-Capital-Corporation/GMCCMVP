@@ -8,6 +8,7 @@ import AskUserPart from "./parts/AskUserPart";
 import SearchResultsPart from "./parts/SearchResultsPart";
 import MatchResultsPart from "./parts/MatchResultsPart";
 import GenericToolPart from "./parts/GenericToolPart";
+import FlyerPreviewPart from "./parts/FlyerPreviewPart";
 import EmailPreviewPart from "./parts/EmailPreviewPart";
 import CsvDownloadPart from "./parts/CsvDownloadPart";
 import MarkdownText from "./MarkdownText";
@@ -138,6 +139,17 @@ export default function ChatMessage({ message, addToolOutput }: ChatMessageProps
             if (toolName === "generateCsv") {
               return (
                 <CsvDownloadPart
+                  key={key}
+                  state={part.state}
+                  output={output}
+                />
+              );
+            }
+
+            // generateFlyer gets a PDF preview + download
+            if (toolName === "generateFlyer") {
+              return (
+                <FlyerPreviewPart
                   key={key}
                   state={part.state}
                   output={output}

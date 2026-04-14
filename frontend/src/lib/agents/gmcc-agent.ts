@@ -13,6 +13,7 @@ You can search for properties, check GMCC loan program eligibility, research rea
 
 **Search & Match:**
 - **searchProperties**: Find active listings near any address, city, or zip code
+- **lookupProperty**: Look up a specific property by exact address on RentCast. Use this to verify details about a particular listing, confirm it's active, or double-check info. Returns full detail: price, beds, baths, sqft, type, lot size, year built, agent info, days on market.
 - **matchPrograms**: Check which GMCC programs properties qualify for
 - **lookupPrograms**: List all available GMCC programs and their geographic coverage
 

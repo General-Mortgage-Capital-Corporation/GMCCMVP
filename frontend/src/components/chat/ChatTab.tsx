@@ -4,13 +4,18 @@ import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
+  isToolUIPart,
+  getToolName,
 } from "ai";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ChatMessage from "./ChatMessage";
 import ConversationSidebar from "./ConversationSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSignatureHtml } from "@/lib/signature-store";
 import { getLOInfo } from "@/lib/lo-info-store";
+import { useSpeechRecognition } from "@/lib/voice/use-speech-recognition";
+import { createTTSEngine } from "@/lib/voice/tts-engine";
+import { useAgentNarrator } from "@/lib/voice/use-agent-narrator";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
 
 const SUGGESTED_PROMPTS = [
@@ -97,6 +102,77 @@ export default function ChatTab() {
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     });
   const lastSaveAttemptRef = useRef<{ msgs: typeof messages; convId: string } | null>(null);
+
+  // ── Voice mode (STT + TTS narrator) ──────────────────────────────────────
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const tts = useMemo(() => createTTSEngine(), []);
+
+  // Track current values in refs so STT callback always sees latest
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const addToolOutputRef = useRef(addToolOutput);
+  addToolOutputRef.current = addToolOutput;
+
+  // STT: mic → text → routes to pending askUser/askForConfirmation or sendMessage
+  const stt = useSpeechRecognition((finalText) => {
+    const text = finalText.trim();
+    if (!text) return;
+
+    // Check for a pending askUser or askForConfirmation tool call
+    const lastAssistant = [...messagesRef.current].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant) {
+      for (const part of lastAssistant.parts) {
+        if (!isToolUIPart(part) || part.state !== "input-available") continue;
+        const toolName = getToolName(part);
+
+        if (toolName === "askUser") {
+          addToolOutputRef.current({ tool: "askUser", toolCallId: part.toolCallId, output: text });
+          return;
+        }
+        if (toolName === "askForConfirmation") {
+          const lower = text.toLowerCase();
+          const approved = lower.includes("yes") || lower.includes("approve") || lower.includes("confirm") || lower.includes("go ahead");
+          addToolOutputRef.current({
+            tool: "askForConfirmation",
+            toolCallId: part.toolCallId,
+            output: approved ? "User approved." : "User rejected.",
+          });
+          return;
+        }
+      }
+    }
+
+    // No pending tool calls — send as regular chat message
+    if (statusRef.current === "ready") {
+      sendMessage({ text });
+    }
+  });
+
+  // TTS narrator: watches agent messages and speaks status updates
+  useAgentNarrator(messages, status, tts, voiceEnabled);
+
+  // Pause STT while TTS is speaking (so the agent's voice isn't picked up as input)
+  useEffect(() => {
+    tts.onSpeakingChange((speaking) => {
+      setTtsSpeaking(speaking);
+      if (speaking && stt.isListening) {
+        stt.stop();
+      }
+      // Auto-resume listening after TTS finishes (if voice mode is still on)
+      if (!speaking && voiceEnabled && !stt.isListening) {
+        stt.start();
+      }
+    });
+  }, [tts, stt, voiceEnabled]);
+
+  // Sync TTS enabled state
+  useEffect(() => {
+    tts.setEnabled(voiceEnabled);
+    if (!voiceEnabled && stt.isListening) stt.stop();
+  }, [voiceEnabled, tts, stt]);
 
   const clearHistoryError = useCallback(() => setHistoryError(null), []);
 
@@ -361,6 +437,15 @@ export default function ChatTab() {
       ) {
         return;
       }
+      // Don't auto-retry if there are pending tool calls without results —
+      // retrying would just cause AI_MissingToolResultsError again
+      const hasPendingToolCalls = messages.some(
+        (m) => m.role === "assistant" && m.parts.some(
+          (p) => isToolUIPart(p) && p.state !== "output-available" && p.state !== "output-error",
+        ),
+      );
+      if (hasPendingToolCalls) return;
+
       const timer = setTimeout(() => {
         retryCount.current += 1;
         sendMessage({ text: "Continue from where you left off." });
@@ -439,6 +524,32 @@ export default function ChatTab() {
               )}
             </svg>
           </button>
+
+          {/* Voice mode toggle */}
+          {stt.isSupported && (
+            <button
+              type="button"
+              onClick={() => setVoiceEnabled((v) => !v)}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-[0.65rem] font-medium transition-colors ${
+                voiceEnabled
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              }`}
+              title={voiceEnabled ? "Disable voice mode" : "Enable voice mode"}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                {voiceEnabled ? (
+                  <>
+                    <path d="M8 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M13 8a5 5 0 0 1-4 4.9V15h2v1H5v-1h2v-2.1A5 5 0 0 1 3 8h1a4 4 0 0 0 8 0h1z" />
+                  </>
+                ) : (
+                  <path d="M8 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm5 7a5 5 0 0 1-4 4.9V15h2v1H5v-1h2v-2.1A5 5 0 0 1 3 8h1a4 4 0 0 0 8 0h1z" opacity="0.4" />
+                )}
+              </svg>
+              {voiceEnabled ? "Voice On" : "Voice"}
+            </button>
+          )}
 
           <span className="flex-1 text-xs text-gray-400 truncate">
             {messages.length > 0
@@ -544,6 +655,13 @@ export default function ChatTab() {
 
         {/* Input bar */}
         <div className="border-t border-gray-100 p-4">
+          {/* Interim speech transcript */}
+          {stt.isListening && stt.transcript && (
+            <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-400" />
+              <span className="italic">{stt.transcript}</span>
+            </div>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -551,6 +669,39 @@ export default function ChatTab() {
             }}
             className="flex gap-2"
           >
+            {/* Skip TTS button (voice mode, visible when agent is speaking) */}
+            {voiceEnabled && ttsSpeaking && (
+              <button
+                type="button"
+                onClick={() => tts.stop()}
+                className="shrink-0 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                title="Skip agent speech"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="inline mr-1 -mt-0.5">
+                  <path d="M3 2h3v12H3zM10 2h3v12h-3z" />
+                </svg>
+                Skip
+              </button>
+            )}
+            {/* Mic button (voice mode) */}
+            {voiceEnabled && stt.isSupported && (
+              <button
+                type="button"
+                onClick={() => stt.isListening ? stt.stop() : stt.start()}
+                disabled={isProcessing && !ttsSpeaking}
+                className={`shrink-0 rounded-lg px-3 py-2 transition-colors ${
+                  stt.isListening
+                    ? "bg-red-100 text-red-600 border border-red-300"
+                    : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
+                } disabled:opacity-40`}
+                title={stt.isListening ? "Stop listening" : "Start speaking"}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M13 8a5 5 0 0 1-4 4.9V15h2v1H5v-1h2v-2.1A5 5 0 0 1 3 8h1a4 4 0 0 0 8 0h1z" />
+                </svg>
+              </button>
+            )}
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -560,7 +711,7 @@ export default function ChatTab() {
                   handleSubmit(input);
                 }
               }}
-              placeholder="Ask me to find properties, check programs, or market to realtors…"
+              placeholder={voiceEnabled && stt.isListening ? "Listening… speak now" : "Ask me to find properties, check programs, or market to realtors…"}
               disabled={isProcessing}
               rows={1}
               className="flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-red-300 focus:ring-1 focus:ring-red-200 disabled:bg-gray-50 disabled:text-gray-400"
@@ -573,7 +724,7 @@ export default function ChatTab() {
             {isProcessing ? (
               <button
                 type="button"
-                onClick={stop}
+                onClick={() => { stop(); tts.stop(); }}
                 className="shrink-0 rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
               >
                 Stop

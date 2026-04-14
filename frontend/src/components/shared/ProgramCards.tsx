@@ -140,6 +140,7 @@ export function ProgramCard({
         <FlierButton
           programName={program.program_name}
           propertyAddress={listing.formattedAddress}
+          propertyState={listing.state}
           listingPrice={listing.price}
           realtorInfo={realtorInfo}
           propertyImage={propertyImage}

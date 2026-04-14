@@ -7,7 +7,7 @@ import EmailModal from "./EmailModal";
 
 const GMCC_PPT_FOLDER = "https://netorgft1191593.sharepoint.com/sites/LOTraining/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FLOTraining%2FShared%20Documents%2FGMCC%20PPT&viewid=591beb65%2D297e%2D416f%2D8cd2%2Dd6f131d2897a&csf=1&ovuser=9f605dae%2Dab54%2D4576%2D8337%2De008c4b7b2ce%2Cnaitik%2Epoddar%40gmccloan%2Ecom&OR=Teams%2DHL&CT=1773678041332&clickparams=eyJBcHBOYW1lIjoiVGVhbXMtRGVza3RvcCIsIkFwcFZlcnNpb24iOiIxNDE1LzI2MDIxMjE1MTIzIiwiSGFzRmVkZXJhdGVkVXNlciI6ZmFsc2V9&CID=ff9900a2%2D1013%2D0000%2D6083%2De298ce971416&cidOR=SPO&FolderCTID=0x012000CF752C56A7846845A87DA40CB38AE1E9&pageCorrelationId=c7a900a2%2D0046%2D0000%2D6083%2Dee003eccde92&timeStamp=1773698366725";
 
-export const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string; ratesheetUrl?: string }> = {
+export const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?: string; ratesheetUrl?: string | Record<string, string> }> = {
   // ── Hot Programs ──────────────────────────────────────────────────────────
   "GMCC Buy Without Sell First": { productId: "buy-without-sell-first", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B06767681-9543-4612-B0CD-3E2C573C583C%7D&file=Essential%20-%20Buy%20without%20sale%20v2%206-25-2025.pptx&action=edit&mobileredirect=true" },
   "GMCC Universe":             { productId: "universe", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/_layouts/15/Doc.aspx?sourcedoc=%7B41BF6587-EF43-4F49-B355-9239FCD03F6E%7D&file=Essential%20-%20GMCC%20Universe%20Home%20Outreach%20Program%20(CRA)%206-14-2024.pptx&action=edit&mobileredirect=true", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/Self-Service%20Fast-Closing/GMCC%20Universe%20Closing%20Resources/GMCC%20Universe%20Rate%20Sheet.pdf?csf=1&web=1&e=6MxTLq" },
@@ -15,7 +15,7 @@ export const PROGRAM_CONFIG: Record<string, { productId?: string; guidelineUrl?:
   "GMCC Diamond Express":      { productId: "diamond-express", guidelineUrl: "https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Diamond%20-%20Jumbo%20AUS%20.pptx?d=w390ee9388a094613a6bfbd6e8983d2e9&csf=1&web=1&e=JpDwhW" },
   "GMCC DSCR Rental Flow":     { productId: "dscr", guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC Ocean":                { productId: "ocean", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Ocean%2002-06-2026%20v4.pptx?d=w1c903e89e42b47518d6a8329783a3ece&csf=1&web=1&e=zhf5fT", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Ocean%20Rate%20Sheet%202.3.2026.pdf?csf=1&web=1&e=pU18Bj" },
-  "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1" },
+  "GMCC Hermes":               { productId: "hermes", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Hermes%20v11%2012-23-2025.pptx?d=wd8d8b9e042984d99a5cbbc7c9f95ea33&csf=1&web=1&e=Owz3q1", ratesheetUrl: { CA: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Hermes%20Rate%20Sheet%202.17.2026%20-%20CA.pdf?csf=1&web=1&e=J96pe1", _default: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Hermes%20Rate%20Sheet%202.17.2026%20CO,%20DC,%20GA,%20IL,%20NJ,%20NY,%20NV,%20TX,%20VA,%20WA,%20AZ.pdf?csf=1&web=1&e=L7D8fS" } },
   "GMCC Radiant":              { productId: "radiant", guidelineUrl:"https://netorgft1191593.sharepoint.com/:p:/r/sites/LOTraining/Shared%20Documents/GMCC%20PPT/Essential%20-%20GMCC%20Radiant%20AU%20Program%2012-26-2025.pptx?d=wc61f3d43cbd349f789ef9641cde9eb22&csf=1&web=1&e=hykKqt", ratesheetUrl: "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Radiant%20Rate%20Sheet%202.10.2026.pdf?csf=1&web=1&e=Xe0GOy" },
   "GMCC WVOE P&L":             { guidelineUrl: GMCC_PPT_FOLDER },
   "GMCC Bank Statement Self Employed": { productId: "bank-statement", guidelineUrl: GMCC_PPT_FOLDER },
@@ -74,14 +74,29 @@ export interface RealtorInfo {
 interface FlierButtonProps {
   programName: string;
   propertyAddress?: string;
+  propertyState?: string;
   listingPrice?: number;
   realtorInfo: RealtorInfo;
   propertyImage?: string;
 }
 
+/** Resolve rate sheet URL — handles both plain string and state-keyed object. */
+function resolveRatesheetUrl(
+  raw: string | Record<string, string> | undefined,
+  state?: string,
+): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === "string") return raw;
+  // State-keyed object: try exact state match, fall back to _default
+  const key = state?.toUpperCase();
+  if (key && raw[key]) return raw[key];
+  return raw._default;
+}
+
 export default function FlierButton({
   programName,
   propertyAddress,
+  propertyState,
   listingPrice,
   realtorInfo,
   propertyImage,
@@ -101,7 +116,8 @@ export default function FlierButton({
 
   const config = PROGRAM_CONFIG[programName];
   if (!config) return null;
-  const { productId, guidelineUrl, ratesheetUrl } = config;
+  const { productId, guidelineUrl, ratesheetUrl: rawRatesheetUrl } = config;
+  const ratesheetUrl = resolveRatesheetUrl(rawRatesheetUrl, propertyState);
 
   async function fetchPdf(): Promise<Blob | null> {
     setError(null);

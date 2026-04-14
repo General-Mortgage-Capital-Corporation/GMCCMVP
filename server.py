@@ -16,12 +16,15 @@ Routes:
 """
 
 import json
+import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 from matching.models import ListingInput
 from matching.matcher import match_listing, load_programs, SECONDARY_PROGRAM_NAMES
@@ -152,6 +155,7 @@ def match_listing_endpoint():
             "census_data": census_data,
         })
     except Exception:
+        logger.exception("Single match failed")
         return jsonify({"success": False, "error": "Matching error. Please try again."}), 500
 
 
@@ -246,6 +250,7 @@ def match_batch_endpoint():
         return jsonify({"success": errors == 0, "results": results,
                          **({"errors": errors} if errors else {})})
     except Exception:
+        logger.exception("Batch match failed")
         return jsonify({"success": False, "error": "Batch matching error. Please try again."}), 500
 
 
@@ -263,6 +268,7 @@ def program_rules_endpoint():
 
         return jsonify({"success": True, "rules": result})
     except Exception:
+        logger.exception("Program rules load failed")
         return jsonify({"success": False, "error": "Failed to load program rules."}), 500
 
 
@@ -286,6 +292,7 @@ def explain_endpoint():
         explanation = explain_match(program_name, listing, tier_name, program_rules)
         return jsonify({"success": True, "explanation": explanation})
     except Exception:
+        logger.exception("Explain generation failed")
         return jsonify({"success": False, "error": "Failed to generate explanation."}), 500
 
 
@@ -296,19 +303,44 @@ def program_locations():
     msa_lookup = _load_msa_lookup()
     programs = load_programs()
 
+    # Build state → [fips] index for resolving eligible_states
+    state_to_fips: dict[str, list[str]] = {}
+    for fips, info in county_data.items():
+        st = info["state"]
+        if st not in state_to_fips:
+            state_to_fips[st] = []
+        state_to_fips[st].append(fips)
+
     result = []
     for program in programs:
         if program.program_name in SECONDARY_PROGRAM_NAMES:
             continue
         all_fips: set[str] = set()
+        has_any_location_restriction = False
         for tier in program.tiers:
-            all_fips.update(tier.eligible_county_fips)
+            tier_has_location = False
+            if tier.eligible_county_fips:
+                all_fips.update(tier.eligible_county_fips)
+                tier_has_location = True
             for msa_code in (tier.eligible_msa_codes or []):
                 msa_info = msa_lookup.get(msa_code)
                 if msa_info:
                     all_fips.update(msa_info["counties"])
+                    tier_has_location = True
             if tier.eligible_tract_fips_file:
                 all_fips.update(_get_tract_counties(tier.eligible_tract_fips_file))
+                tier_has_location = True
+            # Include all counties for states listed in eligible_states
+            if tier.eligible_states:
+                for st in tier.eligible_states:
+                    all_fips.update(state_to_fips.get(st, []))
+                tier_has_location = True
+            if tier_has_location:
+                has_any_location_restriction = True
+
+        # Nationwide programs (no location restrictions) — show all states
+        if not has_any_location_restriction:
+            all_fips = set(county_data.keys())
 
         states_map: dict[str, list] = {}
         for fips in sorted(all_fips):

@@ -88,7 +88,8 @@ export async function POST(req: NextRequest) {
 
   const error = await setChatMessages(userId, body.conversationId, body.messages, body.title ?? "Untitled");
   if (error) {
-    return NextResponse.json({ ok: false, error }, { status: 500 });
+    // Return 200 so the client doesn't show error banners locally when Redis isn't configured
+    return NextResponse.json({ ok: false, error });
   }
   return NextResponse.json({ ok: true });
 }
