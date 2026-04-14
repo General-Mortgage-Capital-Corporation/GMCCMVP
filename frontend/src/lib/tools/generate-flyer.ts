@@ -55,7 +55,9 @@ export function createGenerateFlyerTool(auth: AuthContext) {
       "Returns the flyer as base64 PDF that can be attached to emails. " +
       "Pass propertyImage (a URL from fetchPropertyPhoto) to use the real listing " +
       "photo as the flyer hero image — otherwise the program's default image is used. " +
-      "Requires the user to be signed in.",
+      "Requires the user to be signed in. " +
+      "Programs with flyer templates: " + Object.keys(PROGRAM_TO_PRODUCT_ID).join(", ") + ". " +
+      "Programs WITHOUT flyers (do NOT attempt): GMCC Jubilant, GMCC WVOE P&L, GMCC CRA: Celebrity Community Opportunity.",
     inputSchema: z.object({
       programName: z
         .string()
