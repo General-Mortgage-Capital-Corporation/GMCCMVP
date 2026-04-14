@@ -25,6 +25,7 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   "GMCC CRA: Cronus Jumbo CRA": "jumbo-cra",
   "GMCC CRA: Diamond CRA": "diamond-community-lending",
   "GMCC Celebrity Jumbo": "celebrity-jumbo",
+  "GMCC Thunder": "thunder",
 };
 
 function resolveProductId(programName: string): string | null {

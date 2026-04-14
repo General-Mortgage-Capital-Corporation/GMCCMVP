@@ -1,0 +1,93 @@
+{
+  "program_name": "GMCC Jubilant",
+  "qm_status": "QM",
+  "general_notes": [
+    "In-house underwriting. Follow AUS with some overlays.",
+    "30yr fixed and ARM available. Good 5/6 ARM rate.",
+    "Citizens and green card holders ONLY. Non-permanent residents and EAD not eligible.",
+    "1 year tax return may be OK if DU/LP asks for 1 year.",
+    "RSU income accepted (follow AUS, 2 years receipt history and 3-year continuance).",
+    "First-time home buyer OK with max 40% DTI and min 2 tradelines within last 36 months.",
+    "Business funds allowed only if 100% owned (need 4 months cash flow analysis or CPA letter).",
+    "Crypto not allowed for reserves/assets.",
+    "No subordination allowed on subject property.",
+    "Closing in trust is OK (LLC is not).",
+    "EPO: 6 payments to investor.",
+    "All borrowers need to be member of the investor (credit union) at closing.",
+    "Delayed financing allowed for properties purchased within 12 months.",
+    "Attached Condo, Co-Op, NY CEMA not allowed."
+  ],
+  "tiers": [
+    {
+      "tier_name": "Jubilant - Purchase/Rate Term",
+      "transaction_types": ["Purchase", "Rate/Term Refi"],
+      "property_types": ["SFR", "PUD", "Condo"],
+      "occupancy_types": ["Primary Residence", "Second Home"],
+      "eligible_states": [
+        "AL", "AR", "AZ", "CO", "CT", "DC", "DE", "GA", "IA", "ID", "IL", "IN",
+        "KS", "KY", "LA", "MA", "MD", "ME", "MI", "MN", "MO", "MS", "MT", "NC",
+        "ND", "NE", "NH", "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "RI",
+        "SC", "SD", "TN", "TX", "UT", "VA", "VT", "WA", "WI", "WV", "WY"
+      ],
+      "min_loan_amount": 300000,
+      "max_loan_amount": 1000000,
+      "max_ltv": 80.0,
+      "max_cltv": 80.0,
+      "min_fico": 700,
+      "min_reserves_months": null,
+      "max_dti": 45.0,
+      "unit_count_limits": [1],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "excluded_states": ["CA", "HI", "FL", "AK"],
+        "citizen_or_green_card_only": true,
+        "no_investment": true,
+        "detached_condo_only": true,
+        "no_subordination": true,
+        "reserves_per_aus": true
+      }
+    },
+    {
+      "tier_name": "Jubilant - Cash-Out Refi",
+      "transaction_types": ["Cash-Out Refi"],
+      "property_types": ["SFR", "PUD", "Condo"],
+      "occupancy_types": ["Primary Residence"],
+      "eligible_states": [
+        "AL", "AR", "AZ", "CO", "CT", "DC", "DE", "GA", "IA", "ID", "IL", "IN",
+        "KS", "KY", "LA", "MA", "MD", "ME", "MI", "MN", "MO", "MS", "MT", "NC",
+        "ND", "NE", "NH", "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "RI",
+        "SC", "SD", "TN", "TX", "UT", "VA", "VT", "WA", "WI", "WV", "WY"
+      ],
+      "min_loan_amount": 300000,
+      "max_loan_amount": 1000000,
+      "max_ltv": 75.0,
+      "max_cltv": 75.0,
+      "min_fico": 720,
+      "min_reserves_months": null,
+      "max_dti": 45.0,
+      "unit_count_limits": [1],
+      "location_restrictions": [],
+      "eligible_county_fips": [],
+      "requires_lmi_tract": false,
+      "eligible_msa_codes": [],
+      "requires_dmmct": false,
+      "requires_mmct_or_lmi": false,
+      "eligible_tract_fips_file": null,
+      "additional_rules": {
+        "excluded_states": ["CA", "HI", "FL", "AK"],
+        "citizen_or_green_card_only": true,
+        "max_cash_out_amount": 500000,
+        "primary_only_for_cashout": true,
+        "detached_condo_only": true,
+        "no_subordination": true,
+        "reserves_per_aus": true
+      }
+    }
+  ]
+}
