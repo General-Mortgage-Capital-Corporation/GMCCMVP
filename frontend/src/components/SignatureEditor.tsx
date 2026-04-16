@@ -3,6 +3,40 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { getSignatureHtml, setSignatureHtml, clearSignature, COMPANY_NAME, COMPANY_NMLS, COMPANY_DISCLAIMER } from "@/lib/signature-store";
+import { getLOInfo } from "@/lib/lo-info-store";
+import { useAuth } from "@/contexts/AuthContext";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits[0] === "1") return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return raw;
+}
+
+/**
+ * Build a preset signature HTML from LO profile + auth user.
+ * Falls back sensibly when fields are missing so the user sees where to fill in.
+ */
+function buildPresetSignatureHtml(userDisplayName?: string | null, userEmail?: string | null): string {
+  const lo = getLOInfo();
+  const name = lo.name || userDisplayName || "Your Name";
+  const title = lo.title || "Mortgage Loan Officer";
+  const nmls = lo.nmls ? `NMLS# ${escapeHtml(lo.nmls)}` : "NMLS# _______";
+  const email = lo.email || userEmail || "";
+  const phone = lo.phone || "";
+
+  const contactLine = [phone && escapeHtml(formatPhone(phone)), email && escapeHtml(email)].filter(Boolean).join("  ·  ");
+
+  return [
+    `<div><strong>${escapeHtml(name)}</strong></div>`,
+    `<div>${escapeHtml(title)}  ·  ${nmls}</div>`,
+    contactLine ? `<div>${contactLine}</div>` : "",
+  ].filter(Boolean).join("");
+}
 
 /**
  * Rich-text email signature editor using contentEditable.
@@ -19,23 +53,27 @@ export default function SignatureEditor() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
+  const { user } = useAuth();
 
-  // Load saved signature on mount — content is DOMPurify-sanitized on save
+  // Load saved signature on mount, or prefill a preset from LO profile + auth
+  // when no signature has been saved yet. The preset is editable and not
+  // persisted until the user clicks Save.
   useEffect(() => {
-    const html = getSignatureHtml();
-    if (editorRef.current && html) {
-      editorRef.current.textContent = ""; // clear first
-      // Safe: html was sanitized by DOMPurify before being stored
-      const sanitized = DOMPurify.sanitize(html, {
-        ADD_TAGS: ["img"],
-        ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
-      });
-      const template = document.createElement("template");
-      template.innerHTML = sanitized;
-      editorRef.current.appendChild(template.content);
-      setIsEmpty(false);
-    }
-  }, []);
+    if (!editorRef.current) return;
+    const savedHtml = getSignatureHtml();
+    const sourceHtml = savedHtml || buildPresetSignatureHtml(user?.displayName, user?.email);
+    if (!sourceHtml) return;
+
+    const sanitized = DOMPurify.sanitize(sourceHtml, {
+      ADD_TAGS: ["img"],
+      ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
+    });
+    const template = document.createElement("template");
+    template.innerHTML = sanitized;
+    editorRef.current.textContent = "";
+    editorRef.current.appendChild(template.content);
+    setIsEmpty(false);
+  }, [user?.displayName, user?.email]);
 
   const updateEmpty = useCallback(() => {
     const text = editorRef.current?.textContent?.trim() ?? "";
