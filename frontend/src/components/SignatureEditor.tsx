@@ -48,7 +48,12 @@ function buildPresetSignatureHtml(userDisplayName?: string | null, userEmail?: s
  *
  * Content is sanitized via DOMPurify before saving to prevent XSS.
  */
-export default function SignatureEditor() {
+interface SignatureEditorProps {
+  /** Called after the user successfully saves their signature. */
+  onSave?: () => void;
+}
+
+export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState(false);
@@ -145,6 +150,7 @@ export default function SignatureEditor() {
     });
     setSignatureHtml(html);
     setSaved(true);
+    onSave?.();
     setTimeout(() => setSaved(false), 2000);
   }
 

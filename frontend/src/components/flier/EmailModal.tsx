@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import SignatureFixModal from "@/components/SignatureFixModal";
 import FollowUpToggle from "@/components/FollowUpToggle";
 import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
@@ -83,6 +84,8 @@ export default function EmailModal({
   const [followUpDays, setFollowUpDays] = useState(3);
   const [followUpMode, setFollowUpMode] = useState<"remind" | "auto-send">("remind");
   const [agentResearch, setAgentResearch] = useState<string | null>(null);
+  const [sigFixOpen, setSigFixOpen] = useState(false);
+  const [sigOk, setSigOk] = useState(() => hasSignature());
 
   const loName = user?.displayName || user?.email || "Loan Officer";
 
@@ -169,7 +172,7 @@ export default function EmailModal({
 
   async function handleSend() {
     if (sending) return; // guard against double-submission
-    if (!hasSignature()) { setError("Email signature is required. Please set one up in Settings (gear icon) before sending."); return; }
+    if (!hasSignature()) { setSigFixOpen(true); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
@@ -467,19 +470,35 @@ export default function EmailModal({
                 </div>
 
                 {/* Signature status */}
-                {hasSignature() ? (
-                  <div className="flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                      <path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Your signature + company disclaimer will be attached
+                {sigOk ? (
+                  <div className="flex items-center justify-between rounded-md border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+                    <div className="flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Your signature + company disclaimer will be attached
+                    </div>
+                    <button
+                      onClick={() => setSigFixOpen(true)}
+                      className="rounded border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    >
+                      Review
+                    </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4h2v5H7V4zm0 6h2v2H7v-2z" fill="currentColor" />
-                    </svg>
-                    Email signature required. Set one up in Settings (gear icon) before sending.
+                  <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                    <div className="flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4h2v5H7V4zm0 6h2v2H7v-2z" fill="currentColor" />
+                      </svg>
+                      Email signature required.
+                    </div>
+                    <button
+                      onClick={() => setSigFixOpen(true)}
+                      className="rounded bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+                    >
+                      Fix
+                    </button>
                   </div>
                 )}
 
@@ -523,6 +542,12 @@ export default function EmailModal({
           </div>
         </div>
       </div>
+    {sigFixOpen && (
+        <SignatureFixModal
+          onClose={() => setSigFixOpen(false)}
+          onSaved={() => { setSigOk(true); setSigFixOpen(false); setError(null); }}
+        />
+      )}
     </div>
   );
 }
