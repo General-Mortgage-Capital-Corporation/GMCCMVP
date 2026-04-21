@@ -608,11 +608,11 @@ export default function Home() {
             <nav className="flex whitespace-nowrap px-2">
               {(
                 [
+                  ["chat", "AI Agent", "AI Marketing Agent"],
                   ["cra", "CRA Check", "CRA Address Fast Check"],
                   ["marketing", "Marketing", "Massive Marketing"],
                   ["find", "GPS Radius", "Marketing/GPS Radius Check"],
                   ["program", "By Program", "Market by Program Check"],
-                  ["chat", "AI Agent", "AI Marketing Agent"],
                 ] as [ActiveTab, string, string][]
               ).map(([tab, shortLabel, fullLabel]) => (
                 <button
