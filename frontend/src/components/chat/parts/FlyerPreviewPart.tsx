@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface FlyerToolOutput {
@@ -77,6 +77,12 @@ export default function FlyerPreviewPart({ state, output }: FlyerPreviewPartProp
     } catch { /* ignore preview errors */ }
   }, [data?.flyerRef, previewUrl, getIdToken]);
 
+  // Auto-preview when flyer is ready — must be above early returns (Rules of Hooks)
+  const flyerRef = data?.flyerRef;
+  useEffect(() => {
+    if (flyerRef && !previewUrl) handlePreview();
+  }, [flyerRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Loading ───────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -123,15 +129,6 @@ export default function FlyerPreviewPart({ state, output }: FlyerPreviewPartProp
           </div>
         </div>
         <div className="flex shrink-0 gap-1.5">
-          <button type="button" onClick={handlePreview}
-            disabled={!!previewUrl}
-            className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-white px-2.5 py-1.5 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-50 disabled:opacity-60">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.3" />
-              <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-            {previewUrl ? "Previewing" : "Preview"}
-          </button>
           <button type="button" onClick={handleDownload} disabled={downloading}
             className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-60">
             {downloading ? (
@@ -155,9 +152,9 @@ export default function FlyerPreviewPart({ state, output }: FlyerPreviewPartProp
       {previewUrl && (
         <div className="border-t border-purple-100">
           <iframe
-            src={previewUrl}
+            src={`${previewUrl}#navpanes=0`}
             title="Flyer Preview"
-            className="h-[400px] w-full"
+            className="h-[85vh] w-full"
           />
         </div>
       )}

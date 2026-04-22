@@ -88,69 +88,73 @@ export function createGenerateFlyerTool(auth: AuthContext) {
         };
       }
 
-      try {
-        const payload = {
-          productId,
-          data: {
-            loanOfficer: { userId: auth.userEmail },
-            ...(input.address || input.listingPrice || input.propertyImage
-              ? {
-                  property: {
-                    ...(input.address ? { address: input.address } : {}),
-                    ...(input.listingPrice ? { listingPrice: input.listingPrice } : {}),
-                    // Cloud Function expects the image URL under `photo`
-                    // (matches /api/generate-flier/route.ts:46).
-                    ...(input.propertyImage ? { photo: input.propertyImage } : {}),
-                  },
-                }
-              : {}),
-            ...(input.realtorName || input.realtorEmail
-              ? {
-                  realtor: {
-                    ...(input.realtorName ? { name: input.realtorName } : {}),
-                    ...(input.realtorPhone ? { phoneNumber: input.realtorPhone } : {}),
-                    ...(input.realtorEmail ? { email: input.realtorEmail } : {}),
-                    ...(input.realtorCompany ? { company: input.realtorCompany } : {}),
-                  },
-                }
-              : {}),
-          },
-          previewMode: false,
-        };
+      const payload = {
+        productId,
+        data: {
+          loanOfficer: { userId: auth.userEmail },
+          ...(input.address || input.listingPrice || input.propertyImage
+            ? {
+                property: {
+                  ...(input.address ? { address: input.address } : {}),
+                  ...(input.listingPrice ? { listingPrice: input.listingPrice } : {}),
+                  ...(input.propertyImage ? { photo: input.propertyImage } : {}),
+                },
+              }
+            : {}),
+          ...(input.realtorName || input.realtorEmail
+            ? {
+                realtor: {
+                  ...(input.realtorName ? { name: input.realtorName } : {}),
+                  ...(input.realtorPhone ? { phoneNumber: input.realtorPhone } : {}),
+                  ...(input.realtorEmail ? { email: input.realtorEmail } : {}),
+                  ...(input.realtorCompany ? { company: input.realtorCompany } : {}),
+                },
+              }
+            : {}),
+        },
+        previewMode: false,
+      };
 
-        const res = await fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.firebaseToken}`,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(30_000),
-        });
+      // Retry up to 3 times — Cloud Function cold starts cause intermittent failures
+      const MAX_RETRIES = 3;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const res = await fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${auth.firebaseToken}`,
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(30_000),
+          });
 
-        if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as { error?: string };
-          return { error: err.error ?? `Flyer generation failed (${res.status})` };
+          if (!res.ok) {
+            const err = (await res.json().catch(() => ({}))) as { error?: string };
+            if (attempt < MAX_RETRIES) continue;
+            return { error: err.error ?? `Flyer generation failed (${res.status})` };
+          }
+
+          const pdfBytes = await res.arrayBuffer();
+          const base64 = Buffer.from(pdfBytes).toString("base64");
+
+          // Store PDF server-side to avoid bloating conversation context
+          const flyerRef = await storeArtifact("pdf", base64);
+
+          return {
+            success: true,
+            programName: input.programName,
+            productId,
+            flyerRef,
+            sizeKB: Math.round(pdfBytes.byteLength / 1024),
+          };
+        } catch (err) {
+          if (attempt < MAX_RETRIES) continue;
+          if (err instanceof Error && err.message.includes("timeout")) {
+            return { error: "Flyer generation timed out after 3 attempts." };
+          }
+          return { error: "Flyer generation failed after 3 attempts." };
         }
-
-        const pdfBytes = await res.arrayBuffer();
-        const base64 = Buffer.from(pdfBytes).toString("base64");
-
-        // Store PDF server-side to avoid bloating conversation context
-        const flyerRef = await storeArtifact("pdf", base64);
-
-        return {
-          success: true,
-          programName: input.programName,
-          productId,
-          flyerRef,
-          sizeKB: Math.round(pdfBytes.byteLength / 1024),
-        };
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("timeout")) {
-          return { error: "Flyer generation timed out." };
-        }
-        return { error: "Flyer generation failed." };
       }
     },
   });
