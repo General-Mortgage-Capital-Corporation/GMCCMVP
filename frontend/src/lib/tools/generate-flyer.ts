@@ -131,6 +131,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
 
           if (!res.ok) {
             const err = (await res.json().catch(() => ({}))) as { error?: string };
+            console.error(`[generateFlyer] attempt ${attempt}/${MAX_RETRIES} failed: ${res.status}`, err);
             if (attempt < MAX_RETRIES) continue;
             return { error: err.error ?? `Flyer generation failed (${res.status})` };
           }
@@ -149,6 +150,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
             sizeKB: Math.round(pdfBytes.byteLength / 1024),
           };
         } catch (err) {
+          console.error(`[generateFlyer] attempt ${attempt}/${MAX_RETRIES} threw:`, err);
           if (attempt < MAX_RETRIES) continue;
           if (err instanceof Error && err.message.includes("timeout")) {
             return { error: "Flyer generation timed out after 3 attempts." };

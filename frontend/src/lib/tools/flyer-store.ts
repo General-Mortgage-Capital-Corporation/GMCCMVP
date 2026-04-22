@@ -12,7 +12,7 @@
  * JSON file in dev). This survives Next.js HMR and works across Vercel
  * Fluid Compute instances, which a module-level Map cannot.
  *
- * Entries TTL: 30 minutes. Max size per entry: 5 MB.
+ * Entries TTL: 30 minutes. Max size per entry: 10 MB.
  */
 
 import { randomBytes } from "crypto";
@@ -20,7 +20,7 @@ import { getAgentArtifact, setAgentArtifact } from "@/lib/redis-cache";
 
 export type StoredKind = "pdf" | "csv";
 
-const MAX_ENTRY_BYTES = 5 * 1024 * 1024; // 5MB per entry
+const MAX_ENTRY_BYTES = 10 * 1024 * 1024; // 10MB per entry
 
 interface StoreEntry {
   kind: StoredKind;
