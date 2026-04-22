@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { stripSignOff } from "@/lib/services/email-draft";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -133,7 +134,7 @@ The body should be plain text with line breaks using \\n.`;
 
     return NextResponse.json({
       subject: parsed.subject,
-      body: parsed.body,
+      body: hasSignature ? stripSignOff(parsed.body) : parsed.body,
       searched: !!realtorResearch,
     });
   } catch (err) {

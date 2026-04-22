@@ -61,15 +61,28 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
   const { user } = useAuth();
 
   // Load saved signature on mount, or prefill a preset from LO profile + auth
-  // when no signature has been saved yet. The preset is editable and not
-  // persisted until the user clicks Save.
+  // when no signature has been saved yet. Presets are auto-saved so the user
+  // has a working signature immediately without needing to click Save.
   useEffect(() => {
     if (!editorRef.current) return;
     const savedHtml = getSignatureHtml();
-    const sourceHtml = savedHtml || buildPresetSignatureHtml(user?.displayName, user?.email);
-    if (!sourceHtml) return;
+    if (savedHtml) {
+      const sanitized = DOMPurify.sanitize(savedHtml, {
+        ADD_TAGS: ["img"],
+        ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
+      });
+      const template = document.createElement("template");
+      template.innerHTML = sanitized;
+      editorRef.current.textContent = "";
+      editorRef.current.appendChild(template.content);
+      setIsEmpty(false);
+      return;
+    }
 
-    const sanitized = DOMPurify.sanitize(sourceHtml, {
+    // No saved signature — build preset, display it, and auto-save
+    const preset = buildPresetSignatureHtml(user?.displayName, user?.email);
+    if (!preset) return;
+    const sanitized = DOMPurify.sanitize(preset, {
       ADD_TAGS: ["img"],
       ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
     });
@@ -77,7 +90,9 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
     template.innerHTML = sanitized;
     editorRef.current.textContent = "";
     editorRef.current.appendChild(template.content);
+    setSignatureHtml(sanitized);
     setIsEmpty(false);
+    onSave?.();
   }, [user?.displayName, user?.email]);
 
   const updateEmpty = useCallback(() => {

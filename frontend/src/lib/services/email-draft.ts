@@ -5,6 +5,50 @@
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
+/**
+ * Strip trailing sign-offs that the LLM adds despite being told not to.
+ * Matches common patterns like "Best regards,\nName", "Sincerely,\nName Title",
+ * "Warm regards,\nName\nTitle\nCompany\nPhone", etc.
+ */
+export function stripSignOff(body: string): string {
+  // Common sign-off openers (case-insensitive)
+  const signoffs = [
+    "best regards", "best", "regards", "warm regards", "kind regards",
+    "sincerely", "thanks", "thank you", "many thanks", "cheers",
+    "looking forward", "talk soon", "take care",
+    "with appreciation", "respectfully", "cordially",
+  ];
+
+  const lines = body.split("\n");
+
+  // Scan from the bottom up to find where the sign-off block starts.
+  // A sign-off is: a line matching a known phrase (optionally followed by comma),
+  // followed by 0+ lines of name/title/company/phone/email/NMLS junk.
+  let cutIndex = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue; // skip trailing blank lines
+
+    const lower = trimmed.toLowerCase().replace(/[,.:!]+$/, "").trim();
+    if (signoffs.includes(lower)) {
+      cutIndex = i;
+      break;
+    }
+
+    // If this line looks like name/title/contact info trailing after a sign-off,
+    // keep scanning upward. But stop if we hit a line that looks like real content
+    // (longer than ~60 chars or contains question marks / multiple sentences).
+    if (trimmed.length > 60 || trimmed.includes("?") || (trimmed.match(/\./g) || []).length > 1) {
+      break;
+    }
+  }
+
+  if (cutIndex === -1) return body;
+
+  // Remove the sign-off and everything below it, then trim trailing whitespace
+  return lines.slice(0, cutIndex).join("\n").replace(/\s+$/, "");
+}
+
 export interface EmailDraftInput {
   recipientType: "realtor" | "borrower";
   recipientName?: string;
@@ -98,5 +142,8 @@ The body should be plain text with line breaks using \\n.`;
     throw new Error("Email draft missing subject or body");
   }
 
-  return { subject: parsed.subject, body: parsed.body };
+  return {
+    subject: parsed.subject,
+    body: input.hasSignature ? stripSignOff(parsed.body) : parsed.body,
+  };
 }
