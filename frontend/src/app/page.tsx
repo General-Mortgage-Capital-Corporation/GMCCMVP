@@ -17,6 +17,7 @@ const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr:
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { trackEvent } from "@/lib/posthog";
 import { useSearch } from "@/hooks/useSearch";
 
 import {
@@ -267,6 +268,7 @@ export default function Home() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleTabChange(tab: ActiveTab) {
+    trackEvent("tab_changed", { tab });
     setActiveTab(tab);
     setChipFilters(new Set());
   }
@@ -279,6 +281,7 @@ export default function Home() {
     lat?: number;
     lng?: number;
   }) {
+    trackEvent("property_search", { tab: "find", query: params.query, searchType: params.searchType, radius: params.radius });
     setChipFilters(new Set());
     setFindProgramFilters([]);
     setFindTypeFilters([]);
@@ -298,6 +301,7 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
+    trackEvent("property_search", { tab: "program", program: params.program, county: params.countyFips });
     progSearchCtrl.current?.abort();
     const ctrl = new AbortController();
     progSearchCtrl.current = ctrl;
@@ -335,6 +339,7 @@ export default function Home() {
     countyFips: string;
     city?: string;
   }) {
+    trackEvent("property_search", { tab: "marketing", county: params.countyFips, city: params.city });
     mkSearchCtrl.current?.abort();
     const ctrl = new AbortController();
     mkSearchCtrl.current = ctrl;

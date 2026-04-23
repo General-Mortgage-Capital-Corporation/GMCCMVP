@@ -12,6 +12,7 @@ import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import LoanComparisonFlyer from "./LoanComparisonFlyer";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackEvent } from "@/lib/posthog";
 import type {
   AutocompleteSuggestion,
   CensusData,
@@ -144,6 +145,8 @@ export default function CRACheckTab() {
     setPhotosError(undefined);
     setPropertyImage(undefined);
     setEditRealtorOpen(false);
+
+    trackEvent("cra_check", { address: address.trim() });
 
     try {
       // Step 1: Try to find the property in RentCast for full details

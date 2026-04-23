@@ -6,6 +6,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
 import SignatureFixModal from "@/components/SignatureFixModal";
+import { trackEvent } from "@/lib/posthog";
 import FollowUpToggle from "@/components/FollowUpToggle";
 import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
@@ -335,6 +336,7 @@ export default function MultiEmailModal({
       }
 
       setSent(true);
+      trackEvent("email_sent", { recipientType: tab, programs: programs.map(p => p.name), property: propertyAddress, programCount: programs.length });
 
       // Record all sent emails (fire and forget)
       if (tab !== "myself") {

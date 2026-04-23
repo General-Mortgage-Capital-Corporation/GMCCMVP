@@ -17,6 +17,7 @@ import { useSpeechRecognition } from "@/lib/voice/use-speech-recognition";
 import { createTTSEngine } from "@/lib/voice/tts-engine";
 import { useAgentNarrator } from "@/lib/voice/use-agent-narrator";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
+import { trackEvent } from "@/lib/posthog";
 
 const SUGGESTED_PROMPTS = [
   "Find CRA-eligible properties near 90037 and check which programs they qualify for",
@@ -413,6 +414,7 @@ export default function ChatTab() {
   function handleSubmit(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
+    trackEvent("agent_message_sent", { messageLength: trimmed.length });
     sendMessage({ text: trimmed });
     setInput("");
   }

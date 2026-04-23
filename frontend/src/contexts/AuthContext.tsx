@@ -10,6 +10,7 @@ import {
 } from "react";
 import { exchangeMsalForFirebase, type FirebaseUser } from "@/lib/firebase-auth";
 import { msalConfig, loginRequest } from "@/lib/msal-config";
+import { trackEvent } from "@/lib/posthog";
 
 interface AuthContextValue {
   user: FirebaseUser | null;
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+      trackEvent("user_signed_in", { email: firebaseUser.email, name: firebaseUser.displayName });
       return firebaseUser;
     } catch (err) {
       console.error("Sign-in failed:", err);
