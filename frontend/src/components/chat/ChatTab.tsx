@@ -19,7 +19,7 @@ import { useAgentNarrator } from "@/lib/voice/use-agent-narrator";
 import type { GmccAgentUIMessage } from "@/lib/agents/gmcc-agent";
 
 const SUGGESTED_PROMPTS = [
-  "Find CRA-eligible properties near 90210 and check which programs they qualify for",
+  "Find CRA-eligible properties near 90037 and check which programs they qualify for",
   "What GMCC programs are available in Orange County, CA?",
   "Search for properties near downtown Los Angeles and match them against all programs",
   "How many active listings are there in Miami-Dade County?",
