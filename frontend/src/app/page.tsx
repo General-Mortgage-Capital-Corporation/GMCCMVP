@@ -547,7 +547,7 @@ export default function Home() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <a
-                href="https://youtu.be/e2KjpPjIjmQ"
+                href="https://youtu.be/o9_oYOWWLrc"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
