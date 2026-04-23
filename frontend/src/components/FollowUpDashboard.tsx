@@ -6,6 +6,7 @@ import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import type { FollowUpListItem } from "@/types/follow-up";
+import { trackEvent } from "@/lib/posthog";
 
 type ViewTab = "follow-ups" | "sent" | "replied";
 
@@ -82,6 +83,7 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
         body: JSON.stringify({ id }),
       });
       if (res.ok) {
+        trackEvent("follow_up_dismissed");
         setPendingItems((prev) => prev.filter((i) => i.id !== id));
       }
     } finally {
@@ -173,6 +175,8 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
         setSendError(errData.error?.message ?? "Failed to send.");
         return;
       }
+
+      trackEvent("follow_up_sent", { recipient: item.recipientEmail });
 
       // Dismiss the follow-up
       const idToken = await getIdToken();

@@ -454,6 +454,7 @@ export default function Home() {
       const enriched = listing.id
         ? (all.find((l) => l.id === listing.id) ?? listing)
         : listing;
+      trackEvent("property_viewed", { address: listing.formattedAddress, price: listing.price, type: listing.propertyType });
       setModalListing(enriched);
     },
     [findSearch.listings, progListings, mkListings],

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmailModal from "./EmailModal";
+import { trackEvent } from "@/lib/posthog";
 
 const GMCC_PPT_FOLDER = "https://netorgft1191593.sharepoint.com/sites/LOTraining/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FLOTraining%2FShared%20Documents%2FGMCC%20PPT&viewid=591beb65%2D297e%2D416f%2D8cd2%2Dd6f131d2897a&csf=1&ovuser=9f605dae%2Dab54%2D4576%2D8337%2De008c4b7b2ce%2Cnaitik%2Epoddar%40gmccloan%2Ecom&OR=Teams%2DHL&CT=1773678041332&clickparams=eyJBcHBOYW1lIjoiVGVhbXMtRGVza3RvcCIsIkFwcFZlcnNpb24iOiIxNDE1LzI2MDIxMjE1MTIzIiwiSGFzRmVkZXJhdGVkVXNlciI6ZmFsc2V9&CID=ff9900a2%2D1013%2D0000%2D6083%2De298ce971416&cidOR=SPO&FolderCTID=0x012000CF752C56A7846845A87DA40CB38AE1E9&pageCorrelationId=c7a900a2%2D0046%2D0000%2D6083%2Dee003eccde92&timeStamp=1773698366725";
 
@@ -181,6 +182,7 @@ export default function FlierButton({
   }
 
   async function handlePreview() {
+    trackEvent("flyer_previewed", { program: programName, productId });
     setLoadingAction("preview");
     try {
       const blob = await fetchPdf();
@@ -193,6 +195,7 @@ export default function FlierButton({
   }
 
   async function handleDownload() {
+    trackEvent("flyer_downloaded", { program: programName, productId });
     setLoadingAction("download");
     try {
       const blob = await fetchPdf();

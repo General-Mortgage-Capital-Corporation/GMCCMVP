@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { trackEvent } from "@/lib/posthog";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface FlyerToolOutput {
@@ -29,6 +30,7 @@ export default function FlyerPreviewPart({ state, output }: FlyerPreviewPartProp
 
   const handleDownload = useCallback(async () => {
     if (!data?.flyerRef) return;
+    trackEvent("agent_flyer_downloaded", { program: data.programName });
     setDownloading(true);
     setError(null);
     try {

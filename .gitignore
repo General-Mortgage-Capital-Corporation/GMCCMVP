@@ -14,3 +14,9 @@ data/*.pptx
 data/*.xlsx
 data/*.xlsb
 frontend/assets/
+frontend/reports/
+
+# Dev/local files
+dev/
+*.pdf
+*.pptx
