@@ -205,6 +205,14 @@ def check_eligible_county(
 
     resolved_fips = resolved_fips.strip().zfill(5)
 
+    # Validate FIPS format
+    if len(resolved_fips) != 5 or not resolved_fips.isdigit():
+        return CriterionResult(
+            criterion="eligible_county",
+            status=CriterionStatus.UNVERIFIED,
+            detail=f"Invalid county FIPS format: {resolved_fips}",
+        )
+
     # Check exclusion list first
     if has_exclusions and resolved_fips in tier.excluded_county_fips:
         return CriterionResult(

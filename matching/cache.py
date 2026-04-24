@@ -39,12 +39,15 @@ def _get_redis():
     url = os.environ.get("UPSTASH_REDIS_REST_URL")
     token = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
     if not url or not token:
+        logger.warning("Upstash Redis not configured — L2 cache disabled")
         return None
 
     try:
         from upstash_redis import Redis
         _redis_client = Redis(url=url, token=token)
-    except Exception:
+        logger.info("Redis cache connected")
+    except Exception as exc:
+        logger.error("Failed to connect to Redis: %s", exc)
         _redis_client = None
     return _redis_client
 

@@ -45,6 +45,9 @@ CORS(app, origins=[
 # Data helpers (loaded once at startup)
 # ---------------------------------------------------------------------------
 
+import threading
+
+_CACHE_LOCK = threading.Lock()
 _COUNTY_FIPS_DATA: dict | None = None
 _MSA_LOOKUP: dict | None = None
 _RAW_PROGRAM_RULES: dict[str, dict] | None = None
@@ -53,40 +56,43 @@ _RAW_PROGRAM_RULES: dict[str, dict] | None = None
 def _load_raw_program_rules() -> dict[str, dict]:
     """Load all program JSONs as raw dicts, keyed by program_name. Cached."""
     global _RAW_PROGRAM_RULES
-    if _RAW_PROGRAM_RULES is not None:
+    with _CACHE_LOCK:
+        if _RAW_PROGRAM_RULES is not None:
+            return _RAW_PROGRAM_RULES
+        _RAW_PROGRAM_RULES = {}
+        for fname in sorted(os.listdir(PROGRAMS_DIR)):
+            if fname.endswith(".json"):
+                with open(os.path.join(PROGRAMS_DIR, fname)) as f:
+                    data = json.load(f)
+                name = data.get("program_name", "")
+                if name:
+                    _RAW_PROGRAM_RULES[name] = data
         return _RAW_PROGRAM_RULES
-    _RAW_PROGRAM_RULES = {}
-    for fname in sorted(os.listdir(PROGRAMS_DIR)):
-        if fname.endswith(".json"):
-            with open(os.path.join(PROGRAMS_DIR, fname)) as f:
-                data = json.load(f)
-            name = data.get("program_name", "")
-            if name:
-                _RAW_PROGRAM_RULES[name] = data
-    return _RAW_PROGRAM_RULES
 
 
 def _load_county_fips() -> dict:
     global _COUNTY_FIPS_DATA
-    if _COUNTY_FIPS_DATA is not None:
+    with _CACHE_LOCK:
+        if _COUNTY_FIPS_DATA is not None:
+            return _COUNTY_FIPS_DATA
+        path = os.path.join(os.path.dirname(__file__), "data", "county_fips.json")
+        with open(path) as f:
+            _COUNTY_FIPS_DATA = json.load(f)
         return _COUNTY_FIPS_DATA
-    path = os.path.join(os.path.dirname(__file__), "data", "county_fips.json")
-    with open(path) as f:
-        _COUNTY_FIPS_DATA = json.load(f)
-    return _COUNTY_FIPS_DATA
 
 
 def _load_msa_lookup() -> dict:
     global _MSA_LOOKUP
-    if _MSA_LOOKUP is not None:
+    with _CACHE_LOCK:
+        if _MSA_LOOKUP is not None:
+            return _MSA_LOOKUP
+        path = os.path.join(os.path.dirname(__file__), "data", "msa_lookup.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                _MSA_LOOKUP = json.load(f)
+        else:
+            _MSA_LOOKUP = {}
         return _MSA_LOOKUP
-    path = os.path.join(os.path.dirname(__file__), "data", "msa_lookup.json")
-    if os.path.exists(path):
-        with open(path) as f:
-            _MSA_LOOKUP = json.load(f)
-    else:
-        _MSA_LOOKUP = {}
-    return _MSA_LOOKUP
 
 
 _TRACT_COUNTIES_CACHE: dict[str, set[str]] = {}
@@ -177,7 +183,7 @@ def match_batch_endpoint():
             return jsonify({"success": False, "error": f"Batch size exceeds limit of {MAX_BATCH_SIZE}."}), 400
 
         # --- Dedup: group listings by address key ---
-        def _dedup_key(ld):
+        def _dedup_key(idx, ld):
             """Build a dedup key from address components or lat/lng."""
             addr = ld.get("addressLine1", "").strip().lower()
             city = ld.get("city", "").strip().lower()
@@ -189,10 +195,10 @@ def match_batch_endpoint():
             if lat is not None and lng is not None:
                 return f"coord:{lat}|{lng}"
             # No usable dedup key — each gets its own census call
-            return f"idx:{id(ld)}"
+            return f"idx:{idx}"
 
         # Map each listing index to its dedup key
-        listing_keys = [_dedup_key(ld) for ld in listings]
+        listing_keys = [_dedup_key(i, ld) for i, ld in enumerate(listings)]
 
         # Collect unique keys and a representative listing for each
         unique_census: dict[str, dict] = {}  # key -> representative listing_data

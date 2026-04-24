@@ -99,7 +99,8 @@ export default function CRACheckTab() {
     } catch { /* non-critical */ }
   }
 
-  // Fetch Zillow photos — abort stale requests when a new search starts
+  // Abort controllers — cancel stale requests when a new search starts
+  const searchCtrl = useRef<AbortController | null>(null);
   const photoCtrl = useRef<AbortController | null>(null);
 
   function fetchPhotos(addr: string) {
@@ -130,6 +131,9 @@ export default function CRACheckTab() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!address.trim()) return;
+    searchCtrl.current?.abort();
+    const ctrl = new AbortController();
+    searchCtrl.current = ctrl;
     setLoading(true);
     setError(null);
     setCensus(null);

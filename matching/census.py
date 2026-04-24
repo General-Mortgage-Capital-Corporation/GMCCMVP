@@ -11,11 +11,14 @@ Caching layers:
 """
 
 import json
+import logging
 import os
 import re
 from functools import lru_cache
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 try:
     from matching.cache import (
@@ -26,7 +29,7 @@ try:
         get_cached_acs,
         set_cached_acs,
     )
-except Exception:
+except ImportError:
     # Graceful degradation if cache module fails to import
     def get_cached_geocode(*a, **kw): return None
     def set_cached_geocode(*a, **kw): pass
@@ -174,8 +177,8 @@ def _geocode_address(street: str, city: str, state: str) -> dict | None:
         cached = get_cached_geocode(street, city, state)
         if cached is not None:
             return cached
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Cache read failed (geocode): %s", exc)
 
     try:
         resp = requests.get(
@@ -223,11 +226,12 @@ def _geocode_address(street: str, city: str, state: str) -> dict | None:
         # L2 cache: store in Redis
         try:
             set_cached_geocode(street, city, state, result)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Cache write failed (geocode): %s", exc)
 
         return result
-    except Exception:
+    except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("Address geocode failed: %s", exc)
         return None
 
 
@@ -252,8 +256,8 @@ def _geocode_coordinates(lat: float, lng: float) -> dict | None:
         cached = get_cached_coord_geocode(lat, lng)
         if cached is not None:
             return cached
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Cache read failed (coord geocode): %s", exc)
 
     try:
         resp = requests.get(
@@ -296,11 +300,12 @@ def _geocode_coordinates(lat: float, lng: float) -> dict | None:
         # L2 cache: store in Redis
         try:
             set_cached_coord_geocode(lat, lng, result)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Cache write failed (coord geocode): %s", exc)
 
         return result
-    except Exception:
+    except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("Coordinate geocode failed: %s", exc)
         return None
 
 
@@ -329,8 +334,8 @@ def _get_acs_demographics(
         cached = get_cached_acs(state_fips, county_fips, tract_code)
         if cached is not None:
             return cached
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Cache read failed (ACS): %s", exc)
 
     try:
         resp = requests.get(
@@ -361,12 +366,12 @@ def _get_acs_demographics(
                 # L2 cache: store in Redis
                 try:
                     set_cached_acs(state_fips, county_fips, tract_code, result)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Cache write failed (ACS): %s", exc)
 
                 return result
-    except Exception:
-        pass
+    except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("ACS demographics fetch failed: %s", exc)
     return None
 
 

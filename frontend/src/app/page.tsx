@@ -10,6 +10,7 @@ import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
+import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import FollowUpDashboard from "@/components/FollowUpDashboard";
 import ChatTab from "@/components/chat/ChatTab";
 import dynamic from "next/dynamic";
@@ -883,12 +884,20 @@ export default function Home() {
       </footer>
 
       {/* Modals */}
-      <PropertyModal listing={modalListing} onClose={() => setModalListing(null)} />
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      <ModalErrorBoundary onClose={() => setModalListing(null)}>
+        <PropertyModal listing={modalListing} onClose={() => setModalListing(null)} />
+      </ModalErrorBoundary>
+      {settingsOpen && (
+        <ModalErrorBoundary onClose={() => setSettingsOpen(false)}>
+          <SettingsModal onClose={() => setSettingsOpen(false)} />
+        </ModalErrorBoundary>
+      )}
       {followUpOpen && (
-        <FollowUpDashboard
-          onClose={() => { setFollowUpOpen(false); refreshFollowUpCount(); }}
-        />
+        <ModalErrorBoundary onClose={() => { setFollowUpOpen(false); refreshFollowUpCount(); }}>
+          <FollowUpDashboard
+            onClose={() => { setFollowUpOpen(false); refreshFollowUpCount(); }}
+          />
+        </ModalErrorBoundary>
       )}
     </div>
   );

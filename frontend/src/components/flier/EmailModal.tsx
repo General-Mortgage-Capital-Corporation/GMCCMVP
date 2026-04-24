@@ -175,6 +175,7 @@ export default function EmailModal({
     if (sending) return; // guard against double-submission
     if (!hasSignature()) { setSigFixOpen(true); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
     setError(null);

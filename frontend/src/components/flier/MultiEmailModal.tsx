@@ -248,6 +248,7 @@ export default function MultiEmailModal({
     if (sending) return;
     if (!hasSignature()) { setSigFixOpen(true); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
     setError(null);
@@ -267,16 +268,16 @@ export default function MultiEmailModal({
       const attachments: { name: string; base64: string }[] = [];
       if (programsWithFlyer.length > 0) {
         setSendProgress(`Generating ${programsWithFlyer.length} flyer(s)...`);
-        const pdfResults = await Promise.all(
+        const pdfResults = await Promise.allSettled(
           programsWithFlyer.map(async (p) => {
             const blob = await fetchPdf(p.product_id!);
-            if (!blob) return null;
+            if (!blob) throw new Error(`Failed to generate ${p.product_id} flyer`);
             const base64 = await blobToBase64(blob);
             return { name: `${p.product_id}-flyer.pdf`, base64 };
           }),
         );
         for (const r of pdfResults) {
-          if (r) attachments.push(r);
+          if (r.status === "fulfilled") attachments.push(r.value);
         }
       }
 
