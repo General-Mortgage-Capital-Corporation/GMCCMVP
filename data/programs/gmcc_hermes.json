@@ -1,6 +1,11 @@
 {
   "program_name": "GMCC Hermes",
   "qm_status": "Non-QM",
+  "rate_sheet_urls": {
+    "CA": "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Hermes%20Rate%20Sheet%203.30.2026%20-%20CA.pdf?csf=1&web=1&e=jNvMYG",
+    "multi_state": "https://netorgft1191593.sharepoint.com/:b:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM/GMCC%20Hermes%20Rate%20Sheet%203.30.2026%20CO,%20DC,%20GA,%20IL,%20NJ,%20NY,%20NV,%20TX,%20VA,%20WA,%20AZ.pdf?csf=1&web=1&e=Kp7cgX"
+  },
+  "rate_sheet_date": "2026-03-30",
   "general_notes": [
     "In-house underwriting. No tax documents required.",
     "4 income doc options: Alternative Doc (WVOE/P&L), ABIO/VVOE, 3-mo personal bank statement, 6-mo business bank statement.",

@@ -36,6 +36,7 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC CRA: Cronus Special Conforming",
     "GMCC CRA: Cronus Jumbo CRA",
     "GMCC CRA: Diamond CRA",
+    "GMCC CRA: Universe CRA",  # Universe Home Outreach (CRA) — broker channel only
     "GMCC Celebrity Jumbo",
 }
 
