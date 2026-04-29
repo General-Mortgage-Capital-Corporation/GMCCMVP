@@ -4,11 +4,6 @@
 import { useEffect, useRef } from "react";
 import { isToolUIPart, getToolName } from "ai";
 import type { TTSEngine } from "./tts-engine";
-import {
-  summarizeToolStart,
-  summarizeToolResult,
-  summarizeToolError,
-} from "./summarize-for-speech";
 
 interface UIMessageLike {
   id: string;
@@ -69,11 +64,13 @@ function condensForSpeech(text: string): string {
  * speaks intelligent summaries via TTS.
  *
  * What it speaks:
- * - Tool starting: "Searching for properties near Fremont..."
- * - Tool completed: "Found 23 listings, prices from 850K to 1.4M"
- * - Tool errored: "Property search ran into an error"
+ * - First tool call of a response: "The agent is working…" (once, not per tool)
  * - askUser question: reads the question aloud for hands-free
+ * - askForConfirmation: reads the confirmation prompt aloud
  * - Agent text: condensed summary (strips markdown, first 2-3 sentences)
+ *
+ * Tool start/result/error details are intentionally silenced to avoid
+ * clutter when the agent chains many tool calls before responding.
  */
 export function useAgentNarrator(
   messages: UIMessageLike[],
@@ -103,37 +100,20 @@ export function useAgentNarrator(
       if (isToolUIPart(part)) {
         const toolName = getToolName(part);
 
-        // Tool started
+        // Say "working" once when the first tool of this response starts —
+        // don't announce individual tool names to avoid clutter on multi-tool chains.
         if (
           !prev &&
           (currentState === "input-streaming" || currentState === "input-available")
         ) {
-          const key = `${partKey}-start`;
-          if (!narrated.has(key)) {
-            narrated.add(key);
-            tts.speak(summarizeToolStart(toolName, part.input));
+          const workingKey = `${lastAssistant.id}-working`;
+          if (!narrated.has(workingKey)) {
+            narrated.add(workingKey);
+            tts.speak("The agent is working.");
           }
         }
 
-        // Tool completed successfully
-        if (currentState === "output-available" && prev?.state !== "output-available") {
-          const key = `${partKey}-done`;
-          if (!narrated.has(key)) {
-            narrated.add(key);
-            tts.speak(summarizeToolResult(toolName, part.output));
-          }
-        }
-
-        // Tool errored
-        if (currentState === "output-error" && prev?.state !== "output-error") {
-          const key = `${partKey}-error`;
-          if (!narrated.has(key)) {
-            narrated.add(key);
-            tts.speak(summarizeToolError(toolName, part.errorText ?? ""));
-          }
-        }
-
-        // askUser — read the question aloud
+        // askUser — read the question aloud (user must respond, so always announce)
         if (
           toolName === "askUser" &&
           currentState === "input-available" &&
@@ -150,7 +130,7 @@ export function useAgentNarrator(
           }
         }
 
-        // askForConfirmation — read the confirmation prompt
+        // askForConfirmation — read the confirmation prompt (user must respond)
         if (
           toolName === "askForConfirmation" &&
           currentState === "input-available" &&
