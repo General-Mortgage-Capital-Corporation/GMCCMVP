@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import MarkdownText from "@/components/chat/MarkdownText";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useAuth } from "@/contexts/AuthContext";
 import type { PricingResult, PricingScenario } from "@/types/pricing";
 
 interface Props {
@@ -25,6 +26,7 @@ const STARTER_PROMPTS = [
 ];
 
 export default function PricingChat({ results, scenario, scenarioSummary, defaultsApplied }: Props) {
+  const { getIdToken } = useAuth();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,9 +52,18 @@ export default function PricingChat({ results, scenario, scenarioSummary, defaul
     setLoading(true);
     setError(null);
     try {
+      const idToken = await getIdToken();
+      if (!idToken) {
+        setError("Sign-in required.");
+        setMessages(messages);
+        return;
+      }
       const res = await fetch("/api/pricing/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           messages: next,
           results,

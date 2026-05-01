@@ -651,7 +651,9 @@ function groupByEngine(results: PricingResult[]): Record<ResultEngine, PricingRe
     bws: [],
   };
   for (const r of results) {
-    if (r.engine in out) out[r.engine].push(r);
+    // Use Object.hasOwn to avoid prototype-pollution attacks via untrusted
+    // engine names (e.g. "toString", "constructor").
+    if (Object.hasOwn(out, r.engine)) out[r.engine].push(r);
   }
   return out;
 }
@@ -683,9 +685,11 @@ function fmtRowPoints(r: RateRow): string {
 }
 
 function humanizeDefaults(defaults: string[]): string[] {
-  return defaults.map((d) =>
-    d.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toLowerCase()),
-  );
+  // "credit_event" → "Credit event", "first_time_homebuyer" → "First time homebuyer"
+  return defaults.map((d) => {
+    const spaced = d.replace(/_/g, " ");
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  });
 }
 
 // ---------------------------------------------------------------------------

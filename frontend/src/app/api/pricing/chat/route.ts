@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
+import { verifyIdTokenWithEmail } from "@/lib/firestore-admin";
 import type { PricingScenario, PricingResult, RateRow } from "@/types/pricing";
 
 export const runtime = "nodejs";
@@ -316,6 +317,21 @@ export async function POST(req: NextRequest) {
       { error: "Rate limit exceeded." },
       { status: 429 },
     );
+  }
+
+  // Auth — same Firebase ID token check as the quote route. Without this,
+  // anyone could hit /api/pricing/chat with arbitrary results[] payloads
+  // and burn Gemini quota.
+  const authHeader = req.headers.get("authorization") ?? "";
+  const idToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (!idToken) {
+    return NextResponse.json({ error: "Sign-in required." }, { status: 401 });
+  }
+  const verified = await verifyIdTokenWithEmail(idToken);
+  if (!verified?.email) {
+    return NextResponse.json({ error: "Your session expired. Sign in again." }, { status: 401 });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;

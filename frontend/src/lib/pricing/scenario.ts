@@ -44,7 +44,6 @@ export interface ScenarioInputs {
   escrow_waived?: boolean;
   short_term_rental?: boolean;
   rural_property?: boolean;
-  buy_without_sell?: boolean;
   // Credit events
   credit_event?: CreditEvent;
 }
@@ -110,25 +109,41 @@ export function buildScenario(
   > | null,
   inputs: ScenarioInputs,
 ): PricingScenario {
-  const purchasePrice =
-    inputs.appraised_value_override ?? inputs.loan_amount_override
-      ? // If they overrode loan, infer purchase price from down pct
-        (inputs.appraised_value_override ??
-          (inputs.loan_amount_override
-            ? inputs.loan_amount_override / (1 - inputs.down_payment_pct / 100)
-            : 0))
-      : (listing?.price ?? 0);
-
+  // Clamp down payment % once, up front. 99% is a hard ceiling so
+  // (1 - downPct/100) never hits zero.
   const downPct = Math.max(0, Math.min(99, inputs.down_payment_pct));
-  const loanAmount =
-    inputs.loan_amount_override ??
-    Math.round(purchasePrice * (1 - downPct / 100));
-
-  const ltv = purchasePrice > 0 ? Number((loanAmount / purchasePrice * 100).toFixed(2)) : undefined;
   const propertyType = mapPropertyType(listing?.propertyType);
   const units = deriveUnits(listing?.propertyType);
-
   const purpose: LoanPurpose = inputs.loan_purpose ?? "purchase";
+
+  // Resolve property/appraised value with explicit precedence:
+  //   1. appraised_value_override (if set)
+  //   2. derive from loan_amount_override + down% (purchases only)
+  //   3. listing.price
+  let purchasePrice: number;
+  if (inputs.appraised_value_override && inputs.appraised_value_override > 0) {
+    purchasePrice = inputs.appraised_value_override;
+  } else if (
+    inputs.loan_amount_override &&
+    inputs.loan_amount_override > 0 &&
+    purpose === "purchase"
+  ) {
+    purchasePrice = inputs.loan_amount_override / (1 - downPct / 100);
+  } else {
+    purchasePrice = listing?.price ?? 0;
+  }
+
+  const loanAmount =
+    inputs.loan_amount_override && inputs.loan_amount_override > 0
+      ? inputs.loan_amount_override
+      : Math.round(purchasePrice * (1 - downPct / 100));
+
+  const ltv =
+    purchasePrice > 0
+      ? Number(((loanAmount / purchasePrice) * 100).toFixed(2))
+      : undefined;
+
+  const isInvestment = inputs.occupancy === "investment";
 
   const scenario: PricingScenario = {
     state: (listing?.state ?? "").toUpperCase(),
@@ -147,14 +162,14 @@ export function buildScenario(
     lock_period: inputs.lock_period ?? 30,
     loan_type: "first_lien",
     self_employed: inputs.self_employed ?? false,
-    first_time_homebuyer: inputs.first_time_homebuyer ?? false,
-    first_time_investor: inputs.first_time_investor ?? false,
+    // FTHB only meaningful for non-investment, FTI only for investment.
+    first_time_homebuyer: !isInvestment && (inputs.first_time_homebuyer ?? false),
+    first_time_investor: isInvestment && (inputs.first_time_investor ?? false),
     interest_only: inputs.interest_only ?? false,
     forty_year_term: inputs.forty_year_term ?? false,
     escrow_waived: inputs.escrow_waived ?? false,
-    short_term_rental: inputs.short_term_rental ?? false,
+    short_term_rental: isInvestment && (inputs.short_term_rental ?? false),
     rural_property: inputs.rural_property ?? false,
-    buy_without_sell: inputs.buy_without_sell ?? false,
     buydown_type: inputs.buydown_type ?? "none",
     prepay_penalty_months: inputs.prepay_penalty_months ?? 0,
     cash_out_amount:
@@ -191,8 +206,21 @@ export function validateScenario(s: PricingScenario): string | null {
   if (!s.loan_amount || s.loan_amount <= 0) return "Loan amount must be greater than 0.";
   if (s.fico < 300 || s.fico > 850) return "FICO must be between 300 and 850.";
   if (s.dti < 0 || s.dti > 100) return "DTI must be between 0 and 100.";
-  if (s.loan_purpose === "purchase" && !s.purchase_price) return "Purchase price is required for a purchase scenario.";
-  if (s.loan_purpose === "cash_out_refi" && !s.cash_out_amount) return "Cash-out amount is required for cash-out refi.";
+  if (s.loan_purpose === "purchase" && !s.purchase_price) {
+    return "Purchase price is required for a purchase scenario.";
+  }
+  if (s.loan_purpose === "cash_out_refi" && !s.cash_out_amount) {
+    return "Cash-out amount is required for cash-out refi.";
+  }
+  // Refi scenarios need an explicit appraised value — listing.price isn't a
+  // valid source for "what's the home worth today" since the LO is refinancing,
+  // not buying. Without it, LTV is meaningless.
+  if (
+    (s.loan_purpose === "rate_term_refi" || s.loan_purpose === "cash_out_refi") &&
+    !s.appraised_value
+  ) {
+    return "Appraised value is required for refi scenarios. Set it in Advanced → Loan structure.";
+  }
   if (!s.appraised_value && !s.ltv) return "Either appraised value or LTV is required.";
   return null;
 }

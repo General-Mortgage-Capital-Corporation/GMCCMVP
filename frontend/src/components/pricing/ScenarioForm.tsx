@@ -280,6 +280,23 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
                 className={inputClass}
               />
             </Field>
+            {(inputs.loan_purpose === "rate_term_refi" ||
+              inputs.loan_purpose === "cash_out_refi") && (
+              <Field label="Appraised value">
+                <input
+                  type="number"
+                  placeholder="Required for refi"
+                  value={inputs.appraised_value_override ?? ""}
+                  onChange={(e) =>
+                    set(
+                      "appraised_value_override",
+                      e.target.value ? Math.max(0, Number(e.target.value)) : undefined,
+                    )
+                  }
+                  className={inputClass}
+                />
+              </Field>
+            )}
             {inputs.loan_purpose === "cash_out_refi" && (
               <Field label="Cash-out amount">
                 <input
@@ -345,23 +362,37 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
                 </select>
               </Field>
             </div>
-            {/* Row 2: flag checkboxes — equal-height, wrap freely */}
+            {/* Row 2: flag checkboxes — equal-height, wrap freely.
+                FTHB and FTI are mutually exclusive in practice; we only show
+                FTI for investment occupancy and FTHB for non-investment.
+                STR is investment-only (DSCR / non-owner-occupied). */}
             <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
               <CheckboxField
                 label="Self-employed"
                 checked={!!inputs.self_employed}
                 onChange={(v) => set("self_employed", v)}
               />
-              <CheckboxField
-                label="First-time homebuyer"
-                checked={!!inputs.first_time_homebuyer}
-                onChange={(v) => set("first_time_homebuyer", v)}
-              />
-              <CheckboxField
-                label="First-time investor"
-                checked={!!inputs.first_time_investor}
-                onChange={(v) => set("first_time_investor", v)}
-              />
+              {inputs.occupancy !== "investment" && (
+                <CheckboxField
+                  label="First-time homebuyer"
+                  checked={!!inputs.first_time_homebuyer}
+                  onChange={(v) => set("first_time_homebuyer", v)}
+                />
+              )}
+              {inputs.occupancy === "investment" && (
+                <CheckboxField
+                  label="First-time investor"
+                  checked={!!inputs.first_time_investor}
+                  onChange={(v) => set("first_time_investor", v)}
+                />
+              )}
+              {inputs.occupancy === "investment" && (
+                <CheckboxField
+                  label="Short-term rental"
+                  checked={!!inputs.short_term_rental}
+                  onChange={(v) => set("short_term_rental", v)}
+                />
+              )}
               <CheckboxField
                 label="Interest only"
                 checked={!!inputs.interest_only}
@@ -378,19 +409,9 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
                 onChange={(v) => set("escrow_waived", v)}
               />
               <CheckboxField
-                label="Short-term rental"
-                checked={!!inputs.short_term_rental}
-                onChange={(v) => set("short_term_rental", v)}
-              />
-              <CheckboxField
                 label="Rural property"
                 checked={!!inputs.rural_property}
                 onChange={(v) => set("rural_property", v)}
-              />
-              <CheckboxField
-                label="Buy without sell"
-                checked={!!inputs.buy_without_sell}
-                onChange={(v) => set("buy_without_sell", v)}
               />
             </div>
           </div>

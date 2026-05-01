@@ -70,13 +70,18 @@ export default function ComparePricingModal({ listing, onClose }: Props) {
   const validationError = useMemo(() => validateScenario(draftScenario), [draftScenario]);
   const hasResults = !!results;
 
-  // ESC to close (doesn't fire while loading)
+  // ESC to close (doesn't fire while loading). stopPropagation prevents the
+  // underlying PropertyModal from also closing on the same keystroke. Capture
+  // phase so we run before any other listener.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !loading) onClose();
+      if (e.key !== "Escape" || loading) return;
+      e.stopPropagation();
+      e.preventDefault();
+      onClose();
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", handler, { capture: true });
+    return () => document.removeEventListener("keydown", handler, { capture: true });
   }, [loading, onClose]);
 
   const onOverlayClick = useCallback(
