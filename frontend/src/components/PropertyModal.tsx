@@ -17,6 +17,7 @@ import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import PhotoCarousel from "./PhotoCarousel";
 import { CensusPanel, SectionTitle, GridItem } from "./shared/PropertyPanels";
 import { ProgramCard, IneligiblePrograms, EditRealtorPanel } from "./shared/ProgramCards";
+import ComparePricingModal from "./pricing/ComparePricingModal";
 
 // ---------------------------------------------------------------------------
 // Zillow photo cache (sessionStorage, survives modal close / page nav)
@@ -88,6 +89,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
+  const [showComparePricing, setShowComparePricing] = useState(false);
   const [multiSummary, setMultiSummary] = useState<string>("");
   const [preResearch, setPreResearch] = useState<string | null>(null);
 
@@ -115,6 +117,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     setMultiSummary("");
     setShowSummaryModal(false);
     setShowMultiEmailModal(false);
+    setShowComparePricing(false);
     setZillowPhotos([]);
     setPhotosLoading(false);
     setPhotosError(undefined);
@@ -334,13 +337,35 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
           <div className="space-y-5 p-6">
             {/* ── Header ── */}
-            <div className="pr-8">
-              <div className="text-3xl font-bold tracking-tight text-gray-900">
-                {formatPrice(listing.price)}
+            <div className="flex items-start justify-between gap-3 pr-8">
+              <div className="min-w-0 flex-1">
+                <div className="text-3xl font-bold tracking-tight text-gray-900">
+                  {formatPrice(listing.price)}
+                </div>
+                <div className="mt-1 text-base text-gray-600">
+                  {listing.formattedAddress ?? "Address unavailable"}
+                </div>
               </div>
-              <div className="mt-1 text-base text-gray-600">
-                {listing.formattedAddress ?? "Address unavailable"}
-              </div>
+              <button
+                onClick={() => setShowComparePricing(true)}
+                className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:border-violet-300 hover:shadow-md"
+                title="Fan out this scenario across Loannex, QM Jumbo, and BWS engines"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="text-violet-600 transition-transform group-hover:scale-110"
+                >
+                  <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+                </svg>
+                Compare Pricing
+                <span className="rounded-full bg-violet-200/70 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wider text-violet-800">
+                  New
+                </span>
+              </button>
             </div>
 
             {/* ── MSA / Census panel ── */}
@@ -608,18 +633,6 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
               <div className="flex items-center gap-2">
                 <button
-                  disabled
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed"
-                  title="Pricing comparison engine coming soon"
-                >
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    <path d="M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
-                  </svg>
-                  Compare Pricing
-                  <span className="rounded bg-gray-200 px-1 py-0.5 text-[0.55rem] font-semibold uppercase leading-none tracking-wider text-gray-500">Soon</span>
-                </button>
-                <button
                   onClick={() => setShowSummaryModal(true)}
                   className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
                 >
@@ -651,6 +664,14 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             setShowSummaryModal(false);
             setShowMultiEmailModal(true);
           }}
+        />
+      )}
+
+      {/* ── Compare Pricing modal ── */}
+      {showComparePricing && (
+        <ComparePricingModal
+          listing={listing}
+          onClose={() => setShowComparePricing(false)}
         />
       )}
 

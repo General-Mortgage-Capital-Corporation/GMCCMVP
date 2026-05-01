@@ -11,6 +11,7 @@ import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import LoanComparisonFlyer from "./LoanComparisonFlyer";
+import ComparePricingModal from "@/components/pricing/ComparePricingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/posthog";
 import type {
@@ -82,6 +83,7 @@ export default function CRACheckTab() {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
+  const [showComparePricing, setShowComparePricing] = useState(false);
   const [multiSummary, setMultiSummary] = useState("");
   const [preResearch, setPreResearch] = useState<string | null>(null);
 
@@ -144,6 +146,7 @@ export default function CRACheckTab() {
     setMultiSummary("");
     setShowSummaryModal(false);
     setShowMultiEmailModal(false);
+    setShowComparePricing(false);
     setZillowPhotos([]);
     setPhotosLoading(false);
     setPhotosError(undefined);
@@ -354,18 +357,40 @@ export default function CRACheckTab() {
 
           {/* ── Header: Address + Price ── */}
           <div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                   {listing.price ? formatPrice(listing.price) : "Price Not Available"}
                 </h2>
                 <p className="mt-1 text-base text-gray-500">{searchedAddress}</p>
               </div>
-              {listing.status && (
-                <span className="inline-flex self-start rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 sm:self-auto">
-                  {listing.status}
-                </span>
-              )}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                {listing.status && (
+                  <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+                    {listing.status}
+                  </span>
+                )}
+                <button
+                  onClick={() => setShowComparePricing(true)}
+                  className="group inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:border-violet-300 hover:shadow-md"
+                  title="Fan out this scenario across Loannex, QM Jumbo, and BWS engines"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    className="text-violet-600 transition-transform group-hover:scale-110"
+                  >
+                    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <path d="M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+                  </svg>
+                  Compare Pricing
+                  <span className="rounded-full bg-violet-200/70 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wider text-violet-800">
+                    New
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -635,18 +660,6 @@ export default function CRACheckTab() {
 
             <div className="flex items-center gap-2">
               <button
-                disabled
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
-                title="Pricing comparison engine coming soon"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M6 2v12M10 2v12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
-                </svg>
-                Compare Pricing
-                <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase leading-none tracking-wider text-gray-500">Soon</span>
-              </button>
-              <button
                 onClick={() => setShowSummaryModal(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
               >
@@ -677,6 +690,14 @@ export default function CRACheckTab() {
             setShowSummaryModal(false);
             setShowMultiEmailModal(true);
           }}
+        />
+      )}
+
+      {/* ═══ Compare Pricing Modal ═══ */}
+      {showComparePricing && listing && (
+        <ComparePricingModal
+          listing={listing}
+          onClose={() => setShowComparePricing(false)}
         />
       )}
 
