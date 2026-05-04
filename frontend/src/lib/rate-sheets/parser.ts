@@ -55,16 +55,19 @@ const NOISE_TOKENS = new Set<string>([
 ]);
 
 // Known feature/variant keywords. We capture these explicitly so we can use
-// canonical casing (e.g. "Bank Statement" instead of "BANK STATEMENT"). Any
-// other unrecognized leftover is still kept as a free-form variant string.
+// canonical casing (e.g. "Bank Statement" instead of "BANK STATEMENT", "CRA"
+// instead of "Cra"). Any other unrecognized leftover is still kept as a
+// free-form variant string.
 const VARIANT_KEYWORDS: { canonical: string; pattern: RegExp }[] = [
   { canonical: "Bank Statement",   pattern: /\bbank\s*statements?\b/i },
   { canonical: "DSCR",             pattern: /\bdscr\b/i },
+  { canonical: "CRA",              pattern: /\bcra\b/i },
   { canonical: "Investor",         pattern: /\binvestor\b/i },
   { canonical: "Foreign National", pattern: /\bforeign\s+national\b/i },
   { canonical: "P&L",              pattern: /\bp\s*&\s*l\b|\bpnl\b/i },
   { canonical: "Asset Depletion",  pattern: /\basset\s+depletion\b/i },
   { canonical: "WVOE",             pattern: /\bwvoe\b/i },
+  { canonical: "SVOE",             pattern: /\bsvoe\b/i },
   { canonical: "Interest Only",    pattern: /\binterest\s*only\b|\bio\b/i },
   { canonical: "ITIN",             pattern: /\bitin\b/i },
   { canonical: "1099",             pattern: /\b1099\b/i },
@@ -266,12 +269,21 @@ export function groupByProgram(records: RateSheetRecord[]): Record<ProgramKey, R
 }
 
 /**
- * Pick the best record for a program given an optional state and variant filter.
- * Preference:
- *   1. Variant matches (or both have no variant) AND state matches
- *   2. Variant matches AND no state restriction (states=[])
- *   3. No variant filter → first record matching state
- *   4. Fallback: newest record overall
+ * Pick the best record for a program given an optional state + variant.
+ *
+ * STATE-AWARE STRICTNESS: when a state is requested and no rate sheet
+ * explicitly lists that state AND no state-agnostic sheet exists, we return
+ * NULL — not a misleading fallback. If the program isn't authoring rate
+ * sheets that cover the LO's state, that's a strong signal the program
+ * isn't offered there (e.g., Hermes has no Oregon sheet → likely not
+ * available in OR). The caller can fall back to its hardcoded value or
+ * warn the LO; we don't silently lie.
+ *
+ * Preference order:
+ *   1. State explicitly listed AND variant matches
+ *   2. State-agnostic record (states=[]) AND variant matches
+ *   3. (state requested but no match) → null
+ *   No state requested → newest matching-variant record (or just newest)
  */
 export function pickRecord(
   records: RateSheetRecord[],
@@ -279,32 +291,40 @@ export function pickRecord(
 ): RateSheetRecord | null {
   if (records.length === 0) return null;
   const state = opts.state?.toUpperCase();
-  const variant = opts.variant === undefined ? undefined : opts.variant;
+  const requestedVariant = opts.variant;
 
+  // Variant matcher:
+  //   - undefined or null → caller wants the BASE sheet (variant=null)
+  //   - string             → caller explicitly wants that named variant
+  //
+  // Critically: undefined does NOT mean "any variant". CRA, Bank Statement,
+  // etc. are specialized sheets — surfacing them for a generic request would
+  // make the LO quote the wrong rates.
   const matchesVariant = (r: RateSheetRecord) => {
-    if (variant === undefined) return true; // no preference
-    return r.variant === variant;
-  };
-  const matchesState = (r: RateSheetRecord) => {
-    if (!state) return true;
-    if (r.states.length === 0) return true; // applies to any state
-    return r.states.includes(state);
+    if (requestedVariant === undefined || requestedVariant === null) {
+      return r.variant === null;
+    }
+    return r.variant === requestedVariant;
   };
 
-  // 1. Variant + state both match (records are newest-first already)
-  const exact = records.find((r) => matchesVariant(r) && matchesState(r));
-  if (exact) return exact;
-
-  // 2. Variant matches with state-agnostic record
   if (state) {
-    const variantOnly = records.find((r) => matchesVariant(r) && r.states.length === 0);
-    if (variantOnly) return variantOnly;
+    // 1. State explicitly covered + variant matches
+    const explicit = records.find(
+      (r) => matchesVariant(r) && r.states.length > 0 && r.states.includes(state),
+    );
+    if (explicit) return explicit;
+
+    // 2. State-agnostic sheet (no state restriction at all) + variant matches
+    const agnostic = records.find(
+      (r) => matchesVariant(r) && r.states.length === 0,
+    );
+    if (agnostic) return agnostic;
+
+    // 3. State requested but no sheet covers it → null (don't fake-pick)
+    return null;
   }
 
-  // 3. State matches, ignore variant
-  const stateOnly = records.find((r) => matchesState(r));
-  if (stateOnly) return stateOnly;
-
-  // 4. Newest available (already sorted)
-  return records[0];
+  // No state requested — return newest record matching variant (base by default).
+  const variantMatch = records.find(matchesVariant);
+  return variantMatch ?? null;
 }
