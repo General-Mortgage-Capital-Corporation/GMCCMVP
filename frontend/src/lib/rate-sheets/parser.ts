@@ -293,16 +293,24 @@ export function pickRecord(
   const state = opts.state?.toUpperCase();
   const requestedVariant = opts.variant;
 
+  // Some programs (Universe) tag every release with a Greek-letter codename
+  // (Omicron, Rho, …) — those are version identifiers, not feature variants.
+  // If NO record for this program has variant=null, treat all the existing
+  // variant tags as base-equivalent: the newest one IS the default sheet.
+  // This preserves strict variant matching when there's a real base + named
+  // variants alongside (e.g. Hermes base + Hermes CRA).
+  const hasBaseSheet = records.some((r) => r.variant === null);
+
   // Variant matcher:
-  //   - undefined or null → caller wants the BASE sheet (variant=null)
-  //   - string             → caller explicitly wants that named variant
-  //
-  // Critically: undefined does NOT mean "any variant". CRA, Bank Statement,
-  // etc. are specialized sheets — surfacing them for a generic request would
-  // make the LO quote the wrong rates.
+  //   - undefined → "no variant preference"
+  //       → if any base sheet exists, match base only
+  //       → if none, all records count as base (codename-only programs)
+  //   - null      → explicit "base only" → strict base match
+  //   - string    → caller explicitly wants that named variant
   const matchesVariant = (r: RateSheetRecord) => {
-    if (requestedVariant === undefined || requestedVariant === null) {
-      return r.variant === null;
+    if (requestedVariant === null) return r.variant === null;
+    if (requestedVariant === undefined) {
+      return hasBaseSheet ? r.variant === null : true;
     }
     return r.variant === requestedVariant;
   };
