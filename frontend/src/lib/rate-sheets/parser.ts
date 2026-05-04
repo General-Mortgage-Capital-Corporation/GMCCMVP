@@ -168,13 +168,18 @@ export function detectVariant(
   states: string[],
   date: string | null,
 ): string | null {
+  // Strip extension defensively so callers don't have to pre-normalize.
+  // parseFilename already normalizes before calling us, but exporting this
+  // function means external callers (and tests) might pass raw filenames.
+  const cleaned = filename.replace(/\.(pdf|xlsx?|docx?)$/i, "");
+
   // Known features first — they take priority.
   for (const { canonical, pattern } of VARIANT_KEYWORDS) {
-    if (pattern.test(filename)) return canonical;
+    if (pattern.test(cleaned)) return canonical;
   }
 
   // Otherwise, strip everything we recognize and see what's left.
-  let residue = filename;
+  let residue = cleaned;
   // Strip program name (case-insensitive)
   residue = residue.replace(new RegExp(`\\b${program}\\b`, "i"), " ");
   // Strip "rate sheet", "rate", "sheet"
