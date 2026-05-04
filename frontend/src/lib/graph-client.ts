@@ -7,7 +7,12 @@
 
 let _cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function getAppToken(): Promise<string | null> {
+/**
+ * Get a Graph application access token using client credentials. Cached for
+ * the token's lifetime (with a 5-minute buffer). Exported so other modules
+ * (e.g. SharePoint rate-sheet sync) can reuse the same cached token.
+ */
+export async function getAppToken(): Promise<string | null> {
   const clientId = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET_VALUE ?? process.env.AZURE_CLIENT_SECRET;
   const tenantId = process.env.NEXT_PUBLIC_AZURE_TENANT_ID;

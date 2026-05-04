@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/follow-ups",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-rate-sheets",
+      "schedule": "0 17 * * *"
     }
   ],
   "headers": [

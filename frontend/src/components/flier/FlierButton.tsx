@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmailModal from "./EmailModal";
 import { trackEvent } from "@/lib/posthog";
+import { useRateSheets } from "@/hooks/useRateSheets";
 
 const GMCC_PPT_FOLDER = "https://netorgft1191593.sharepoint.com/sites/LOTraining/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FLOTraining%2FShared%20Documents%2FGMCC%20PPT&viewid=591beb65%2D297e%2D416f%2D8cd2%2Dd6f131d2897a&csf=1&ovuser=9f605dae%2Dab54%2D4576%2D8337%2De008c4b7b2ce%2Cnaitik%2Epoddar%40gmccloan%2Ecom&OR=Teams%2DHL&CT=1773678041332&clickparams=eyJBcHBOYW1lIjoiVGVhbXMtRGVza3RvcCIsIkFwcFZlcnNpb24iOiIxNDE1LzI2MDIxMjE1MTIzIiwiSGFzRmVkZXJhdGVkVXNlciI6ZmFsc2V9&CID=ff9900a2%2D1013%2D0000%2D6083%2De298ce971416&cidOR=SPO&FolderCTID=0x012000CF752C56A7846845A87DA40CB38AE1E9&pageCorrelationId=c7a900a2%2D0046%2D0000%2D6083%2Dee003eccde92&timeStamp=1773698366725";
 
@@ -108,6 +109,7 @@ export default function FlierButton({
   propertyImage,
 }: FlierButtonProps) {
   const { user, signIn, getIdToken } = useAuth();
+  const { resolveUrl: resolveLiveRatesheet } = useRateSheets();
   const [loadingAction, setLoadingAction] = useState<"preview" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -123,7 +125,12 @@ export default function FlierButton({
   const config = PROGRAM_CONFIG[programName];
   if (!config) return null;
   const { productId, guidelineUrl, ratesheetUrl: rawRatesheetUrl } = config;
-  const ratesheetUrl = resolveRatesheetUrl(rawRatesheetUrl, propertyState);
+  // Prefer the live URL from the SharePoint sync. Fall back to the hardcoded
+  // PROGRAM_CONFIG.ratesheetUrl when (a) the snapshot hasn't loaded yet,
+  // (b) the program isn't in the scraper's list, or (c) the scraper found
+  // nothing for this program. Live → never goes stale; fallback → never breaks.
+  const liveUrl = resolveLiveRatesheet(programName, propertyState);
+  const ratesheetUrl = liveUrl ?? resolveRatesheetUrl(rawRatesheetUrl, propertyState);
 
   async function fetchPdf(): Promise<Blob | null> {
     setError(null);
