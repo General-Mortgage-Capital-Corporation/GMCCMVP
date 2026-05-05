@@ -124,22 +124,36 @@ export async function GET(req: NextRequest) {
   }
 
   // Step 2: Re-query pending follow-ups FRESH (excludes items marked replied in Step 1).
-  // Cap at 50 per run — each item is Gemini draft (~2s) + maybe Graph send (~1s),
-  // so 50 × 3s = 150s. Plus Step 1's ~40s = 190s, well under 300s budget.
-  // A backlog drains over multiple hourly runs.
+  //
+  // We pull all pending then sort by scheduledAt ascending in memory so we
+  // always process the OLDEST overdue first. A naive limit(N) without
+  // orderBy returns docs in indeterminate order, so on a normal day with
+  // few overdue items mixed into many future-scheduled ones, the lucky
+  // draw determines what gets done — bad for backlog drain.
+  //
+  // We cap processing at 50 per run (each item ~3s = 150s; with Step 1's
+  // ~40s, total ~190s, under the 300s budget). Backlog drains over multiple
+  // hourly runs.
   const pendingSnapshot = await db
     .collection("sentEmails")
     .where("followUp.status", "==", "pending")
-    .limit(50)
     .get();
 
-  // Filter to only due items, exclude any with hasReply flag
-  const dueDocs = pendingSnapshot.docs.filter((doc) => {
-    const data = doc.data();
-    if (data.hasReply) return false;
-    const fu = data.followUp;
-    return fu && fu.scheduledAt <= now;
-  });
+  // Filter to due items (exclude future-scheduled and already-replied),
+  // sort oldest-first, take up to 50.
+  const dueDocs = pendingSnapshot.docs
+    .filter((doc) => {
+      const data = doc.data();
+      if (data.hasReply) return false;
+      const fu = data.followUp;
+      return fu && fu.scheduledAt <= now;
+    })
+    .sort((a, b) => {
+      const aFu = a.data().followUp;
+      const bFu = b.data().followUp;
+      return (aFu?.scheduledAt ?? 0) - (bFu?.scheduledAt ?? 0);
+    })
+    .slice(0, 50);
 
   if (dueDocs.length === 0) {
     return NextResponse.json({ processed: 0, replied, total: 0 });
