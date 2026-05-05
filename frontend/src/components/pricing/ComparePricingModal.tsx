@@ -235,6 +235,11 @@ function Header({
           <StepIndicator phase={phase} />
         </div>
         <p className="mt-0.5 truncate text-xs text-slate-500">{summary}</p>
+        <p className="mt-1 text-[0.7rem] leading-tight text-slate-500">
+          Comparing pricing across{" "}
+          <span className="font-medium text-slate-700">QM Jumbo</span> programs (loans ≥ $300K) and{" "}
+          <span className="font-medium text-slate-700">Loannex</span> programs.
+        </p>
       </div>
       <button
         onClick={onClose}
@@ -303,7 +308,7 @@ function ScenarioPhase({
             <p className="mt-0.5 text-xs text-slate-500">
               {hasResults
                 ? "Adjust any field and re-run to update quotes across all engines."
-                : "We'll fan this out across Loannex and QM Jumbo. Defaults are conservative — change anything that doesn't match the borrower."}
+                : "We'll fan this out across QM Jumbo (loans ≥ $300K) and Loannex programs. Defaults are conservative — change anything that doesn't match the borrower."}
             </p>
           </div>
 

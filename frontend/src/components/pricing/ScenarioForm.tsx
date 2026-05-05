@@ -102,9 +102,30 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
     onChange({ ...inputs, [key]: value });
   };
 
-  const purchase = listingPrice ?? 0;
-  const downPmt = Math.round(purchase * (inputs.down_payment_pct / 100));
-  const loanAmount = inputs.loan_amount_override ?? Math.round(purchase - downPmt);
+  // Effective values — mirror buildScenario so summary always reflects
+  // what gets sent to the aggregator.
+  //
+  // Sync model:
+  //   - Edit Property (appraised_value_override) → loan/down recompute from
+  //     the unchanged down_pct OR loan_override (whichever is in play).
+  //   - Edit Down % → clear loan_override so loan recomputes from the new %.
+  //   - Edit Loan amount → set loan_override; the displayed Down % becomes
+  //     the back-derived ratio so the line stays consistent.
+  const purchase = inputs.appraised_value_override ?? listingPrice ?? 0;
+  const isPriceOverridden =
+    inputs.appraised_value_override !== undefined && inputs.appraised_value_override > 0;
+  const isLoanOverridden =
+    inputs.loan_amount_override !== undefined && inputs.loan_amount_override > 0;
+  const loanAmount = isLoanOverridden
+    ? inputs.loan_amount_override!
+    : Math.round(purchase * (1 - inputs.down_payment_pct / 100));
+  const downPmt = Math.max(0, Math.round(purchase - loanAmount));
+  // Effective Down %: when the loan is overridden, back-derive from the
+  // resulting ratio so the quick-row Down % field stays consistent.
+  const effectiveDownPct =
+    isLoanOverridden && purchase > 0
+      ? Number(((downPmt / purchase) * 100).toFixed(2))
+      : inputs.down_payment_pct;
 
   return (
     <div className={className}>
@@ -133,10 +154,17 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
               min={0}
               max={99}
               step={1}
-              value={inputs.down_payment_pct}
-              onChange={(e) =>
-                set("down_payment_pct", e.target.value === "" ? 0 : Number(e.target.value))
-              }
+              value={effectiveDownPct}
+              onChange={(e) => {
+                const n = e.target.value === "" ? 0 : Number(e.target.value);
+                // Editing Down % means the user is anchoring on the ratio;
+                // clear any loan override so loan amount re-derives from %.
+                onChange({
+                  ...inputs,
+                  down_payment_pct: n,
+                  loan_amount_override: undefined,
+                });
+              }}
               onBlur={(e) => {
                 const n = Number(e.target.value);
                 if (!Number.isFinite(n) || n < 0) set("down_payment_pct", 0);
@@ -177,18 +205,84 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
         </Field>
       </div>
 
-      {/* Computed summary */}
+      {/* Computed summary — Property and Loan amount are directly editable.
+          Down payment is a derived display (= Property − Loan). */}
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2 text-xs text-slate-600">
-        <span>
-          Loan amount: <strong className="font-semibold tabular-nums text-slate-900">{fmtMoney(loanAmount)}</strong>
+        <span className="inline-flex items-center gap-1.5">
+          Loan amount:
+          <span className="relative inline-flex items-center">
+            <span className="pointer-events-none absolute left-1.5 text-xs text-slate-500">$</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={inputs.loan_amount_override ?? loanAmount ?? ""}
+              onChange={(e) =>
+                set(
+                  "loan_amount_override",
+                  e.target.value ? Math.max(0, Number(e.target.value)) : undefined,
+                )
+              }
+              className={`w-32 rounded border bg-white pl-4 py-0.5 text-xs font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:ring-2 focus:ring-red-100 ${
+                isLoanOverridden
+                  ? "border-red-300 bg-red-50/40 pr-5"
+                  : "border-slate-200 hover:border-slate-300 focus:border-red-400 pr-1.5"
+              }`}
+              aria-label="Override loan amount"
+            />
+            {isLoanOverridden && (
+              <button
+                type="button"
+                onClick={() => set("loan_amount_override", undefined)}
+                className="absolute right-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[0.55rem] text-slate-500 transition hover:bg-slate-300 hover:text-slate-700"
+                title="Reset to auto-computed loan amount"
+                aria-label="Reset loan amount"
+              >
+                ×
+              </button>
+            )}
+          </span>
         </span>
         <span className="text-slate-300">·</span>
         <span>
           Down payment: <strong className="font-semibold tabular-nums text-slate-900">{fmtMoney(downPmt)}</strong>
         </span>
         <span className="text-slate-300">·</span>
-        <span>
-          Property: <strong className="font-semibold tabular-nums text-slate-900">{fmtMoney(purchase)}</strong>
+        <span className="inline-flex items-center gap-1.5">
+          Property:
+          <span className="relative inline-flex items-center">
+            <span className="pointer-events-none absolute left-1.5 text-xs text-slate-500">$</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={inputs.appraised_value_override ?? ""}
+              placeholder={listingPrice ? listingPrice.toLocaleString() : "0"}
+              onChange={(e) =>
+                set(
+                  "appraised_value_override",
+                  e.target.value ? Math.max(0, Number(e.target.value)) : undefined,
+                )
+              }
+              className={`w-32 rounded border bg-white pl-4 py-0.5 text-xs font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:ring-2 focus:ring-red-100 ${
+                isPriceOverridden
+                  ? "border-red-300 bg-red-50/40 pr-5"
+                  : "border-slate-200 hover:border-slate-300 focus:border-red-400 pr-1.5"
+              }`}
+              aria-label="Override property value"
+            />
+            {isPriceOverridden && (
+              <button
+                type="button"
+                onClick={() => set("appraised_value_override", undefined)}
+                className="absolute right-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[0.55rem] text-slate-500 transition hover:bg-slate-300 hover:text-slate-700"
+                title={`Reset to listing price${listingPrice ? ` (${fmtMoney(listingPrice)})` : ""}`}
+                aria-label="Reset to listing price"
+              >
+                ×
+              </button>
+            )}
+          </span>
         </span>
         {state && (
           <>
@@ -265,20 +359,6 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="Loan amount override">
-              <input
-                type="number"
-                placeholder="Auto"
-                value={inputs.loan_amount_override ?? ""}
-                onChange={(e) =>
-                  set(
-                    "loan_amount_override",
-                    e.target.value ? Math.max(0, Number(e.target.value)) : undefined,
-                  )
-                }
-                className={inputClass}
-              />
             </Field>
             {(inputs.loan_purpose === "rate_term_refi" ||
               inputs.loan_purpose === "cash_out_refi") && (

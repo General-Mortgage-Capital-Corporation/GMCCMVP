@@ -72,18 +72,18 @@ export default function EngineResults({ results, defaultsApplied, enabledEngines
         </div>
       )}
 
-      {isOn("loannex") && (
-        <EngineSection
-          title="Loannex"
-          subtitle="Onyx, DSCR, Easy Choice, etc."
-          rows={byEngine[ENGINE_KEY.loannex]}
-        />
-      )}
       {isOn("qm_jumbo") && (
         <EngineSection
           title="QM Jumbo"
           subtitle="Thunder, Jubilant, Fabulous"
           rows={byEngine[ENGINE_KEY.qm_jumbo]}
+        />
+      )}
+      {isOn("loannex") && (
+        <EngineSection
+          title="Loannex"
+          subtitle="Onyx, DSCR, Easy Choice, etc."
+          rows={byEngine[ENGINE_KEY.loannex]}
         />
       )}
       {isOn("bws") && (
