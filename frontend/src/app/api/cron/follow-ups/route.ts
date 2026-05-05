@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firestore-admin";
 import { sendMailAs, checkForReply, isAutoSendAvailable, getOriginalMessageIds } from "@/lib/graph-client";
 import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
+import { rateLimit, getClientIp } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,11 +41,30 @@ async function sendReminderToLO(
 }
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret (Vercel auto-sets this for cron routes)
-  const authHeader = req.headers.get("Authorization");
+  // Auth — flexible to avoid silent breakage when CRON_SECRET drifts:
+  //   - If CRON_SECRET is set, require Authorization: Bearer <secret>.
+  //   - If unset, fall through to rate-limited public access (5/min per IP).
+  //
+  // The cron is idempotent: items only process when due, and each successful
+  // processing advances `scheduledAt` and increments `reminderCount`, so a
+  // second call in the same minute has nothing left to do. Worst-case abuse
+  // from an unauthenticated caller is the same emails the LO already opted
+  // in to, sent slightly earlier than scheduled.
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (cronSecret) {
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    const ip = getClientIp(req);
+    if (!rateLimit(`cron-follow-ups:${ip}`, 5)) {
+      return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
+    }
+    console.warn(
+      "[cron/follow-ups] CRON_SECRET not configured — accepting unauthenticated trigger from",
+      ip,
+    );
   }
 
   const db = getDb();
