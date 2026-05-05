@@ -5,7 +5,12 @@ import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Vercel cron functions can run up to 300s on Hobby (and longer on Pro).
+// 60s was way too tight for the worst case: 300 reply-checks × ~400ms +
+// 200 items × ~4s = many minutes. Now the route is generous enough that
+// a normal day's load comfortably finishes, with batch caps below so we
+// never need the full budget.
+export const maxDuration = 300;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -86,8 +91,12 @@ export async function GET(req: NextRequest) {
   // This tracks reply status for every email in the dashboard
   if (canCheckReplies) {
     // Get all emails that haven't been marked as replied yet
+    // Cap reply-check at 100 most recent — at ~400ms per Graph call this is
+    // ~40s. Beyond that the dashboard's reply state stays current via the
+    // next hourly run.
     const allEmails = await db.collection("sentEmails")
-      .limit(300)
+      .orderBy("sentAt", "desc")
+      .limit(100)
       .get();
 
     for (const doc of allEmails.docs) {
@@ -114,11 +123,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Step 2: Re-query pending follow-ups FRESH (excludes items marked replied in Step 1)
+  // Step 2: Re-query pending follow-ups FRESH (excludes items marked replied in Step 1).
+  // Cap at 50 per run — each item is Gemini draft (~2s) + maybe Graph send (~1s),
+  // so 50 × 3s = 150s. Plus Step 1's ~40s = 190s, well under 300s budget.
+  // A backlog drains over multiple hourly runs.
   const pendingSnapshot = await db
     .collection("sentEmails")
     .where("followUp.status", "==", "pending")
-    .limit(200)
+    .limit(50)
     .get();
 
   // Filter to only due items, exclude any with hasReply flag
