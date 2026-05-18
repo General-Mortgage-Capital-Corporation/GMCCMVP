@@ -325,6 +325,18 @@ function GroupedView({ rows }: { rows: PricingResult[] }) {
                   <div className="mt-0.5 truncate text-[0.7rem] text-slate-500">
                     Best of family: <span className="text-slate-700">{splitProgramName(best.program).product || best.program}</span>
                   </div>
+                  {best.rate_sheet_as_of && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[0.7rem] font-semibold ${best.stale_days != null && best.stale_days >= 2 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
+                        Rate sheet as of {best.rate_sheet_as_of}
+                      </span>
+                      {best.stale_days != null && best.stale_days >= 2 && (
+                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-amber-800">
+                          {best.stale_days}d stale
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   {bestHead && (
@@ -449,9 +461,11 @@ function ResultCard({ result }: { result: PricingResult }) {
               </span>
             )}
           </div>
-          {stale && result.rate_sheet_as_of && (
-            <div className="mt-1 text-[0.7rem] text-amber-700">
-              Rate sheet last updated {result.rate_sheet_as_of}
+          {result.rate_sheet_as_of && (
+            <div className="mt-1">
+              <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[0.7rem] font-semibold ${stale ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
+                Rate sheet as of {result.rate_sheet_as_of}
+              </span>
             </div>
           )}
         </div>
