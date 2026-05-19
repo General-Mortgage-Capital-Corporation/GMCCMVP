@@ -337,17 +337,29 @@ def _get_acs_demographics(
     except Exception as exc:
         logger.debug("Cache read failed (ACS): %s", exc)
 
-    try:
-        resp = requests.get(
-            CENSUS_ACS_BASE,
-            params={
-                "get": "B03002_001E,B03002_003E,B03002_004E,B03002_006E,B03002_012E",
-                "for": f"tract:{tract_code}",
-                "in": f"state:{state_fips} county:{county_fips}",
-            },
-            timeout=10,
-        )
-        if resp.status_code == 200:
+    # The Census ACS API occasionally returns HTML error pages or 5xx — retry
+    # with a short backoff before giving up. We don't want to spam: 2 retries
+    # max, brief sleep between.
+    import time
+    params = {
+        "get": "B03002_001E,B03002_003E,B03002_004E,B03002_006E,B03002_012E",
+        "for": f"tract:{tract_code}",
+        "in": f"state:{state_fips} county:{county_fips}",
+    }
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            resp = requests.get(CENSUS_ACS_BASE, params=params, timeout=10)
+            if resp.status_code != 200:
+                last_err = Exception(f"HTTP {resp.status_code}")
+                time.sleep(0.3 * (attempt + 1))
+                continue
+            # Census occasionally returns HTML when overloaded — guard against it.
+            ct = resp.headers.get("content-type", "")
+            if "json" not in ct and not resp.text.lstrip().startswith("["):
+                last_err = Exception("non-JSON response (likely transient ACS outage)")
+                time.sleep(0.3 * (attempt + 1))
+                continue
             rows = resp.json()
             if len(rows) >= 2:
                 headers = rows[0]
@@ -362,16 +374,18 @@ def _get_acs_demographics(
                     "asian_population": _to_int(row.get("B03002_006E")),
                     "hispanic_population": _to_int(row.get("B03002_012E")),
                 }
-
-                # L2 cache: store in Redis
                 try:
                     set_cached_acs(state_fips, county_fips, tract_code, result)
                 except Exception as exc:
                     logger.debug("Cache write failed (ACS): %s", exc)
-
                 return result
-    except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
-        logger.warning("ACS demographics fetch failed: %s", exc)
+            # Successful response but no data — don't retry, just give up.
+            return None
+        except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
+            last_err = exc
+            time.sleep(0.3 * (attempt + 1))
+    if last_err is not None:
+        logger.warning("ACS demographics fetch failed after retries: %s", last_err)
     return None
 
 

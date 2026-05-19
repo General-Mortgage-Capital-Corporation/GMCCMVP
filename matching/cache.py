@@ -1,4 +1,4 @@
-"""Upstash Redis caching layer for Census API calls.
+"""Upstash Redis caching layer.
 
 Provides L2 (cross-invocation) caching for Vercel serverless functions.
 All functions degrade gracefully — returns None if Redis is not configured
@@ -8,6 +8,9 @@ Key structure:
   census:geocode:{sha256(address)}     — geocode results (90-day TTL)
   census:coord:{lat}:{lng}             — coordinate geocode results (90-day TTL)
   census:acs:{state}:{county}:{tract}  — ACS demographics (30-day TTL)
+  refi:search:{criteria_hash}          — PR search results (24-hour TTL)
+                                         Shared across ALL LOs so a repeated
+                                         query never re-charges PropertyRadar.
 """
 
 import hashlib
@@ -21,12 +24,14 @@ _redis_client = None
 _redis_init_attempted = False
 
 # Per-invocation hit/miss counters (reset each cold start)
-_stats = {"geocode_hit": 0, "geocode_miss": 0, "acs_hit": 0, "acs_miss": 0, "coord_hit": 0, "coord_miss": 0}
+_stats = {"geocode_hit": 0, "geocode_miss": 0, "acs_hit": 0, "acs_miss": 0,
+          "coord_hit": 0, "coord_miss": 0, "refi_hit": 0, "refi_miss": 0}
 
 # TTLs in seconds
 GEOCODE_TTL = 90 * 24 * 60 * 60   # 90 days
 ACS_TTL = 30 * 24 * 60 * 60       # 30 days
 COORD_TTL = 90 * 24 * 60 * 60     # 90 days
+REFI_SEARCH_TTL = 24 * 60 * 60    # 24 hours — PR data refreshes daily
 
 
 def _get_redis():
@@ -154,6 +159,39 @@ def set_cached_acs(state_fips: str, county_fips: str, tract_code: str, data: dic
             return
         key = f"census:acs:{state_fips}:{county_fips}:{tract_code}"
         redis.set(key, json.dumps(data), ex=ACS_TTL)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Refi Finder search cache (shared across all LOs)
+# ---------------------------------------------------------------------------
+
+def get_cached_refi_search(criteria_hash: str) -> dict | None:
+    """Retrieve a cached refi search payload. Hits across users."""
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return None
+        key = f"refi:search:{criteria_hash}"
+        raw = redis.get(key)
+        if raw is None:
+            _stats["refi_miss"] += 1
+            return None
+        _stats["refi_hit"] += 1
+        return json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return None
+
+
+def set_cached_refi_search(criteria_hash: str, payload: dict) -> None:
+    """Store a refi search payload. Short TTL — PR data refreshes daily."""
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return
+        key = f"refi:search:{criteria_hash}"
+        redis.set(key, json.dumps(payload, default=str), ex=REFI_SEARCH_TTL)
     except Exception:
         pass
 

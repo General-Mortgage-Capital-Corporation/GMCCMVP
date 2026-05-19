@@ -13,6 +13,10 @@ Routes:
   POST /api/explain             Generate LLM explanation for a match
   GET  /api/program-locations   Program → state → county hierarchy
   GET  /api/county-info         Resolve a 5-digit FIPS to lat/lng/state
+  GET  /api/refi/presets        Refi Finder preset catalog
+  POST /api/refi/preview        Free count of refi-target properties for a filter
+  POST /api/refi/search         Paid fetch of refi-target properties (tract-enriched)
+  GET  /api/refi/quota          Current PropertyRadar spend / remaining quota
 """
 
 import json
@@ -399,6 +403,123 @@ def county_info():
             "radius": info.get("radius", 25),
         },
     })
+
+
+# ---------------------------------------------------------------------------
+# Refi Finder (PropertyRadar)
+# ---------------------------------------------------------------------------
+
+from matching import propertyradar, refi_search
+from matching.refi_presets import list_presets_dict
+
+
+@app.route("/api/refi/presets", methods=["GET"])
+def refi_presets():
+    return jsonify({"presets": list_presets_dict()})
+
+
+@app.route("/api/refi/preview", methods=["POST"])
+def refi_preview():
+    """Free: returns matching count + remaining PropertyRadar quota.
+
+    Body: { preset_id?, geography: {zip_codes|cities|county_fips|states}, filters? }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        data = refi_search.preview(
+            preset_id=body.get("preset_id"),
+            geography=body.get("geography") or {},
+            filters=body.get("filters"),
+        )
+        return jsonify({"success": True, **data})
+    except refi_search.RefiSearchError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except propertyradar.PropertyRadarError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 502
+    except Exception:
+        logger.exception("refi preview failed")
+        return jsonify({"success": False, "error": "preview failed"}), 500
+
+
+@app.route("/api/refi/search", methods=["POST"])
+def refi_search_endpoint():
+    """Paid: returns a page of refi-target rows.
+
+    Body: { preset_id?, geography, filters?, page?, limit?, enrich_tract? }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        data = refi_search.search(
+            preset_id=body.get("preset_id"),
+            geography=body.get("geography") or {},
+            filters=body.get("filters"),
+            page=int(body.get("page", 0)),
+            limit=int(body.get("limit", refi_search.DEFAULT_PAGE_LIMIT)),
+            enrich_tract=bool(body.get("enrich_tract", True)),
+            use_cache=bool(body.get("use_cache", True)),
+        )
+        return jsonify({"success": True, **data})
+    except refi_search.RefiSearchError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except propertyradar.QuotaCapExceeded as exc:
+        return jsonify({"success": False, "error": str(exc), "code": "daily_cap"}), 429
+    except propertyradar.PropertyRadarError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 502
+    except Exception:
+        logger.exception("refi search failed")
+        return jsonify({"success": False, "error": "search failed"}), 500
+
+
+@app.route("/api/refi/unlock-contact", methods=["POST"])
+def refi_unlock_contact():
+    """Unlock phone and/or email for a list of PersonKeys.
+
+    Body: { person_keys: [...], phone?: bool=true, email?: bool=true }
+    Each unlock is a separate paid action on PropertyRadar (NOT the export
+    quota — separate phone/email unlock budget). UI MUST surface a
+    confirmation modal before calling this route.
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        keys = body.get("person_keys") or []
+        if not isinstance(keys, list) or not keys:
+            return jsonify({"success": False, "error": "person_keys (list) is required"}), 400
+        # Defence-in-depth: cap how many can be unlocked in a single call to
+        # prevent a runaway click from charging hundreds of unlocks.
+        MAX_KEYS = 25
+        if len(keys) > MAX_KEYS:
+            return jsonify({"success": False,
+                            "error": f"max {MAX_KEYS} contacts per request"}), 400
+        data = refi_search.unlock_contacts(
+            [str(k) for k in keys],
+            phone=bool(body.get("phone", True)),
+            email=bool(body.get("email", True)),
+        )
+        return jsonify({"success": True, **data})
+    except refi_search.RefiSearchError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except propertyradar.PropertyRadarError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 502
+    except Exception:
+        logger.exception("refi unlock-contact failed")
+        return jsonify({"success": False, "error": "unlock failed"}), 500
+
+
+@app.route("/api/refi/quota", methods=["GET"])
+def refi_quota():
+    """Today's spend + configured daily cap. Quota-remaining is fetched lazily
+    via a free preview call when ?check_remaining=1 is passed (so the default
+    endpoint stays purely local-file)."""
+    try:
+        out: dict = {
+            "today_spend": propertyradar.get_today_spend(),
+            "daily_cap": propertyradar.get_daily_cap(),
+        }
+        if request.args.get("check_remaining") == "1":
+            out["quantity_free_remaining"] = propertyradar.get_quota_remaining()
+        return jsonify(out)
+    except propertyradar.PropertyRadarError as exc:
+        return jsonify({"error": str(exc)}), 502
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
 import MarketingTable from "@/components/marketing/MarketingTable";
 import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
+import RefiFinderTab from "@/components/refi/RefiFinderTab";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
 import ModalErrorBoundary from "@/components/ModalErrorBoundary";
@@ -35,7 +36,7 @@ import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
-type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat";
+type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat" | "refi";
 
 function excludeTypes(listing: RentCastListing) {
   return !EXCLUDED_PROPERTY_TYPES.has(listing.propertyType ?? "");
@@ -620,6 +621,7 @@ export default function Home() {
                   ["marketing", "Marketing", "Massive Marketing"],
                   ["find", "GPS Radius", "Marketing/GPS Radius Check"],
                   ["program", "By Program", "Market by Program Check"],
+                  ["refi", "Refi Finder", "Refi Finder"],
                 ] as [ActiveTab, string, string][]
               ).map(([tab, shortLabel, fullLabel]) => (
                 <button
@@ -664,6 +666,7 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
+            {activeTab === "refi" && <RefiFinderTab />}
             {/* ChatTab stays mounted but hidden to preserve conversation state */}
             <div className={activeTab === "chat" ? "" : "hidden"}>
               <ChatTab />

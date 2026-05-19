@@ -20,3 +20,14 @@ frontend/reports/
 dev/
 *.pdf
 *.pptx
+
+# macOS
+.DS_Store
+
+# PropertyRadar / Refi Finder local runtime artifacts
+# - pr_cache: per-query cached responses (also has L2 in Redis)
+# - pr_quota_log: append-only audit log of paid API calls
+# - pr_spike_results: dev spike output, contains real PII (borrower names/addresses)
+data/pr_cache/
+data/pr_quota_log.jsonl
+data/pr_spike_results.json
