@@ -172,7 +172,12 @@ def _today_spend() -> int:
 
 def _log_quota(*, endpoint: str, purchase: int, records: int, total_cost: float | int | str | None,
                criteria_hash: str | None = None, extra: dict | None = None) -> None:
-    QUOTA_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    """Append a paid-call record to the local audit log.
+
+    Best-effort only — Vercel's ``/var/task`` is read-only so the mkdir/write
+    will fail there. That's fine; the log is for local development and
+    auditing. Production observability should live in Vercel/PostHog logs.
+    """
     now = datetime.now(timezone.utc)
     entry = {
         "ts": now.isoformat(),
@@ -187,10 +192,11 @@ def _log_quota(*, endpoint: str, purchase: int, records: int, total_cost: float 
     if extra:
         entry["extra"] = extra
     try:
+        QUOTA_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with QUOTA_LOG_PATH.open("a") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as exc:
-        logger.warning("failed to append quota log: %s", exc)
+        logger.debug("quota log write skipped: %s", exc)
 
 
 # ---------------------------------------------------------------------------

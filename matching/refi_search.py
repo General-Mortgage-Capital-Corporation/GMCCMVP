@@ -308,17 +308,23 @@ def _read_cache(key: str) -> dict | None:
 
 
 def _write_cache(key: str, data: dict) -> None:
-    """Two-tier write: Redis (with TTL) + local file (best-effort fallback)."""
+    """Two-tier write: Redis (with TTL) + local file (best-effort fallback).
+
+    Local file is purely a dev-environment convenience. Any filesystem error
+    (e.g. Vercel's read-only ``/var/task``) is swallowed silently — Redis is
+    the source of truth for production cross-invocation caching.
+    """
     # L2: shared Redis (no-op if not configured)
     set_cached_refi_search(key, data)
 
-    # L1: local file
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    payload = {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data}
+    # L1: local file — best-effort, never fatal
     try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data}
         _cache_path(key).write_text(json.dumps(payload, default=str))
     except OSError as exc:
-        logger.warning("refi local cache write failed: %s", exc)
+        # Read-only fs (Vercel) or quota — fine, Redis carries the cache.
+        logger.debug("refi local cache write skipped: %s", exc)
 
 
 # ---------------------------------------------------------------------------
