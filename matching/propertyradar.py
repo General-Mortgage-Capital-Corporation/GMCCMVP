@@ -148,7 +148,19 @@ def _request(method: str, path: str, *, params: dict | None = None, body: dict |
 
 
 def _today_spend() -> int:
-    """Sum of paid records pulled today (UTC) from the quota log."""
+    """Records pulled today (UTC). Redis is the source of truth in
+    production (cross-invocation, cross-LO); falls back to the local audit
+    log for offline dev when Redis isn't configured."""
+    # Try Redis first — the only source that works on Vercel.
+    try:
+        from matching.cache import get_pr_daily_spend
+        redis_spend = get_pr_daily_spend()
+        if redis_spend is not None:
+            return redis_spend
+    except Exception:
+        pass
+
+    # Local file fallback (dev only — /var/task is read-only on Vercel).
     if not QUOTA_LOG_PATH.exists():
         return 0
     today = datetime.now(timezone.utc).date().isoformat()
@@ -191,12 +203,23 @@ def _log_quota(*, endpoint: str, purchase: int, records: int, total_cost: float 
         entry["criteria_hash"] = criteria_hash
     if extra:
         entry["extra"] = extra
+    # Local audit log (best-effort — fails silently on Vercel's read-only fs).
     try:
         QUOTA_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with QUOTA_LOG_PATH.open("a") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as exc:
         logger.debug("quota log write skipped: %s", exc)
+
+    # Redis counter (production source of truth for the daily cap).
+    # Skip phone/email unlocks — they're a separate billing budget at PR
+    # and aren't governed by the record-export quota.
+    if purchase == 1 and records > 0 and "/Phone" not in endpoint and "/Email" not in endpoint:
+        try:
+            from matching.cache import increment_pr_daily_spend
+            increment_pr_daily_spend(records)
+        except Exception as exc:
+            logger.warning("PR spend tracking failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------

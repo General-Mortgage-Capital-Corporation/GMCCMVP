@@ -11,6 +11,9 @@ Key structure:
   refi:search:{criteria_hash}          — PR search results (24-hour TTL)
                                          Shared across ALL LOs so a repeated
                                          query never re-charges PropertyRadar.
+  pr:spend:records:{YYYY-MM-DD}        — PropertyRadar daily record spend
+                                         (UTC date, 48-hour TTL). Backs the
+                                         daily-cap guard in production.
 """
 
 import hashlib
@@ -32,6 +35,7 @@ GEOCODE_TTL = 90 * 24 * 60 * 60   # 90 days
 ACS_TTL = 30 * 24 * 60 * 60       # 30 days
 COORD_TTL = 90 * 24 * 60 * 60     # 90 days
 REFI_SEARCH_TTL = 24 * 60 * 60    # 24 hours — PR data refreshes daily
+PR_SPEND_TTL = 48 * 60 * 60       # 48 hours — covers timezone roll + buffer
 
 
 def _get_redis():
@@ -194,6 +198,56 @@ def set_cached_refi_search(criteria_hash: str, payload: dict) -> None:
         redis.set(key, json.dumps(payload, default=str), ex=REFI_SEARCH_TTL)
     except Exception:
         pass
+
+
+# ---------------------------------------------------------------------------
+# PropertyRadar daily-spend counter (cross-invocation, cross-LO)
+# ---------------------------------------------------------------------------
+
+def _pr_spend_key() -> str:
+    """UTC date-keyed Redis key for today's PR record spend."""
+    from datetime import datetime, timezone as _tz
+    today = datetime.now(_tz.utc).date().isoformat()
+    return f"pr:spend:records:{today}"
+
+
+def increment_pr_daily_spend(records: int) -> int | None:
+    """Atomically bump today's PropertyRadar record spend by ``records``.
+
+    Returns the new total, or ``None`` if Redis is unavailable. Safe under
+    concurrent writes from multiple serverless instances (uses INCRBY).
+    """
+    if records <= 0:
+        return None
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return None
+        key = _pr_spend_key()
+        new_total = redis.incrby(key, records)
+        # Set TTL each time — cheap, and ensures the key eventually expires
+        # even if we hot-loop without ever reading it.
+        redis.expire(key, PR_SPEND_TTL)
+        return int(new_total) if new_total is not None else None
+    except Exception as exc:
+        logger.warning("PR daily spend increment failed: %s", exc)
+        return None
+
+
+def get_pr_daily_spend() -> int | None:
+    """Read today's PropertyRadar record spend total. Returns ``None`` if
+    Redis is unavailable so the caller can fall back to a local source."""
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return None
+        key = _pr_spend_key()
+        val = redis.get(key)
+        if val is None:
+            return 0
+        return int(val)
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
