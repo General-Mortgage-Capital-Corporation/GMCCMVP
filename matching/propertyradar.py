@@ -212,9 +212,10 @@ def _log_quota(*, endpoint: str, purchase: int, records: int, total_cost: float 
         logger.debug("quota log write skipped: %s", exc)
 
     # Redis counter (production source of truth for the daily cap).
-    # Skip phone/email unlocks — they're a separate billing budget at PR
-    # and aren't governed by the record-export quota.
-    if purchase == 1 and records > 0 and "/Phone" not in endpoint and "/Email" not in endpoint:
+    # Phone/email unlocks ARE counted — per PR docs, both endpoints draw
+    # from the same monthly "export credits" pool as record fetches
+    # (quantityFreeRemaining is a unified balance across all paid endpoints).
+    if purchase == 1 and records > 0:
         try:
             from matching.cache import increment_pr_daily_spend
             increment_pr_daily_spend(records)
@@ -313,10 +314,35 @@ def get_document(document_id: str, *, purchase: int = 1) -> dict:
     return data
 
 
+def fetch_property_persons(radar_id: str, *, purchase: int = 1) -> dict:
+    """Fetch full owner/person records for a property INCLUDING any
+    already-purchased phones and emails inline.
+
+    This is the recovery / display path for contact info. Unlike the
+    POST /persons/{key}/Phone endpoint (which only purchases new), this
+    GET returns the actual phone/email values for contacts already in
+    "owned" state, plus metadata for the rest.
+
+    Charges per person record returned (typically 1–3 per property).
+    """
+    fields = "PersonKey,isPrimaryContact,OwnershipRole,FirstName,MiddleName,LastName,Suffix,EntityName,Phone,Email"
+    params = {"Fields": fields, "Purchase": purchase}
+    data = _request("GET", f"/properties/{radar_id}/persons", params=params)
+    records = len(data.get("results", [])) if isinstance(data, dict) else 0
+    _log_quota(endpoint=f"/properties/{{radar_id}}/persons", purchase=purchase,
+               records=records if purchase == 1 else 0, total_cost=data.get("totalCost"),
+               extra={"radar_id": radar_id})
+    return data
+
+
 def unlock_phone(person_key: str, *, purchase: int = 1) -> dict:
-    """Unlock the primary phone for a person. SEPARATE PAID ACTION from the
-    record export quota — counts against the account's phone-unlock budget.
-    Pass ``purchase=0`` to preview cost without charging."""
+    """Unlock the primary phone for a person. Costs 1 export credit per
+    successful unlock, drawn from the same monthly pool as record fetches
+    (per PR's docs: ``quantityFreeRemaining`` is a unified balance).
+
+    PR returns a 400 with "Phone not available for purchase" if the phone
+    isn't in their database (or was already unlocked/manually added) — no
+    credit is consumed in that case. Pass ``purchase=0`` to preview."""
     params = {"Purchase": purchase}
     data = _request("POST", f"/persons/{person_key}/Phone", params=params, body={})
     _log_quota(endpoint="/persons/{key}/Phone", purchase=purchase,
@@ -326,7 +352,10 @@ def unlock_phone(person_key: str, *, purchase: int = 1) -> dict:
 
 
 def unlock_email(person_key: str, *, purchase: int = 1) -> dict:
-    """Unlock the primary email for a person. SEPARATE PAID ACTION."""
+    """Unlock the primary email for a person. Costs 1 export credit per
+    successful unlock — same unified pool as phone unlocks and record
+    fetches. PR returns "not available" without charging when no email
+    is on file. Pass ``purchase=0`` to preview."""
     params = {"Purchase": purchase}
     data = _request("POST", f"/persons/{person_key}/Email", params=params, body={})
     _log_quota(endpoint="/persons/{key}/Email", purchase=purchase,

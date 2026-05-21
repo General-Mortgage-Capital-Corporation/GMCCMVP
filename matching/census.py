@@ -155,6 +155,99 @@ def get_census_data(listing: dict) -> dict | None:
     return result
 
 
+@lru_cache(maxsize=1)
+def _load_county_name_fips_lookup() -> dict[tuple[str, str], str]:
+    """Build (state_upper, county_lower) -> 5-digit FIPS map from county_fips.json.
+
+    Used by ``get_census_data_fast`` to derive state+county FIPS from human-
+    readable strings (which is what PropertyRadar returns) WITHOUT calling
+    the slow Census Bureau address geocoder.
+    """
+    here = os.path.dirname(__file__)
+    path = os.path.join(here, "..", "data", "county_fips.json")
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        logger.warning("could not load county_fips.json for fast tract path")
+        return {}
+    out: dict[tuple[str, str], str] = {}
+    for fips, info in data.items():
+        if not isinstance(info, dict):
+            continue
+        state = (info.get("state") or "").strip().upper()
+        county = (info.get("county") or "").strip().lower()
+        if state and county and len(fips) == 5:
+            out[(state, county)] = fips
+    return out
+
+
+def get_census_data_fast(state: str | None, county_name: str | None,
+                         tract_code: str | int | None) -> dict | None:
+    """Fast tract enrichment using PropertyRadar's pre-resolved fields.
+
+    PR returns ``State`` (2-letter), ``County`` (name), ``CensusTract``
+    (6-digit) on every row — so we don't need to round-trip through the
+    Census Bureau geocoder (which times out at 15s for non-trivial fractions
+    of addresses). Goes straight to FFIEC tract lookup + ACS demographics
+    (the ACS call is the only remaining network hop, and it's cached per
+    tract for 30 days).
+
+    Returns the same shape as ``get_census_data`` or None if any of the
+    upstream pieces (county FIPS lookup, FFIEC entry) is missing.
+    """
+    if not state or not county_name or tract_code in (None, ""):
+        return None
+
+    state_u = str(state).strip().upper()
+    county_l = str(county_name).strip().lower()
+    tract_str = str(tract_code).strip().zfill(6)
+
+    lookup = _load_county_name_fips_lookup()
+    county_fips_5 = lookup.get((state_u, county_l))
+    if not county_fips_5 or len(county_fips_5) != 5:
+        return None
+
+    state_fips = county_fips_5[:2]
+    county_fips_3 = county_fips_5[2:]
+    fips_11 = state_fips + county_fips_3 + tract_str
+
+    result = {
+        "state_code": state_fips,
+        "county_code": county_fips_3,
+        "county_name": county_name,
+        "tract_code": tract_str,
+        "msa_code": None,
+        "msa_name": None,
+        "state_name": state_u,
+        "tract_income_level": None,
+        "tract_minority_pct": None,
+        "tract_population": None,
+        "minority_population": None,
+        "ffiec_mfi": None,
+        "tract_mfi": None,
+        "tract_to_msa_ratio": None,
+        "total_population": None,
+    }
+
+    ffiec = _load_tract_lookup().get(fips_11)
+    if ffiec:
+        result["msa_code"] = ffiec.get("msa_code")
+        result["msa_name"] = ffiec.get("msa_name")
+        result["ffiec_mfi"] = ffiec.get("ffiec_mfi")
+        result["tract_mfi"] = ffiec.get("tract_mfi")
+        result["tract_to_msa_ratio"] = ffiec.get("tract_income_pct")
+        result["tract_income_level"] = ffiec.get("tract_income_level")
+
+    # ACS demographics intentionally skipped. The Census Bureau ACS API
+    # has been chronically flaky (HTML error pages, timeouts) and the only
+    # field we got from it was tract_minority_pct. Dropping it makes refi
+    # enrichment near-instant (just an in-memory FFIEC lookup) at the cost
+    # of leaving tract_minority_pct as None. Tract income level + MSA from
+    # FFIEC are the load-bearing fields anyway.
+    return result
+
+
 def is_lmi_tract(tract_income_level: str | None) -> bool:
     """Return True if the tract income level is Low or Moderate."""
     if not tract_income_level:

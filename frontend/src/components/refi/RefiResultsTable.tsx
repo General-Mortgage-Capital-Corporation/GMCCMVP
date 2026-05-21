@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { RefiRow } from "./types";
 import type { UnlockResultMap } from "./RefiUnlockModal";
+import { ContactCell } from "./ContactDisplay";
 
 type SortKey =
   | "Address" | "Owner" | "FirstDate" | "FirstAmount" | "FirstRate"
@@ -47,6 +48,19 @@ function ownerName(r: RefiRow): string {
   if (r.Owner) return r.Owner;
   const fl = `${r.OwnerFirstName ?? ""} ${r.OwnerLastName ?? ""}`.trim();
   return fl || "(entity owner)";
+}
+
+// Check whether PR has any contact data for this row's persons.
+// Returns {phone, email} availability — used to gate the unlock button.
+function contactAvailability(r: RefiRow): { phone: boolean; email: boolean } {
+  const persons = r.Persons ?? [];
+  let phone = false, email = false;
+  for (const p of persons) {
+    if (Array.isArray(p.Phone) && p.Phone.length > 0) phone = true;
+    if (Array.isArray(p.Email) && p.Email.length > 0) email = true;
+    if (phone && email) break;
+  }
+  return { phone, email };
 }
 function csvEscape(v: unknown): string {
   if (v == null) return "";
@@ -174,7 +188,7 @@ export default function RefiResultsTable({
           <span className="text-xs text-gray-500">{selected.size > 0 ? `${selected.size} selected` : "Select rows for bulk actions"}</span>
           <button type="button" disabled={selected.size === 0} onClick={() => onUnlockRequest(selectedRows)}
             className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-white">
-            Unlock contact{selected.size > 1 ? "s" : ""}{selected.size > 0 ? ` (${selected.size})` : ""}
+            Fetch contact{selected.size > 1 ? "s" : ""}{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
           <button type="button" onClick={() => exportCsv(sorted, selected, unlocked)}
             className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -237,15 +251,8 @@ export default function RefiResultsTable({
                     <div className="text-gray-900">{r.FirstLenderOriginal ?? "—"}</div>
                     <div className="text-xs text-gray-500">{r.FirstLoanType ?? ""}{r.FirstRateType ? ` · ${r.FirstRateType}` : ""}{r.FirstTermInYears ? ` · ${r.FirstTermInYears}yr` : ""}</div>
                   </td>
-                  <td className="px-3 py-2 text-xs">
-                    {c?.phone || c?.email ? (
-                      <div className="space-y-0.5">
-                        {c.phone && <div className="font-medium text-gray-900">{c.phone}</div>}
-                        {c.email && <div className="text-gray-700">{c.email}</div>}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                  <td className="px-3 py-2 align-top min-w-[240px] max-w-[320px]">
+                    <ContactCell contact={c} />
                   </td>
                 </tr>
               );

@@ -470,6 +470,32 @@ def refi_search_endpoint():
         return jsonify({"success": False, "error": "search failed"}), 500
 
 
+@app.route("/api/refi/unlock-preview", methods=["POST"])
+def refi_unlock_preview():
+    """Free preview of how many credits an unlock would cost.
+
+    Body: { radar_ids: [...] }
+    Returns: { success, total_credits, quantity_free_remaining, per_property }
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        ids = body.get("radar_ids") or []
+        if not isinstance(ids, list) or not ids:
+            return jsonify({"success": False, "error": "radar_ids (list) is required"}), 400
+        MAX_IDS = 25
+        if len(ids) > MAX_IDS:
+            return jsonify({"success": False, "error": f"max {MAX_IDS} properties per request"}), 400
+        data = refi_search.preview_contacts([str(r) for r in ids])
+        return jsonify({"success": True, **data})
+    except refi_search.RefiSearchError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except propertyradar.PropertyRadarError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 502
+    except Exception:
+        logger.exception("refi unlock-preview failed")
+        return jsonify({"success": False, "error": "preview failed"}), 500
+
+
 @app.route("/api/refi/unlock-contact", methods=["POST"])
 def refi_unlock_contact():
     """Unlock phone and/or email for a list of PersonKeys.
@@ -481,17 +507,17 @@ def refi_unlock_contact():
     """
     try:
         body = request.get_json(silent=True) or {}
-        keys = body.get("person_keys") or []
-        if not isinstance(keys, list) or not keys:
-            return jsonify({"success": False, "error": "person_keys (list) is required"}), 400
-        # Defence-in-depth: cap how many can be unlocked in a single call to
-        # prevent a runaway click from charging hundreds of unlocks.
-        MAX_KEYS = 25
-        if len(keys) > MAX_KEYS:
+        # Accept either `radar_ids` (preferred, post-refactor) or `person_keys`
+        # (legacy clients) — we ignore the legacy field and require radar_ids.
+        ids = body.get("radar_ids") or []
+        if not isinstance(ids, list) or not ids:
+            return jsonify({"success": False, "error": "radar_ids (list) is required"}), 400
+        MAX_IDS = 25
+        if len(ids) > MAX_IDS:
             return jsonify({"success": False,
-                            "error": f"max {MAX_KEYS} contacts per request"}), 400
+                            "error": f"max {MAX_IDS} properties per request"}), 400
         data = refi_search.unlock_contacts(
-            [str(k) for k in keys],
+            [str(r) for r in ids],
             phone=bool(body.get("phone", True)),
             email=bool(body.get("email", True)),
         )

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { RefiRow } from "./types";
 import type { UnlockedContact } from "./RefiUnlockModal";
+import { ContactSection } from "./ContactDisplay";
 
 function fmtMoney(v: number | undefined | null): string {
   if (v == null || !isFinite(v)) return "—";
@@ -58,13 +59,17 @@ export default function RefiDetailModal({ row, contact, onClose }: { row: RefiRo
             <Field label="Name" value={ownerName(row)} />
             <Field label="Ownership type" value={row.OwnershipType ?? "—"} />
             <Field label="Owner-occupied" value={row.isSameMailingOrExempt === 1 ? "Yes" : "No"} />
-            {(contact?.phone || contact?.email) && (
-              <>
-                {contact?.phone && <Field label="Phone" value={contact.phone} />}
-                {contact?.email && <Field label="Email" value={contact.email} />}
-              </>
-            )}
           </Section>
+
+          {/* Contacts — per-person breakdown */}
+          {contact && (
+            <div className="rounded-xl border border-gray-100 bg-white">
+              <div className="border-b border-gray-100 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500">Contacts</div>
+              <div className="px-4 py-3">
+                <ContactSection contact={contact} />
+              </div>
+            </div>
+          )}
 
           {/* First mortgage */}
           <Section title="First mortgage (the refi target)">

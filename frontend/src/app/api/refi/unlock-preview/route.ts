@@ -6,8 +6,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  // Paid endpoint, more sensitive than search — keep limit tight.
-  if (!rateLimit(ip, 10)) {
+  if (!rateLimit(ip, 30)) {
     return NextResponse.json({ success: false, error: "Rate limit exceeded." }, { status: 429 });
   }
 
@@ -17,11 +16,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const data = await pyPost<Record<string, unknown>>("/api/refi/unlock-contact", body);
+    const data = await pyPost<Record<string, unknown>>("/api/refi/unlock-preview", body);
     return NextResponse.json(data);
   } catch (err) {
     const status = err instanceof PythonServiceError ? err.status : 502;
-    const msg = err instanceof PythonServiceError ? err.message : "Unlock failed.";
+    const msg = err instanceof PythonServiceError ? err.message : "Preview failed.";
     return NextResponse.json({ success: false, error: msg }, { status });
   }
 }

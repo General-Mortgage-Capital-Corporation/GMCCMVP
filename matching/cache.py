@@ -8,9 +8,17 @@ Key structure:
   census:geocode:{sha256(address)}     — geocode results (90-day TTL)
   census:coord:{lat}:{lng}             — coordinate geocode results (90-day TTL)
   census:acs:{state}:{county}:{tract}  — ACS demographics (30-day TTL)
-  refi:search:{criteria_hash}          — PR search results (24-hour TTL)
+  refi:search:{criteria_hash}          — PR search results (3-day TTL)
                                          Shared across ALL LOs so a repeated
                                          query never re-charges PropertyRadar.
+                                         3 days balances freshness (PR updates
+                                         daily) against credit savings.
+  refi:contacts:{radar_id}             — Person records + unlocked phones/emails
+                                         (14-day TTL). Shared cross-LO since the
+                                         Solo subscription is a single PR account.
+                                         Phones/emails change rarely (public-
+                                         records aggregator refresh cycle is
+                                         monthly), so longer TTL is safe.
   pr:spend:records:{YYYY-MM-DD}        — PropertyRadar daily record spend
                                          (UTC date, 48-hour TTL). Backs the
                                          daily-cap guard in production.
@@ -28,14 +36,21 @@ _redis_init_attempted = False
 
 # Per-invocation hit/miss counters (reset each cold start)
 _stats = {"geocode_hit": 0, "geocode_miss": 0, "acs_hit": 0, "acs_miss": 0,
-          "coord_hit": 0, "coord_miss": 0, "refi_hit": 0, "refi_miss": 0}
+          "coord_hit": 0, "coord_miss": 0, "refi_hit": 0, "refi_miss": 0,
+          "contacts_hit": 0, "contacts_miss": 0}
 
 # TTLs in seconds
 GEOCODE_TTL = 90 * 24 * 60 * 60   # 90 days
 ACS_TTL = 30 * 24 * 60 * 60       # 30 days
 COORD_TTL = 90 * 24 * 60 * 60     # 90 days
-REFI_SEARCH_TTL = 24 * 60 * 60    # 24 hours — PR data refreshes daily
-PR_SPEND_TTL = 48 * 60 * 60       # 48 hours — covers timezone roll + buffer
+REFI_SEARCH_TTL = 3 * 24 * 60 * 60     # 3 days — PR refreshes daily, but the
+                                       # refi universe for a (zip, preset)
+                                       # changes slowly; 3 days balances credit
+                                       # savings vs. staleness
+REFI_CONTACTS_TTL = 14 * 24 * 60 * 60  # 14 days — phones/emails change rarely
+                                       # (public-records aggregator refresh
+                                       # cycle is monthly)
+PR_SPEND_TTL = 48 * 60 * 60            # 48 hours — covers timezone roll + buffer
 
 
 def _get_redis():
@@ -196,6 +211,45 @@ def set_cached_refi_search(criteria_hash: str, payload: dict) -> None:
             return
         key = f"refi:search:{criteria_hash}"
         redis.set(key, json.dumps(payload, default=str), ex=REFI_SEARCH_TTL)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Refi Finder contact-unlock cache (cross-LO, 14-day TTL)
+# ---------------------------------------------------------------------------
+
+def get_cached_contact_unlock(radar_id: str) -> dict | None:
+    """Retrieve a cached person/contact unlock payload for a property.
+
+    Cached cross-LO so any LO benefits from any other LO's previous unlocks.
+    Returns the full structured payload (persons + phone + email + errors)
+    that ``refi_search.unlock_contacts`` produces per property.
+    """
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return None
+        key = f"refi:contacts:{radar_id}"
+        raw = redis.get(key)
+        if raw is None:
+            _stats["contacts_miss"] += 1
+            return None
+        _stats["contacts_hit"] += 1
+        return json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return None
+
+
+def set_cached_contact_unlock(radar_id: str, payload: dict) -> None:
+    """Store a contact-unlock payload. 14-day TTL since phone/email data
+    changes rarely (PR refreshes from public records monthly)."""
+    try:
+        redis = _get_redis()
+        if redis is None:
+            return
+        key = f"refi:contacts:{radar_id}"
+        redis.set(key, json.dumps(payload, default=str), ex=REFI_CONTACTS_TTL)
     except Exception:
         pass
 

@@ -72,8 +72,28 @@ export type Geography = {
   states?: string[];
 };
 
+// Persons array on a row indicates contact availability via the
+// presence of HATEOAS-style Phone/Email link arrays on each person:
+//   - Has `Phone` array  -> phone IS in PR's database, can unlock
+//   - Has `Email` array  -> email IS in PR's database, can unlock
+//   - Both missing       -> PR returns "not available" if you try
+//                           (no credit charged in that case)
+export type PRPerson = {
+  PersonKey: string;
+  FirstName?: string;
+  MiddleName?: string;
+  LastName?: string;
+  EntityName?: string;
+  isPrimaryContact?: number;
+  OwnershipRole?: string;
+  Phone?: { href: string }[];
+  Email?: { href: string }[];
+  isDeceased?: number;
+};
+
 export type RefiRow = {
   RadarID: string;
+  Persons?: PRPerson[];
   Address?: string;
   City?: string;
   State?: string;

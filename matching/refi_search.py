@@ -25,9 +25,16 @@ from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 from typing import Any
 
+from concurrent.futures import ThreadPoolExecutor
+
 from matching import propertyradar
-from matching.cache import get_cached_refi_search, set_cached_refi_search
-from matching.census import get_census_data
+from matching.cache import (
+    get_cached_contact_unlock,
+    get_cached_refi_search,
+    set_cached_contact_unlock,
+    set_cached_refi_search,
+)
+from matching.census import get_census_data, get_census_data_fast
 from matching.refi_presets import get_preset
 
 logger = logging.getLogger(__name__)
@@ -201,11 +208,14 @@ def _build_filter_criteria(filters: dict | None) -> list[dict]:
     if avm_min is not None or avm_max is not None:
         add("AVM", _range(avm_min, avm_max))
 
-    # Free-and-clear and other open-loan flags
+    # Free-and-clear: map to NumberLoans because isFreeAndClear is gated to
+    # higher PR plan tiers (returns "cannot be used by this user" on Solo).
+    # True (no loans)  -> NumberLoans = 0
+    # False (has loan) -> NumberLoans >= 1
     if filters.get("is_free_and_clear") is True:
-        add("isFreeAndClear", [1])
+        add("NumberLoans", _range(0, 0))
     elif filters.get("is_free_and_clear") is False:
-        add("isFreeAndClear", [0])
+        add("NumberLoans", _range(1, None))
 
     # Number of open liens
     nl_min = filters.get("number_loans_min")
@@ -221,19 +231,19 @@ def _build_filter_criteria(filters: dict | None) -> list[dict]:
         lt.setdefault("to", filters["last_transfer_date_to"])
     add("LastTransferRecDate", _date_range_value(lt))
 
-    # ARM reset window
-    add("FirstARMResetDate", _arm_reset_window_value(filters.get("first_arm_reset_within_months")))
+    # ARM reset window. PR's field is `FirstARMNext` (next scheduled reset
+    # date) — NOT `FirstARMResetDate` as the criteria-reference summary
+    # claimed. API error message ("Unexpected Criterion") was authoritative.
+    add("FirstARMNext", _arm_reset_window_value(filters.get("first_arm_reset_within_months")))
 
     # Lender targeting
     if filters.get("first_lender_original"):
         add("FirstLenderOriginal", list(filters["first_lender_original"]))
 
-    # Distress / flag exclusions kept off by default — LOs typically want
-    # non-distressed properties for refi outreach. Surface as opt-in.
+    # Distress exclusions — only inForeclosure is allowed on Solo plan.
+    # isBankOwned and inBankruptcyProperty are gated to higher tiers.
     if filters.get("exclude_distressed"):
         add("inForeclosure", [0])
-        add("isBankOwned", [0])
-        add("inBankruptcyProperty", [0])
 
     return out
 
@@ -333,26 +343,44 @@ def _write_cache(key: str, data: dict) -> None:
 
 
 def _enrich_row_with_tract(row: dict) -> dict:
-    """Add ``census`` block to a PR row using the existing census pipeline.
+    """Add ``census`` block to a PR row.
 
-    Adapts the PR field names to the RentCast-shaped dict that
-    ``get_census_data`` expects.
+    Fast path: PR already gives us state + county name + CensusTract on every
+    row, so we skip the slow Census Bureau address geocoder (which times out
+    at 15s on a non-trivial fraction of addresses). Falls back to the full
+    address-geocoded pipeline only if the fast lookup can't resolve county
+    FIPS (e.g. unusual county name spelling).
     """
     if not isinstance(row, dict):
         return row
-    listing_like = {
-        "addressLine1": row.get("Address") or "",
-        "city": row.get("City") or "",
-        "state": row.get("State") or "",
-        "zipCode": str(row.get("ZipFive") or ""),
-        "latitude": row.get("Latitude"),
-        "longitude": row.get("Longitude"),
-    }
+
+    census = None
     try:
-        census = get_census_data(listing_like)
+        census = get_census_data_fast(
+            state=row.get("State"),
+            county_name=row.get("County"),
+            tract_code=row.get("CensusTract"),
+        )
     except Exception:
-        logger.exception("tract enrichment failed for RadarID=%s", row.get("RadarID"))
-        census = None
+        logger.exception("fast tract lookup failed for RadarID=%s", row.get("RadarID"))
+
+    if census is None:
+        # Fallback: geocode the address (slow). Only fires when fast path
+        # can't resolve — should be rare.
+        listing_like = {
+            "addressLine1": row.get("Address") or "",
+            "city": row.get("City") or "",
+            "state": row.get("State") or "",
+            "zipCode": str(row.get("ZipFive") or ""),
+            "latitude": row.get("Latitude"),
+            "longitude": row.get("Longitude"),
+        }
+        try:
+            census = get_census_data(listing_like)
+        except Exception:
+            logger.exception("address-geocode tract fallback failed for RadarID=%s", row.get("RadarID"))
+            census = None
+
     if census:
         row["census"] = {
             "tract_income_level": census.get("tract_income_level"),
@@ -367,61 +395,171 @@ def _enrich_row_with_tract(row: dict) -> dict:
     return row
 
 
+# Tract enrichment parallelism. ACS calls are I/O-bound (network), so we can
+# run many concurrently. 10 workers is plenty for a 25-row page.
+_TRACT_ENRICH_WORKERS = 10
+
+
 # ---------------------------------------------------------------------------
 # Contact unlock (phone + email per person)
 # ---------------------------------------------------------------------------
 
 
-def unlock_contacts(person_keys: list[str], *, phone: bool = True, email: bool = True) -> dict:
-    """Unlock phone and/or email for a list of PersonKeys.
+def preview_contacts(radar_ids: list[str]) -> dict:
+    """Free preview: how many person records would be returned, total credits.
 
-    Each unlock is a SEPARATE paid action on PropertyRadar (separate from the
-    record export quota). Returns per-person results so the UI can show what
-    was unlocked vs. what failed.
+    Calls GET /properties/{rid}/persons?Purchase=0 for each radar_id. Returns
+    the aggregate resultCount across all properties and the remaining quota.
+    Zero credits charged.
     """
-    if not person_keys:
-        raise RefiSearchError("at least one person_key is required")
+    if not radar_ids:
+        raise RefiSearchError("at least one radar_id is required")
+    total_persons = 0
+    cached_count = 0
+    quota_remaining: int | None = None
+    per_property: list[dict] = []
+    for rid in radar_ids:
+        # Cache hit means we'd pay 0 credits — already in Redis.
+        if get_cached_contact_unlock(rid) is not None:
+            cached_count += 1
+            per_property.append({"radar_id": rid, "persons": 0, "cached": True})
+            continue
+        try:
+            resp = propertyradar.fetch_property_persons(rid, purchase=0)
+        except propertyradar.PropertyRadarError as exc:
+            per_property.append({"radar_id": rid, "persons": 0, "error": str(exc)})
+            continue
+        cnt = int(resp.get("resultCount") or 0)
+        total_persons += cnt
+        qr = resp.get("quantityFreeRemaining")
+        if qr is not None:
+            quota_remaining = int(qr)
+        per_property.append({"radar_id": rid, "persons": cnt, "cached": False})
+    return {
+        "total_credits": total_persons,
+        "cached_properties": cached_count,
+        "quantity_free_remaining": quota_remaining,
+        "per_property": per_property,
+    }
+
+
+def unlock_contacts(radar_ids: list[str], *, phone: bool = True, email: bool = True) -> dict:
+    """Fetch phone + email for a list of properties (by RadarID).
+
+    Uses ``GET /properties/{RadarID}/persons`` (one call per property)
+    instead of the per-person POST /persons/{key}/Phone endpoint because:
+
+    1. **Recovery:** the POST endpoint refuses already-purchased contacts
+       ("Phone not available for purchase, ... already purchased"). The
+       GET endpoint returns the inline values for "owned" contacts so we
+       can recover previously-paid-for data.
+    2. **Cheaper:** 1 call per property returns ALL persons + ALL their
+       phones/emails. Previously we made 2 calls per person.
+    3. **More complete:** PR typically has 2–3 phones and 2–3 emails per
+       person; this endpoint returns them all in one shot.
+
+    Each call charges per person record returned (typically 1–3/property)
+    against the unified export-credit pool. ``"available"`` contacts that
+    haven't been purchased yet may NOT come back inline — they require
+    the POST unlock to actually purchase. We surface that in the result.
+    """
+    if not radar_ids:
+        raise RefiSearchError("at least one radar_id is required")
     if not phone and not email:
         raise RefiSearchError("at least one of phone/email must be requested")
 
     results: list[dict] = []
-    for pk in person_keys:
-        item: dict = {"person_key": pk, "phone": None, "email": None,
-                      "phone_error": None, "email_error": None}
+    for rid in radar_ids:
+        # L2 cache: cross-LO Redis (14-day TTL). Saves credits on any
+        # repeated query of the same property by anyone on the team.
+        cached = get_cached_contact_unlock(rid)
+        if cached is not None:
+            cached_copy = dict(cached)
+            cached_copy["cache_hit"] = True
+            results.append(cached_copy)
+            continue
+
+        item: dict = {"radar_id": rid, "phone": None, "email": None,
+                      "phone_error": None, "email_error": None, "persons": [],
+                      "cache_hit": False}
+        try:
+            resp = propertyradar.fetch_property_persons(rid)
+        except propertyradar.PropertyRadarError as exc:
+            item["phone_error"] = str(exc)
+            item["email_error"] = str(exc)
+            # Don't cache errors — they may be transient (rate limit, etc.)
+            results.append(item)
+            continue
+
+        phones, emails, persons_info = _extract_persons_contacts(resp)
         if phone:
-            try:
-                pr = propertyradar.unlock_phone(pk)
-                item["phone"] = _extract_phone(pr)
-            except propertyradar.PropertyRadarError as exc:
-                item["phone_error"] = str(exc)
+            item["phone"] = ", ".join(phones) if phones else None
+            if not phones:
+                item["phone_error"] = "No phone on file for any owner (or not purchased)"
         if email:
-            try:
-                er = propertyradar.unlock_email(pk)
-                item["email"] = _extract_email(er)
-            except propertyradar.PropertyRadarError as exc:
-                item["email_error"] = str(exc)
+            item["email"] = ", ".join(emails) if emails else None
+            if not emails:
+                item["email_error"] = "No email on file for any owner (or not purchased)"
+        item["persons"] = persons_info
+        # Cache the successful result (including negative "no contact" results,
+        # so we don't keep re-querying properties PR has nothing for).
+        set_cached_contact_unlock(rid, {k: v for k, v in item.items() if k != "cache_hit"})
         results.append(item)
 
     return {"results": results}
 
 
-def _extract_phone(resp: dict) -> str | None:
-    """Pull the unlocked phone string out of PropertyRadar's response shape."""
-    # PR returns the unlocked value under "results" or "Phone"; field name
-    # varies across response variants. Try common shapes.
-    if isinstance(resp.get("results"), list) and resp["results"]:
-        r0 = resp["results"][0]
-        if isinstance(r0, dict):
-            return r0.get("Phone") or r0.get("PrimaryPhone1") or r0.get("phone")
-    return resp.get("Phone") or resp.get("PrimaryPhone1") or resp.get("phone")
+def _extract_persons_contacts(resp: dict) -> tuple[list[str], list[str], list[dict]]:
+    """Walk a GET /properties/{id}/persons response and pull out every
+    populated phone and email across all persons on the property.
 
+    PR's GET response uses lowercase field names inside the Phone/Email
+    arrays (``value``, ``linktext``, ``status``, ``source``) — different
+    from the POST unlock response's PascalCase. Handle both for safety.
 
-def _extract_email(resp: dict) -> str | None:
-    if isinstance(resp.get("results"), list) and resp["results"]:
-        r0 = resp["results"][0]
-        if isinstance(r0, dict):
-            return r0.get("Email") or r0.get("PrimaryEmail1") or r0.get("email")
-    return resp.get("Email") or resp.get("PrimaryEmail1") or resp.get("email")
+    Returns (phones, emails, per-person summary).
+    """
+    phones: list[str] = []
+    emails: list[str] = []
+    persons: list[dict] = []
+    for p in (resp.get("results") or []):
+        if not isinstance(p, dict):
+            continue
+        person_phones: list[str] = []
+        person_emails: list[str] = []
+        for item in (p.get("Phone") or []):
+            if not isinstance(item, dict):
+                continue
+            status = (item.get("status") or item.get("Status") or "")
+            if str(status).lower() in {"bad", "disconnected", "invalid"}:
+                continue
+            v = item.get("linktext") or item.get("Linktext") or item.get("value") or item.get("Value")
+            if v:
+                person_phones.append(str(v))
+        for item in (p.get("Email") or []):
+            if not isinstance(item, dict):
+                continue
+            v = item.get("value") or item.get("Value") or item.get("linktext") or item.get("Linktext")
+            if v:
+                person_emails.append(str(v))
+        # Dedupe per person
+        person_phones = list(dict.fromkeys(person_phones))
+        person_emails = list(dict.fromkeys(person_emails))
+        phones.extend(person_phones)
+        emails.extend(person_emails)
+        name = " ".join(filter(None, [p.get("FirstName"), p.get("MiddleName"), p.get("LastName")])).strip() or p.get("EntityName")
+        persons.append({
+            "person_key": p.get("PersonKey"),
+            "name": name,
+            "role": p.get("OwnershipRole"),
+            "is_primary": bool(p.get("isPrimaryContact")),
+            "phones": person_phones,
+            "emails": person_emails,
+        })
+    # Dedupe across persons (a phone may be shared between spouses).
+    phones = list(dict.fromkeys(phones))
+    emails = list(dict.fromkeys(emails))
+    return phones, emails, persons
 
 
 # ---------------------------------------------------------------------------
@@ -462,8 +600,12 @@ def search(*, preset_id: str | None, geography: dict, filters: dict | None,
     data = propertyradar.fetch_search(criteria, limit=limit, start=start,
                                       criteria_hash=cache_key)
     rows = data.get("results", []) or []
-    if enrich_tract:
-        rows = [_enrich_row_with_tract(r) for r in rows]
+    if enrich_tract and rows:
+        # Parallel enrichment — each row's ACS call is independent and
+        # network-bound, so they overlap cleanly. Wall time drops from
+        # ~sequential 25 × 1-2s = 30-50s to ~3-5s for a typical page.
+        with ThreadPoolExecutor(max_workers=_TRACT_ENRICH_WORKERS) as pool:
+            rows = list(pool.map(_enrich_row_with_tract, rows))
 
     payload = {
         "results": rows,

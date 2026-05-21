@@ -117,6 +117,7 @@ export default function RefiFinderTab() {
   // paid unlocks.
   const [unlocked, setUnlocked] = useState<UnlockResultMap>({});
   const [unlockingRows, setUnlockingRows] = useState<RefiRow[] | null>(null);
+  const [unlockSummary, setUnlockSummary] = useState<string | null>(null);
 
   // Refs to skip the initial localStorage hydration race.
   const hydratedRef = useRef(false);
@@ -339,45 +340,60 @@ export default function RefiFinderTab() {
     if (typeof window !== "undefined") localStorage.removeItem(LS_KEY);
   }
 
-  // Unlock — receives the list of rows to unlock, runs the API call, merges
-  // results into `unlocked`. PersonKey extraction prefers isPrimaryContact=1.
+  // Unlock — fetches phone/email for selected rows via the property-persons
+  // endpoint. Returns owned (already-purchased) data inline + any net-new.
   const runUnlock = useCallback(async (selectedRows: RefiRow[]) => {
-    type Person = { PersonKey: string; FirstName?: string; LastName?: string; isPrimaryContact?: number };
-    const tasks: { row: RefiRow; key: string }[] = [];
-    for (const r of selectedRows) {
-      const persons = (r as RefiRow & { Persons?: Person[] }).Persons;
-      if (!Array.isArray(persons) || persons.length === 0) continue;
-      const primary = persons.find((p) => p.isPrimaryContact === 1) ?? persons[0];
-      if (primary?.PersonKey) tasks.push({ row: r, key: primary.PersonKey });
-    }
-    if (tasks.length === 0) {
-      setError("No PersonKeys available for the selected rows.");
+    const radarIds = selectedRows.map((r) => r.RadarID).filter(Boolean);
+    if (radarIds.length === 0) {
+      setError("No properties selected for unlock.");
       return;
     }
     try {
       const res = await fetch("/api/refi/unlock-contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ person_keys: tasks.map((t) => t.key), phone: true, email: true }),
+        body: JSON.stringify({ radar_ids: radarIds, phone: true, email: true }),
       });
-      const data = await res.json() as { success: boolean; results?: { person_key: string; phone?: string|null; email?: string|null; phone_error?: string|null; email_error?: string|null }[]; error?: string };
+      const data = await res.json() as {
+        success: boolean;
+        results?: {
+          radar_id: string;
+          phone?: string|null;
+          email?: string|null;
+          phone_error?: string|null;
+          email_error?: string|null;
+          persons?: { person_key?: string; name?: string; role?: string; is_primary?: boolean; phones: string[]; emails: string[] }[];
+        }[];
+        error?: string;
+      };
       if (!data.success) throw new Error(data.error ?? "Unlock failed");
 
-      // Merge unlocked results into our keyed map.
+      const results = data.results ?? [];
       setUnlocked((prev) => {
         const next = { ...prev };
-        for (const r of data.results ?? []) {
-          const t = tasks.find((x) => x.key === r.person_key);
-          if (!t) continue;
-          next[t.row.RadarID] = {
-            phone: r.phone ?? next[t.row.RadarID]?.phone,
-            email: r.email ?? next[t.row.RadarID]?.email,
+        for (const r of results) {
+          if (!r.radar_id) continue;
+          next[r.radar_id] = {
+            phone: r.phone ?? next[r.radar_id]?.phone,
+            email: r.email ?? next[r.radar_id]?.email,
             phone_error: r.phone_error ?? null,
             email_error: r.email_error ?? null,
+            persons: r.persons ?? next[r.radar_id]?.persons,
           };
         }
         return next;
       });
+
+      let phoneGot = 0, emailGot = 0, bothMissing = 0;
+      for (const r of results) {
+        if (r.phone) phoneGot++;
+        if (r.email) emailGot++;
+        if (!r.phone && !r.email) bothMissing++;
+      }
+      setUnlockSummary(
+        `Fetched ${phoneGot} phone${phoneGot === 1 ? "" : "s"} and ${emailGot} email${emailGot === 1 ? "" : "s"} across ${results.length} propert${results.length === 1 ? "y" : "ies"}` +
+        (bothMissing > 0 ? ` · ${bothMissing} had no contact in PR's database.` : "")
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unlock failed");
     }
@@ -397,6 +413,15 @@ export default function RefiFinderTab() {
   return (
     <div className="space-y-6">
       <Header quota={quota} />
+
+      {unlockSummary && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
+          <span>{unlockSummary}</span>
+          <button type="button" onClick={() => setUnlockSummary(null)} className="text-emerald-600 hover:text-emerald-800" aria-label="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+      )}
 
       {capError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
