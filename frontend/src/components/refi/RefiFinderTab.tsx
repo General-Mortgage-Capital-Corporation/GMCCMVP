@@ -681,7 +681,7 @@ function NoAccessGate({ email }: { email: string | null }) {
         <div className="mt-5 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
           <div className="font-medium text-gray-900">Currently access-limited.</div>
           <div className="mt-1 text-gray-600">
-            Subscription plans with allocated monthly credits are coming. For now access is granted manually — if you&apos;d like to be included in the private beta, reach out via the MLO portal.
+            Subscription plans with allocated monthly credits are coming.
           </div>
           {email && (
             <div className="mt-2 text-xs text-gray-500">Signed in as <span className="font-mono">{email}</span></div>
