@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import RefiResultsTable from "./RefiResultsTable";
 import RefiDetailModal from "./RefiDetailModal";
 import RefiUnlockModal, { type UnlockResultMap } from "./RefiUnlockModal";
@@ -13,6 +14,13 @@ import type {
   RefiRow,
   SearchResp,
 } from "./types";
+
+type AccessTier = "loading" | "anonymous" | "no_access" | "has_access";
+type AccessResp = {
+  tier: Exclude<AccessTier, "loading">;
+  email?: string;
+  quota?: QuotaResp | null;
+};
 
 type Phase = "idle" | "filtering" | "previewed" | "results";
 
@@ -83,6 +91,13 @@ type PersistedState = {
 };
 
 export default function RefiFinderTab() {
+  const { user, signIn, getIdToken } = useAuth();
+
+  // Access tier. Gates the entire tab: anonymous → log-in CTA, no_access →
+  // "coming soon" with future-subscription pitch, has_access → full UI.
+  const [accessTier, setAccessTier] = useState<AccessTier>("loading");
+  const [accessEmail, setAccessEmail] = useState<string | null>(null);
+
   const [presets, setPresets] = useState<RefiPreset[]>([]);
   const [presetsLoading, setPresetsLoading] = useState(true);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
@@ -122,14 +137,45 @@ export default function RefiFinderTab() {
   // Refs to skip the initial localStorage hydration race.
   const hydratedRef = useRef(false);
 
-  // ── Load presets + quota + restore state ──────────────────────────────────
+  // Authed fetch — every refi API call requires the Firebase ID token.
+  const authedFetch = useCallback(async (input: RequestInfo, init?: RequestInit) => {
+    const token = user ? await getIdToken() : null;
+    const headers = new Headers(init?.headers);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  }, [user, getIdToken]);
+
+  // ── Access tier check (runs whenever auth changes) ────────────────────────
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) {
+        setAccessTier("anonymous");
+        return;
+      }
+      try {
+        const res = await authedFetch("/api/refi/access");
+        const data: AccessResp = await res.json();
+        if (cancelled) return;
+        setAccessTier(data.tier);
+        setAccessEmail(data.email ?? user.email ?? null);
+        if (data.tier === "has_access" && data.quota) setQuota(data.quota);
+      } catch {
+        if (!cancelled) setAccessTier("anonymous");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, authedFetch]);
+
+  // ── Load presets + quota + restore state (only when access is granted) ────
+  useEffect(() => {
+    if (accessTier !== "has_access") return;
     let cancelled = false;
     (async () => {
       try {
         const [pRes, qRes] = await Promise.all([
-          fetch("/api/refi/presets").then((r) => r.json()),
-          fetch("/api/refi/quota").then((r) => r.json()),
+          authedFetch("/api/refi/presets").then((r) => r.json()),
+          authedFetch("/api/refi/quota?check_remaining=1").then((r) => r.json()),
         ]);
         if (cancelled) return;
         setPresets(Array.isArray(pRes.presets) ? pRes.presets : []);
@@ -165,7 +211,7 @@ export default function RefiFinderTab() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [accessTier, authedFetch]);
 
   const activePreset = useMemo(
     () => presets.find((p) => p.id === activePresetId) ?? null,
@@ -256,7 +302,7 @@ export default function RefiFinderTab() {
     setCapError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/refi/preview", {
+      const res = await authedFetch("/api/refi/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ preset_id: activePresetId, geography: geoForRequest, filters }),
@@ -270,7 +316,7 @@ export default function RefiFinderTab() {
     } finally {
       setLoading(false);
     }
-  }, [activePresetId, geoForRequest, filters, canPreview]);
+  }, [activePresetId, geoForRequest, filters, canPreview, authedFetch]);
 
   // Fetch — initial OR "fetch more". For "initial", appendMode=false replaces rows.
   // For "fetch more", appendMode=true appends to the current rows.
@@ -280,7 +326,7 @@ export default function RefiFinderTab() {
     appendMode ? setFetchingMore(true) : setLoading(true);
     try {
       const serverPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
-      const res = await fetch("/api/refi/search", {
+      const res = await authedFetch("/api/refi/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -313,14 +359,14 @@ export default function RefiFinderTab() {
       setLoadedCriteriaKey(currentCriteriaKey);
       setPhase("results");
 
-      fetch("/api/refi/quota").then((r) => r.json()).then((q) => setQuota(q)).catch(() => {});
+      authedFetch("/api/refi/quota?check_remaining=1").then((r) => r.json()).then((q) => setQuota(q)).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey]);
+  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey, authedFetch]);
 
   function resetAll() {
     setActivePresetId(null);
@@ -349,7 +395,7 @@ export default function RefiFinderTab() {
       return;
     }
     try {
-      const res = await fetch("/api/refi/unlock-contact", {
+      const res = await authedFetch("/api/refi/unlock-contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ radar_ids: radarIds, phone: true, email: true }),
@@ -397,10 +443,23 @@ export default function RefiFinderTab() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unlock failed");
     }
-  }, []);
+  }, [authedFetch]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  if (accessTier === "loading") {
+    return <div className="flex h-40 items-center justify-center text-sm text-gray-500">Checking access…</div>;
+  }
+
+  if (accessTier === "anonymous") {
+    return <AnonymousGate onSignIn={signIn} />;
+  }
+
+  if (accessTier === "no_access") {
+    return <NoAccessGate email={accessEmail} />;
+  }
+
+  // accessTier === "has_access" — render the full tool
   if (presetsLoading) {
     return <div className="flex h-40 items-center justify-center text-sm text-gray-500">Loading refi presets…</div>;
   }
@@ -523,6 +582,18 @@ export default function RefiFinderTab() {
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function Header({ quota }: { quota: QuotaResp | null }) {
+  const remaining = quota?.quantity_free_remaining ?? null;
+  // Cap-line health (warn at <20%, danger at <5%)
+  const monthlyTotal = 10_000;
+  const pct = remaining != null ? (remaining / monthlyTotal) * 100 : null;
+  const tone = pct == null ? "neutral" : pct < 5 ? "danger" : pct < 20 ? "warn" : "ok";
+  const toneClasses = {
+    ok:      "border-emerald-200 bg-emerald-50 text-emerald-900",
+    warn:    "border-amber-200 bg-amber-50 text-amber-900",
+    danger:  "border-red-300 bg-red-50 text-red-900",
+    neutral: "border-gray-200 bg-white text-gray-700",
+  }[tone];
+
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -532,13 +603,91 @@ function Header({ quota }: { quota: QuotaResp | null }) {
         </p>
       </div>
       {quota && (
-        <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
-          <div>Today&apos;s spend: <span className="font-semibold tabular-nums text-gray-900">{quota.today_spend}</span> records (cap {quota.daily_cap})</div>
-          {quota.quantity_free_remaining != null && (
-            <div className="mt-0.5">Monthly remaining: <span className="font-semibold tabular-nums text-gray-900">{quota.quantity_free_remaining.toLocaleString()}</span></div>
+        <div className={`rounded-xl border px-4 py-2.5 ${toneClasses}`}>
+          {remaining != null ? (
+            <>
+              <div className="text-[11px] font-medium uppercase tracking-wide opacity-75">Credits remaining this month</div>
+              <div className="mt-0.5 text-2xl font-semibold tabular-nums">{remaining.toLocaleString()}</div>
+              <div className="mt-0.5 text-[11px] opacity-75">of 10,000 · today: {quota.today_spend} used</div>
+            </>
+          ) : (
+            <>
+              <div className="text-[11px] font-medium uppercase tracking-wide opacity-75">Today&apos;s spend</div>
+              <div className="mt-0.5 text-lg font-semibold tabular-nums">{quota.today_spend} <span className="text-xs font-normal opacity-75">/ {quota.daily_cap} cap</span></div>
+            </>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Gate states ────────────────────────────────────────────────────────────
+
+function AnonymousGate({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <div className="mx-auto max-w-md py-10 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 ring-1 ring-red-100">
+        <svg className="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="4" y="11" width="16" height="9" rx="2" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          <circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+        </svg>
+      </div>
+      <h2 className="text-xl font-semibold text-gray-900">Sign in to use Refi Finder</h2>
+      <p className="mt-2 text-sm text-gray-600">
+        Refi Finder surfaces refinance prospects from public mortgage records — for subscribed GMCC loan officers only.
+      </p>
+      <button
+        type="button"
+        onClick={onSignIn}
+        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
+      >
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M11.4 2H2v9.4h9.4V2zM22 2h-9.4v9.4H22V2zM11.4 12.6H2V22h9.4v-9.4zM22 12.6h-9.4V22H22v-9.4z" />
+        </svg>
+        Sign in with Microsoft
+      </button>
+    </div>
+  );
+}
+
+function NoAccessGate({ email }: { email: string | null }) {
+  return (
+    <div className="mx-auto max-w-xl py-10">
+      <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 shadow-sm">
+        <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          Private beta
+        </div>
+        <h2 className="mt-3 text-2xl font-semibold text-gray-900">Refi Finder — coming soon</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          A new GMCC tool for finding refinance prospects from public mortgage records. Filter by zip, scenario (cash-out, rate-and-term, FHA→Conv, VA IRRRL, ARM reset, etc.), then fetch borrower contact info to start outreach.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {[
+            ["Pick a scenario", "6 curated refi presets"],
+            ["Preview free", "See the universe before you charge"],
+            ["Direct contact", "Phones + emails per borrower"],
+          ].map(([t, s]) => (
+            <div key={t} className="rounded-xl border border-gray-100 bg-white p-3">
+              <div className="text-xs font-semibold text-gray-900">{t}</div>
+              <div className="mt-0.5 text-xs text-gray-500">{s}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+          <div className="font-medium text-gray-900">Currently access-limited.</div>
+          <div className="mt-1 text-gray-600">
+            Subscription plans with allocated monthly credits are coming. For now access is granted manually — if you&apos;d like to be included in the private beta, reach out via the MLO portal.
+          </div>
+          {email && (
+            <div className="mt-2 text-xs text-gray-500">Signed in as <span className="font-mono">{email}</span></div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

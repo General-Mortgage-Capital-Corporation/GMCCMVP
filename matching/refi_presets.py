@@ -61,6 +61,29 @@ class Preset:
 
 PRESETS: list[Preset] = [
     Preset(
+        id="cash_out",
+        name="Cash-out candidates",
+        tagline="Seasoned loans with high equity",
+        why=(
+            "Owner-occupied homes with 40%+ equity and a current loan that's "
+            "at least 5 years old. These borrowers can tap accumulated "
+            "equity for renovations, debt consolidation, or major purchases "
+            "without losing their primary residence rate dramatically."
+        ),
+        base_filters={
+            "equity_percent_min": 40,
+            "first_date_to": _years_ago_iso(5),
+            "available_equity_min": 100_000,
+            "is_free_and_clear": False,
+            "owner_occupied": True,
+            "property_types": ["SFR", "CND"],
+        },
+        primary_filter_keys=[
+            "equity_percent_min", "available_equity_min", "first_date_to",
+            "property_types",
+        ],
+    ),
+    Preset(
         id="rate_term_refi",
         name="Rate-and-term refi",
         tagline="High-rate vintage loans with refinanceable equity",
@@ -83,29 +106,6 @@ PRESETS: list[Preset] = [
         primary_filter_keys=[
             "first_date_range", "first_rate_min", "available_equity_min",
             "property_types", "owner_occupied",
-        ],
-    ),
-    Preset(
-        id="cash_out",
-        name="Cash-out candidates",
-        tagline="Seasoned loans with high equity",
-        why=(
-            "Owner-occupied homes with 40%+ equity and a current loan that's "
-            "at least 5 years old. These borrowers can tap accumulated "
-            "equity for renovations, debt consolidation, or major purchases "
-            "without losing their primary residence rate dramatically."
-        ),
-        base_filters={
-            "equity_percent_min": 40,
-            "first_date_to": _years_ago_iso(5),
-            "available_equity_min": 100_000,
-            "is_free_and_clear": False,
-            "owner_occupied": True,
-            "property_types": ["SFR", "CND"],
-        },
-        primary_filter_keys=[
-            "equity_percent_min", "available_equity_min", "first_date_to",
-            "property_types",
         ],
     ),
     Preset(
