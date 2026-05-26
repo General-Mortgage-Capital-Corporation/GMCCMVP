@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import RecentSearches from "@/components/search/RecentSearches";
 import { saveRecentSearch, type RecentSearch } from "@/lib/recent-searches";
+import { authedFetch } from "@/lib/authed-fetch";
 import type { AutocompleteSuggestion } from "@/types";
 
 // Load MapWidget client-side only (Google Maps needs window)
@@ -33,8 +34,50 @@ export default function SearchForm({
   const [radius, setRadius] = useState(5);
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
   const [recentKey, setRecentKey] = useState(0);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const markerLatRef = useRef<number | undefined>(undefined);
   const markerLngRef = useRef<number | undefined>(undefined);
+
+  async function handleUseCurrentLocation() {
+    setGeoError(null);
+    if (!("geolocation" in navigator)) {
+      setGeoError("Geolocation not supported by this browser.");
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await authedFetch(
+            `/api/reverse-geocode?lat=${latitude}&lng=${longitude}`,
+          );
+          const data = (await res.json()) as { address?: string | null };
+          if (data.address) {
+            setQuery(data.address);
+            markerLatRef.current = latitude;
+            markerLngRef.current = longitude;
+          } else {
+            setGeoError("Couldn't resolve your address. Try entering it manually.");
+          }
+        } catch {
+          setGeoError("Couldn't resolve your address. Try entering it manually.");
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (err) => {
+        setGeoLoading(false);
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied. Enable it in your browser settings."
+            : "Couldn't get your location. Try again.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
 
   function handleSelect(suggestion: AutocompleteSuggestion) {
     setQuery(suggestion.text.replace(", USA", ""));
@@ -95,9 +138,33 @@ export default function SearchForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Location */}
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          Location
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="block text-sm font-medium text-gray-700">
+            Location
+          </label>
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={geoLoading}
+            className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+            {geoLoading ? "Locating..." : "Use current location"}
+          </button>
+        </div>
         <AddressAutocomplete
           value={query}
           onChange={setQuery}
@@ -105,6 +172,9 @@ export default function SearchForm({
           placeholder="Enter address or zip code..."
           required
         />
+        {geoError && (
+          <p className="mt-1 text-xs text-red-600">{geoError}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
