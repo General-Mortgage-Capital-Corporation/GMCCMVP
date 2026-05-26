@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { pyPost } from "@/lib/python-client";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -93,6 +94,7 @@ function buildProgramContext(name: string, rules: Record<string, unknown>): stri
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   if (!GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI not configured." }, { status: 503 });
   }

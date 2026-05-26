@@ -17,6 +17,7 @@ import type {
   MarketingStreamEvent,
   ProgramStreamEvent,
 } from "@/types";
+import { authedFetch } from "@/lib/authed-fetch";
 
 class ApiError extends Error {
   status: number;
@@ -31,7 +32,7 @@ async function fetchJson<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await authedFetch(url, init);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(
@@ -170,7 +171,7 @@ export async function* programSearchStream(
   sp.set("program", params.program);
   sp.set("county_fips", params.countyFips);
   if (params.city) sp.set("city", params.city);
-  const res = await fetch(`/api/program-search?${sp}`, { signal });
+  const res = await authedFetch(`/api/program-search?${sp}`, { signal });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(
@@ -188,7 +189,7 @@ export async function* marketingSearchStream(
   const sp = new URLSearchParams();
   sp.set("county_fips", params.countyFips);
   if (params.city) sp.set("city", params.city);
-  const res = await fetch(`/api/marketing-search?${sp}`, { signal });
+  const res = await authedFetch(`/api/marketing-search?${sp}`, { signal });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(

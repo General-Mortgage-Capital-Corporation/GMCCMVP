@@ -6,6 +6,7 @@ import { renderSimpleMarkdown } from "@/lib/utils";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import AgentIntelCard from "./AgentIntelCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { authedFetch } from "@/lib/authed-fetch";
 import type { AgentResearch } from "@/lib/redis-cache";
 
 /** Build a sessionStorage cache key from listing address + program names. */
@@ -94,7 +95,7 @@ export default function MultiSummaryModal({
       };
       if (idToken) headers.Authorization = `Bearer ${idToken}`;
 
-      const res = await fetch("/api/explain-multi", {
+      const res = await authedFetch("/api/explain-multi", {
         method: "POST",
         headers,
         body: JSON.stringify({ programs, listing }),

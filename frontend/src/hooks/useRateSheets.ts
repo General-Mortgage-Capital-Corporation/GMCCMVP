@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { authedFetch } from "@/lib/authed-fetch";
 import {
   pickRecord,
   type ParsedFilename,
@@ -88,7 +89,7 @@ export function useRateSheets() {
       // Have fresh local cache; skip fetch.
       return;
     }
-    fetch("/api/rate-sheets")
+    authedFetch("/api/rate-sheets")
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { ok: boolean; snapshot?: RateSheetSnapshot } | null) => {
         if (cancelled || !data?.ok || !data.snapshot) return;

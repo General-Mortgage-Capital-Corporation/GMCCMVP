@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
 import { pyPost, PythonServiceError } from "@/lib/python-client";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
 /** Proxy batch-matching to the Python matching service. */
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
   if (!rateLimit(ip, 30)) {
     return NextResponse.json(

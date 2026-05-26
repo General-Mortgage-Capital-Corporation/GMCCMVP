@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { generateEmailDraft } from "@/lib/services/email-draft";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const body = await req.json().catch(() => null);
   if (!body?.recipientType || !body?.userPrompt) {
     return NextResponse.json({ error: "recipientType and userPrompt are required." }, { status: 400 });

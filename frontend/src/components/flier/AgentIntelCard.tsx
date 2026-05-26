@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { AgentResearch } from "@/lib/redis-cache";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface AgentIntelCardProps {
   realtorName: string;
@@ -40,7 +41,7 @@ export default function AgentIntelCard({
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch("/api/realtor-research", {
+      const res = await authedFetch("/api/realtor-research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

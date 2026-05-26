@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { fetchZillowPhotos } from "@/lib/services/zillow-photos";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Two sequential Apify calls can take up to ~90s total
@@ -14,6 +15,7 @@ export const maxDuration = 120; // Two sequential Apify calls can take up to ~90
  * Returns { photos: string[], primaryPhoto: string | null }.
  */
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const address = req.nextUrl.searchParams.get("address") ?? "";
 
   if (!address) {

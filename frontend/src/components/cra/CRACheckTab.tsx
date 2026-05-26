@@ -14,6 +14,7 @@ import LoanComparisonFlyer from "./LoanComparisonFlyer";
 import ComparePricingModal from "@/components/pricing/ComparePricingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/posthog";
+import { authedFetch } from "@/lib/authed-fetch";
 import type {
   AutocompleteSuggestion,
   CensusData,
@@ -91,7 +92,7 @@ export default function CRACheckTab() {
   async function prefetchCoords(placeId: string) {
     activePlaceId.current = placeId;
     try {
-      const geo = await fetch(`/api/place-details?place_id=${encodeURIComponent(placeId)}`).then(
+      const geo = await authedFetch(`/api/place-details?place_id=${encodeURIComponent(placeId)}`).then(
         (r) => r.json() as Promise<{ lat: number | null; lng: number | null }>,
       );
       if (activePlaceId.current !== placeId) return;
@@ -117,7 +118,7 @@ export default function CRACheckTab() {
       return;
     }
     setPhotosLoading(true);
-    fetch(`/api/zillow-photos?address=${encodeURIComponent(addr)}`, { signal: ctrl.signal })
+    authedFetch(`/api/zillow-photos?address=${encodeURIComponent(addr)}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data: { photos?: string[] }) => {
         if (ctrl.signal.aborted) return;
@@ -168,7 +169,7 @@ export default function CRACheckTab() {
           searchParams.set("lat", String(coords.lat));
           searchParams.set("lng", String(coords.lng));
         }
-        const searchRes = await fetch(`/api/search?${searchParams}`);
+        const searchRes = await authedFetch(`/api/search?${searchParams}`);
         if (!searchRes.ok) throw new Error("Search failed");
         const searchData = (await searchRes.json()) as SearchResponse;
         if (searchData.success && searchData.listings.length > 0) {
@@ -191,7 +192,7 @@ export default function CRACheckTab() {
         ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
       };
 
-      const matchRes = await fetch("/api/match-batch", {
+      const matchRes = await authedFetch("/api/match-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([matchPayload]),

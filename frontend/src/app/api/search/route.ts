@@ -9,6 +9,7 @@ import {
   type Listing,
 } from "@/lib/rentcast";
 import { getCachedRentcastSearch, setCachedRentcastSearch } from "@/lib/redis-cache";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,7 @@ const API_KEY = process.env.RENTCAST_API_KEY ?? "";
 
 /** Search active listings via RentCast. API key stays server-side. */
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
   if (!rateLimit(ip, 30)) {
     return NextResponse.json(

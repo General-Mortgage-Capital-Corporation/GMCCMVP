@@ -12,10 +12,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { readSnapshot } from "@/lib/rate-sheets/cache";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
   if (!rateLimit(`rate-sheets:${ip}`, 60)) {
     return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
     { ok: true, snapshot },
     {
       headers: {
-        "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
       },
     },
   );

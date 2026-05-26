@@ -9,6 +9,7 @@ import {
   type Listing,
 } from "@/lib/rentcast";
 import { runMatchWaves } from "@/lib/match-stream";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,7 @@ const API_KEY = process.env.RENTCAST_API_KEY ?? "";
  * Only eligible / potentially eligible listings are included in batch events.
  */
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
   if (!rateLimit(ip, 20)) {
     return NextResponse.json(

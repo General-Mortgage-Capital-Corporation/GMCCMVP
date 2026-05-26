@@ -3,12 +3,15 @@
  * POST { text, voiceId? }  →  audio/mpeg stream
  */
 
+import { requireAuth, unauthorized } from "@/lib/require-auth";
+
 const ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (!(await requireAuth(req))) return unauthorized();
   const apiKey = process.env.ELEVENLABS_TTS_API_KEY ?? "";
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "TTS not configured" }), {

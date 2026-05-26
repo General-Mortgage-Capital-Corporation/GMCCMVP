@@ -11,6 +11,7 @@ import {
   formatPhoneInput,
 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { authedFetch } from "@/lib/authed-fetch";
 import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
@@ -136,7 +137,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
     let cancelled = false;
     setPhotosLoading(true);
-    fetch(`/api/zillow-photos?address=${encodeURIComponent(address)}`)
+    authedFetch(`/api/zillow-photos?address=${encodeURIComponent(address)}`)
       .then((r) => r.json())
       .then((data: { photos?: string[]; primaryPhoto?: string }) => {
         if (cancelled) return;

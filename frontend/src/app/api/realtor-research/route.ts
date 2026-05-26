@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { researchRealtor } from "@/lib/services/realtor-research";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const body = await req.json().catch(() => null);
   if (!body?.name && !body?.email && !body?.company) {
     return NextResponse.json({ error: "name, email, or company required" }, { status: 400 });

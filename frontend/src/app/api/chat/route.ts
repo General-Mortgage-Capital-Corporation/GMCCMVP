@@ -24,11 +24,13 @@ import { createSearchSentEmailsTool } from "@/lib/tools/search-sent-emails";
 import { fetchPropertyPhotoTool } from "@/lib/tools/fetch-property-photo";
 import { lookupPropertyTool } from "@/lib/tools/lookup-property";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  if (!(await requireAuth(req))) return unauthorized();
   const body = await req.json().catch(() => null);
   if (!body || !Array.isArray(body.messages)) {
     return new Response(JSON.stringify({ error: "messages array required" }), {

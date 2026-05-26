@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripSignOff } from "@/lib/services/email-draft";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -23,6 +24,7 @@ interface RequestBody {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   if (!GEMINI_API_KEY) {
     return NextResponse.json({ error: "AI not configured." }, { status: 503 });
   }

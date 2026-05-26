@@ -11,11 +11,20 @@ import {
 import { exchangeMsalForFirebase, type FirebaseUser } from "@/lib/firebase-auth";
 import { msalConfig, loginRequest } from "@/lib/msal-config";
 import { trackEvent } from "@/lib/posthog";
+import { registerAuthTokenGetter } from "@/lib/auth-token";
 
 interface AuthContextValue {
   user: FirebaseUser | null;
   loading: boolean;
   signIn: () => Promise<FirebaseUser>;
+  /**
+   * Try to sign in WITHOUT a popup using Microsoft's session cookie via
+   * MSAL ssoSilent. Used by /login on first mount so users coming from the
+   * MLO portal (same Azure tenant) don't have to click "Sign in" again.
+   * Returns null if interaction is required (no MS session, blocked iframe,
+   * etc.) — caller should fall back to the regular sign-in button.
+   */
+  signInSilent: (loginHint?: string) => Promise<FirebaseUser | null>;
   signOut: () => void;
   /** Returns a valid (non-expired) Firebase ID token, refreshing silently if needed. */
   getIdToken: () => Promise<string | null>;
@@ -103,6 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+      // Set the session cookie that middleware checks. 30-day fixed window —
+      // after that, the user is bounced to /login (where silent MSAL refresh
+      // will usually re-set the cookie automatically).
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${firebaseUser.idToken}` },
+      }).catch(() => { /* non-fatal — login page will retry */ });
       trackEvent("user_signed_in", { email: firebaseUser.email, name: firebaseUser.displayName });
       return firebaseUser;
     } catch (err) {
@@ -113,9 +129,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signInSilent = useCallback(async (loginHint?: string): Promise<FirebaseUser | null> => {
+    try {
+      const msal = await getMsal();
+      // ssoSilent uses an iframe to the Microsoft authorize endpoint — works
+      // when the browser has a valid login.microsoftonline.com session cookie
+      // (which it will if the user is signed in to any other app on the
+      // same Azure tenant, e.g. the MLO portal). Fails fast with
+      // InteractionRequiredAuthError if not — caller falls back to popup.
+      const tokenResponse = await msal.ssoSilent({
+        ...loginRequest,
+        ...(loginHint ? { loginHint } : {}),
+      });
+      const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
+      setUser(firebaseUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${firebaseUser.idToken}` },
+      }).catch(() => { /* non-fatal — login page will retry */ });
+      trackEvent("user_signed_in", {
+        email: firebaseUser.email,
+        name: firebaseUser.displayName,
+        method: "ssoSilent",
+      });
+      return firebaseUser;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const signOut = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    // Clear the middleware-gate cookie so the next navigation lands on /login.
+    fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
     getMsal().then((msal) => {
       const accounts = msal.getAllAccounts();
       if (accounts.length > 0) {
@@ -166,8 +214,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  // Expose getIdToken to non-React modules (api.ts, authedFetch, etc.) so
+  // they can attach Authorization headers without prop-drilling the token.
+  useEffect(() => {
+    registerAuthTokenGetter(getIdToken);
+  }, [getIdToken]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, getIdToken, getMsalAccessToken }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInSilent, signOut, getIdToken, getMsalAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

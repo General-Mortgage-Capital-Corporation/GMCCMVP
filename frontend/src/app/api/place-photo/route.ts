@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,11 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
  *   lat, lng – coordinates (used for Street View fallback when address is absent)
  */
 export async function GET(req: NextRequest) {
+  // No client currently calls this route via JS — but if anyone wires it up
+  // to an <img src=...> later, the cookie-only fallback in middleware will
+  // still gate at the page level. Belt + suspenders: require the bearer
+  // header for direct API access.
+  if (!(await requireAuth(req))) return unauthorized();
   const { searchParams } = req.nextUrl;
   const address = searchParams.get("address") ?? "";
   const lat = searchParams.get("lat") ?? "";

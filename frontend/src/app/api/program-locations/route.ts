@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { pyGet, PythonServiceError } from "@/lib/python-client";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
 /** Return the program → state → county hierarchy from the matching service. */
-export async function GET() {
+export async function GET(req: Request) {
+  if (!(await requireAuth(req))) return unauthorized();
   try {
     const data = await pyGet("/api/program-locations");
     return NextResponse.json(data);

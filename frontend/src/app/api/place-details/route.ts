@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
@@ -6,6 +7,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
 
 /** Resolve a Google Places place_id to lat/lng coordinates. */
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const placeId = req.nextUrl.searchParams.get("place_id")?.trim() ?? "";
   if (!placeId || !PLACES_KEY) {
     return NextResponse.json({ lat: null, lng: null });

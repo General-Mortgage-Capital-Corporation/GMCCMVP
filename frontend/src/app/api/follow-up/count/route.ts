@@ -1,15 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb, verifyIdToken } from "@/lib/firestore-admin";
+import { unauthorized } from "@/lib/require-auth";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   const idToken = authHeader?.replace("Bearer ", "");
-  if (!idToken) return NextResponse.json({ count: 0 });
+  if (!idToken) return unauthorized();
 
   const uid = await verifyIdToken(idToken);
-  if (!uid) return NextResponse.json({ count: 0 });
+  if (!uid) return unauthorized();
 
   const db = getDb();
   if (!db) return NextResponse.json({ count: 0 });

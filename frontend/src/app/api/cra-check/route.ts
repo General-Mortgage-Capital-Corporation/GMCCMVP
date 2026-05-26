@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
 import { pyPost } from "@/lib/python-client";
+import { requireAuth, unauthorized } from "@/lib/require-auth";
 import type { CensusData } from "@/types";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
   if (!rateLimit(ip, 30)) {
     return NextResponse.json({ success: false, error: "Rate limit exceeded." }, { status: 429 });

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { authedFetch } from "@/lib/authed-fetch";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
@@ -120,7 +121,7 @@ export default function EmailModal({
     setAiLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/suggest-email", {
+      const res = await authedFetch("/api/suggest-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

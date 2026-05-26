@@ -3,6 +3,8 @@
  * Falls back to browser speechSynthesis if the proxy is unavailable.
  */
 
+import { authedFetch } from "@/lib/authed-fetch";
+
 export interface TTSEngine {
   speak: (text: string) => void;
   stop: () => void;
@@ -55,7 +57,7 @@ export function createTTSEngine(): TTSEngine {
   }
 
   async function playViaProxy(text: string): Promise<void> {
-    const res = await fetch("/api/tts", {
+    const res = await authedFetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
