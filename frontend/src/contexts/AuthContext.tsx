@@ -146,9 +146,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // (which it will if the user is signed in to any other app on the
       // same Azure tenant, e.g. the MLO portal). Fails fast with
       // InteractionRequiredAuthError if not — caller falls back to popup.
+      //
+      // redirectUri: /blank.html — MSAL's iframe loads the redirect URI to
+      // read the auth response from its URL hash. If we use the site root,
+      // our middleware 302s the iframe to /login and MSAL times out with
+      // monitor_window_timeout. /blank.html is a static file (excluded from
+      // middleware) so the iframe loads instantly. This URL must also be
+      // registered as an SPA redirect URI in the Azure AD app registration.
       const tokenResponse = await msal.ssoSilent({
         ...loginRequest,
         ...(loginHint ? { loginHint } : {}),
+        redirectUri: `${window.location.origin}/blank.html`,
       });
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);

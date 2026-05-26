@@ -36,6 +36,6 @@ export const config = {
     //   - /api/* (own auth; also cron jobs that use CRON_SECRET)
     //   - /_next/static, /_next/image (Next.js internals)
     //   - common static-file extensions
-    "/((?!login|api/|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|map)$).*)",
+    "/((?!login|api/|_next/static|_next/image|favicon.ico|.*\\.(?:html|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|map)$).*)",
   ],
 };

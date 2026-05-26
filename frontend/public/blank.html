@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html><head><title>Auth redirect</title></head><body>
+<!--
+  Passive landing page for MSAL silent-SSO iframes. MSAL only needs to read
+  the URL hash here (it does so via same-origin contentWindow.location).
+  Must be reachable WITHOUT auth — middleware excludes .html files so this
+  bypasses the /login redirect gate that broke ssoSilent at the site root.
+  This URL must be registered as an SPA redirect URI in Azure AD.
+-->
+</body></html>
