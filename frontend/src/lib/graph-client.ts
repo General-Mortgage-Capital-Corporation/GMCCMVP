@@ -11,8 +11,13 @@ let _cachedToken: { token: string; expiresAt: number } | null = null;
  * Get a Graph application access token using client credentials. Cached for
  * the token's lifetime (with a 5-minute buffer). Exported so other modules
  * (e.g. SharePoint rate-sheet sync) can reuse the same cached token.
+ *
+ * Pass `forceFresh: true` to skip the cache and grab a brand-new token
+ * (used by the debug endpoint after permissions are changed, so the new
+ * permissions appear in the token without waiting for the cached one
+ * to expire ~55 min later).
  */
-export async function getAppToken(): Promise<string | null> {
+export async function getAppToken(opts?: { forceFresh?: boolean }): Promise<string | null> {
   const clientId = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET_VALUE ?? process.env.AZURE_CLIENT_SECRET;
   const tenantId = process.env.NEXT_PUBLIC_AZURE_TENANT_ID;
@@ -20,7 +25,7 @@ export async function getAppToken(): Promise<string | null> {
   if (!clientId || !clientSecret || !tenantId) return null;
 
   // Return cached token if still valid (5-min buffer)
-  if (_cachedToken && _cachedToken.expiresAt > Date.now() + 5 * 60 * 1000) {
+  if (!opts?.forceFresh && _cachedToken && _cachedToken.expiresAt > Date.now() + 5 * 60 * 1000) {
     return _cachedToken.token;
   }
 

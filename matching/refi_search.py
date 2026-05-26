@@ -487,79 +487,113 @@ def unlock_contacts(radar_ids: list[str], *, phone: bool = True, email: bool = T
         except propertyradar.PropertyRadarError as exc:
             item["phone_error"] = str(exc)
             item["email_error"] = str(exc)
-            # Don't cache errors — they may be transient (rate limit, etc.)
             results.append(item)
             continue
 
-        phones, emails, persons_info = _extract_persons_contacts(resp)
+        # For each person on the property: pull owned contacts inline, AND
+        # for available-but-unowned contacts (the Phone/Email field is just
+        # a `{href:...}` link), POST to /persons/{key}/Phone (or /Email) to
+        # actually purchase them. 1 credit per successful unlock; "not
+        # available" returns 400 with no charge.
+        all_phones: list[str] = []
+        all_emails: list[str] = []
+        persons_info: list[dict] = []
+        for p in (resp.get("results") or []):
+            if not isinstance(p, dict):
+                continue
+            pk = p.get("PersonKey")
+            person_phones: list[str] = []
+            person_emails: list[str] = []
+
+            if phone:
+                owned = _values_from_contact_array(p.get("Phone"))
+                if owned:
+                    person_phones = owned
+                elif pk and _has_purchasable_link(p.get("Phone")):
+                    try:
+                        pres = propertyradar.unlock_phone(pk)
+                        person_phones = _values_from_contact_array(pres.get("results"))
+                    except propertyradar.PropertyRadarError:
+                        pass  # "not available" — no credit charged
+
+            if email:
+                owned_e = _values_from_contact_array(p.get("Email"))
+                if owned_e:
+                    person_emails = owned_e
+                elif pk and _has_purchasable_link(p.get("Email")):
+                    try:
+                        eres = propertyradar.unlock_email(pk)
+                        person_emails = _values_from_contact_array(eres.get("results"))
+                    except propertyradar.PropertyRadarError:
+                        pass
+
+            all_phones.extend(person_phones)
+            all_emails.extend(person_emails)
+            name = " ".join(filter(None, [p.get("FirstName"), p.get("MiddleName"), p.get("LastName")])).strip() or p.get("EntityName")
+            persons_info.append({
+                "person_key": pk,
+                "name": name,
+                "role": p.get("OwnershipRole"),
+                "is_primary": bool(p.get("isPrimaryContact")),
+                "phones": person_phones,
+                "emails": person_emails,
+            })
+
+        # Dedupe across persons (spouses sometimes share a phone).
+        all_phones = list(dict.fromkeys(all_phones))
+        all_emails = list(dict.fromkeys(all_emails))
+
         if phone:
-            item["phone"] = ", ".join(phones) if phones else None
-            if not phones:
-                item["phone_error"] = "No phone on file for any owner (or not purchased)"
+            item["phone"] = ", ".join(all_phones) if all_phones else None
+            if not all_phones:
+                item["phone_error"] = "No phone on file for any owner"
         if email:
-            item["email"] = ", ".join(emails) if emails else None
-            if not emails:
-                item["email_error"] = "No email on file for any owner (or not purchased)"
+            item["email"] = ", ".join(all_emails) if all_emails else None
+            if not all_emails:
+                item["email_error"] = "No email on file for any owner"
         item["persons"] = persons_info
-        # Cache the successful result (including negative "no contact" results,
-        # so we don't keep re-querying properties PR has nothing for).
+        # Cache successful results (negative results too — saves re-querying
+        # properties PR has nothing for).
         set_cached_contact_unlock(rid, {k: v for k, v in item.items() if k != "cache_hit"})
         results.append(item)
 
     return {"results": results}
 
 
-def _extract_persons_contacts(resp: dict) -> tuple[list[str], list[str], list[dict]]:
-    """Walk a GET /properties/{id}/persons response and pull out every
-    populated phone and email across all persons on the property.
+def _values_from_contact_array(arr) -> list[str]:
+    """Extract phone/email values from a PR contact array.
 
-    PR's GET response uses lowercase field names inside the Phone/Email
-    arrays (``value``, ``linktext``, ``status``, ``source``) — different
-    from the POST unlock response's PascalCase. Handle both for safety.
-
-    Returns (phones, emails, per-person summary).
+    Handles both response shapes:
+      - GET /properties/.../persons (lowercase): {value, linktext, status}
+      - POST /persons/{key}/Phone (PascalCase): {Value, Linktext, Status}
+      - Link-only stubs ({href} with no value) → no extraction
+    Drops entries marked bad/disconnected/invalid. Dedupes preserving order.
     """
-    phones: list[str] = []
-    emails: list[str] = []
-    persons: list[dict] = []
-    for p in (resp.get("results") or []):
-        if not isinstance(p, dict):
+    if not isinstance(arr, list):
+        return []
+    out: list[str] = []
+    for item in arr:
+        if not isinstance(item, dict):
             continue
-        person_phones: list[str] = []
-        person_emails: list[str] = []
-        for item in (p.get("Phone") or []):
-            if not isinstance(item, dict):
-                continue
-            status = (item.get("status") or item.get("Status") or "")
-            if str(status).lower() in {"bad", "disconnected", "invalid"}:
-                continue
-            v = item.get("linktext") or item.get("Linktext") or item.get("value") or item.get("Value")
-            if v:
-                person_phones.append(str(v))
-        for item in (p.get("Email") or []):
-            if not isinstance(item, dict):
-                continue
-            v = item.get("value") or item.get("Value") or item.get("linktext") or item.get("Linktext")
-            if v:
-                person_emails.append(str(v))
-        # Dedupe per person
-        person_phones = list(dict.fromkeys(person_phones))
-        person_emails = list(dict.fromkeys(person_emails))
-        phones.extend(person_phones)
-        emails.extend(person_emails)
-        name = " ".join(filter(None, [p.get("FirstName"), p.get("MiddleName"), p.get("LastName")])).strip() or p.get("EntityName")
-        persons.append({
-            "person_key": p.get("PersonKey"),
-            "name": name,
-            "role": p.get("OwnershipRole"),
-            "is_primary": bool(p.get("isPrimaryContact")),
-            "phones": person_phones,
-            "emails": person_emails,
-        })
-    # Dedupe across persons (a phone may be shared between spouses).
-    phones = list(dict.fromkeys(phones))
-    emails = list(dict.fromkeys(emails))
-    return phones, emails, persons
+        status = (item.get("status") or item.get("Status") or "")
+        if str(status).lower() in {"bad", "disconnected", "invalid"}:
+            continue
+        v = (item.get("linktext") or item.get("Linktext")
+             or item.get("value") or item.get("Value"))
+        if v:
+            out.append(str(v))
+    return list(dict.fromkeys(out))
+
+
+def _has_purchasable_link(arr) -> bool:
+    """True if the array contains a {href:...} stub with no value — i.e.
+    PR has the contact available but we haven't paid to unlock it yet."""
+    if not isinstance(arr, list):
+        return False
+    for item in arr:
+        if isinstance(item, dict) and item.get("href") and not item.get("value"):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------

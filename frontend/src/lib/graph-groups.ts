@@ -187,12 +187,19 @@ export async function isEmailInRefiGroup(email: string): Promise<boolean> {
 
 
 /** Debug helper: returns the full picture of what Graph sees for an email.
- *  Exposed via /api/refi/access?debug=1 — only to static-allowlist users. */
-export async function debugGroupCheck(email: string): Promise<{
+ *  Exposed via /api/refi/access?debug=1 — only to static-allowlist users.
+ *
+ *  Pass forceFresh to bypass the Graph token cache + group ID cache +
+ *  members cache. Use this right after granting permissions in Azure so
+ *  the result reflects current state, not stale-by-an-hour caches.
+ */
+export async function debugGroupCheck(email: string, opts?: { forceFresh?: boolean }): Promise<{
   email: string;
   group_id: string | null;
   group_source: "env_id" | "env_mail_resolved" | "none";
   app_token_obtained: boolean;
+  app_token_roles: string[] | null;
+  app_token_age_seconds: number | null;
   check_member_groups_inGroup: boolean | null;
   check_member_groups_http?: number | string;
   members_fetched: boolean;
@@ -207,6 +214,8 @@ export async function debugGroupCheck(email: string): Promise<{
     group_id: null,
     group_source: "none",
     app_token_obtained: false,
+    app_token_roles: null,
+    app_token_age_seconds: null,
     check_member_groups_inGroup: null,
     members_fetched: false,
     members_count: 0,
@@ -214,6 +223,13 @@ export async function debugGroupCheck(email: string): Promise<{
     email_in_members: false,
     final_inGroup: false,
   };
+
+  // Bust the local caches if requested — useful right after granting consent
+  if (opts?.forceFresh) {
+    _idByMailCache.clear();
+    _membersCache.clear();
+    _userInGroupCache.clear();
+  }
 
   if (process.env.REFI_FINDER_GROUP_ID) {
     result.group_id = process.env.REFI_FINDER_GROUP_ID;
@@ -224,9 +240,28 @@ export async function debugGroupCheck(email: string): Promise<{
   }
   if (!result.group_id) return result;
 
-  const token = await getAppToken();
+  const token = await getAppToken({ forceFresh: opts?.forceFresh });
   result.app_token_obtained = token != null;
   if (!token) return result;
+
+  // Decode the token's payload to read the `roles` claim — these ARE the
+  // application permissions currently active on the token. Definitive way
+  // to verify whether Azure consent has propagated.
+  try {
+    const payload = token.split(".")[1];
+    if (payload) {
+      // base64url -> base64
+      const b64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(payload.length + (4 - payload.length % 4) % 4, "=");
+      const decoded = JSON.parse(Buffer.from(b64, "base64").toString("utf-8")) as {
+        roles?: string[];
+        iat?: number;
+      };
+      result.app_token_roles = decoded.roles ?? [];
+      if (decoded.iat) {
+        result.app_token_age_seconds = Math.floor(Date.now() / 1000) - decoded.iat;
+      }
+    }
+  } catch { /* ignore decode failures */ }
 
   // checkMemberGroups path
   try {

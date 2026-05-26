@@ -219,6 +219,13 @@ def set_cached_refi_search(criteria_hash: str, payload: dict) -> None:
 # Refi Finder contact-unlock cache (cross-LO, 14-day TTL)
 # ---------------------------------------------------------------------------
 
+# v2 = unlock_contacts now POSTs to unlock un-owned available contacts in
+# addition to retrieving already-owned ones. Old v1 cache entries returned
+# "no contact" for fresh properties even when contacts WERE available, so
+# bumping the key version makes those stale negatives unreachable.
+_CONTACTS_CACHE_KEY_PREFIX = "refi:contacts:v2"
+
+
 def get_cached_contact_unlock(radar_id: str) -> dict | None:
     """Retrieve a cached person/contact unlock payload for a property.
 
@@ -230,7 +237,7 @@ def get_cached_contact_unlock(radar_id: str) -> dict | None:
         redis = _get_redis()
         if redis is None:
             return None
-        key = f"refi:contacts:{radar_id}"
+        key = f"{_CONTACTS_CACHE_KEY_PREFIX}:{radar_id}"
         raw = redis.get(key)
         if raw is None:
             _stats["contacts_miss"] += 1
@@ -248,7 +255,7 @@ def set_cached_contact_unlock(radar_id: str, payload: dict) -> None:
         redis = _get_redis()
         if redis is None:
             return
-        key = f"refi:contacts:{radar_id}"
+        key = f"{_CONTACTS_CACHE_KEY_PREFIX}:{radar_id}"
         redis.set(key, json.dumps(payload, default=str), ex=REFI_CONTACTS_TTL)
     except Exception:
         pass
