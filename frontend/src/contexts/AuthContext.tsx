@@ -163,7 +163,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "ssoSilent",
       });
       return firebaseUser;
-    } catch {
+    } catch (err) {
+      // Log so we can diagnose silent-SSO failures from the browser console.
+      // Common causes: InteractionRequiredAuthError (no MS session / 3rd-party
+      // cookies blocked), wrong client ID, user not assigned to the app, etc.
+      console.warn("[auth] ssoSilent failed:", err);
       return null;
     }
   }, []);

@@ -1,16 +1,43 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Only allow `next` paths that point back into our own app — prevents
 // open-redirect to `/login?next=https://evil.example.com`.
-function sanitizeNext(next: string | null): string {
+function sanitizeNextPath(next: string | null): string {
   if (!next) return "/";
   if (!next.startsWith("/") || next.startsWith("//")) return "/";
   return next;
+}
+
+/** Pull sso_hint from either the top-level query or from inside ?next=…. The
+ *  MLO portal currently links to `/?sso_hint=…` which middleware encodes into
+ *  the `next` param when redirecting unauthenticated requests to /login. */
+function extractSsoHint(searchParams: URLSearchParams): string | undefined {
+  const direct = searchParams.get("sso_hint");
+  if (direct) return direct;
+  const nextRaw = searchParams.get("next");
+  if (nextRaw && nextRaw.includes("sso_hint=")) {
+    try {
+      const u = new URL(nextRaw, "http://x");
+      return u.searchParams.get("sso_hint") ?? undefined;
+    } catch { /* ignore parse errors */ }
+  }
+  return undefined;
+}
+
+/** Strip sso_hint from `next` so it doesn't end up in the final URL bar. */
+function cleanNextDestination(next: string): string {
+  if (!next.includes("sso_hint")) return next;
+  try {
+    const u = new URL(next, "http://x");
+    u.searchParams.delete("sso_hint");
+    const search = u.searchParams.toString();
+    return u.pathname + (search ? `?${search}` : "");
+  } catch { return next; }
 }
 
 function LoginInner() {
@@ -19,17 +46,19 @@ function LoginInner() {
   const { user, signIn, signInSilent, getIdToken, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // True while we're attempting Microsoft silent SSO on first mount. We
-  // hide the sign-in button during this window so users who came from the
-  // MLO portal don't see a flash of "Sign in with Outlook" before the
-  // auto-redirect kicks in.
-  const [silentAttempting, setSilentAttempting] = useState(true);
 
-  const next = sanitizeNext(searchParams.get("next"));
+  const next = useMemo(
+    () => cleanNextDestination(sanitizeNextPath(searchParams.get("next"))),
+    [searchParams],
+  );
   const ssoToken = searchParams.get("sso_token");
-  // Optional hint the MLO portal can pass to make ssoSilent more reliable
-  // when the user has multiple Microsoft accounts in the browser.
-  const ssoHint = searchParams.get("sso_hint") ?? undefined;
+  const ssoHint = useMemo(() => extractSsoHint(searchParams), [searchParams]);
+  // Only auto-attempt Microsoft silent SSO when the request looks like it
+  // came from the MLO portal (sso_hint present). Direct visits show the
+  // sign-in button immediately — no misleading "Signing you in…" flash.
+  const shouldAttemptSso = !!ssoHint;
+  const [silentAttempting, setSilentAttempting] = useState(shouldAttemptSso);
+  const [silentFailed, setSilentFailed] = useState(false);
 
   // MLO portal handoff: if we arrive with ?sso_token=..., try to exchange it
   // server-side for a session cookie + Firebase ID token. On success, jump
@@ -85,26 +114,23 @@ function LoginInner() {
     return () => { cancelled = true; };
   }, [user, getIdToken, next, router]);
 
-  // MLO portal handoff via shared Azure AD tenant: on first mount, ask MSAL
-  // to silently grab a token using the user's Microsoft session cookie. If
-  // they're already signed in to the MLO portal (same tenant), this returns
-  // a token without a popup and the user-effect above redirects them straight
-  // through. If interaction is required (no MS session, third-party cookies
-  // blocked, etc.) we fall back to showing the Sign-in button.
+  // MLO portal handoff via shared Azure AD tenant: when we arrive with a
+  // ?sso_hint=, ask MSAL to silently grab a token using the user's existing
+  // login.microsoftonline.com session. If they're signed in to the portal,
+  // this returns a token without a popup and the user-effect above redirects
+  // them through. If MSAL needs interaction (no MS session, 3rd-party cookies
+  // blocked, etc.) signInSilent returns null and we surface the button.
   useEffect(() => {
-    // Skip silent attempt if we're handling the legacy ?sso_token= path,
-    // or if the user is already signed in from a prior session.
-    if (ssoToken || user) {
+    if (!shouldAttemptSso || ssoToken || user) {
       setSilentAttempting(false);
       return;
     }
     let cancelled = false;
     (async () => {
-      try {
-        await signInSilent(ssoHint);
-      } finally {
-        if (!cancelled) setSilentAttempting(false);
-      }
+      const result = await signInSilent(ssoHint);
+      if (cancelled) return;
+      if (!result) setSilentFailed(true);
+      setSilentAttempting(false);
     })();
     return () => { cancelled = true; };
     // Intentionally run once on mount only — re-running on every searchParams
@@ -126,8 +152,10 @@ function LoginInner() {
     }
   }
 
-  // While silent SSO is in flight OR we have a user (about to redirect),
-  // show only a spinner — no point flashing the button.
+  // Show the spinner only while something is actually in flight: a real
+  // sign-in attempt, the legacy ?sso_token= exchange, the portal silent SSO,
+  // or the redirect-after-success window. Direct visits show the button
+  // immediately because shouldAttemptSso is false → silentAttempting is false.
   const showSpinner = silentAttempting || !!user || submitting || loading || !!ssoToken;
 
   return (
@@ -159,6 +187,11 @@ function LoginInner() {
           </button>
         )}
 
+        {silentFailed && !user && !submitting && (
+          <p className="mt-3 text-center text-xs text-amber-700">
+            Couldn&apos;t auto-sign you in from the portal — sign in with Outlook to continue.
+          </p>
+        )}
         {error && (
           <p className="mt-4 text-center text-sm text-red-600">{error}</p>
         )}
