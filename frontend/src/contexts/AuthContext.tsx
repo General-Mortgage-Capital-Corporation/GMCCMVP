@@ -53,6 +53,12 @@ async function getMsal() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(false);
+  // Becomes true after the synchronous localStorage check completes. We
+  // delay rendering children until then so on-mount API calls (rate-sheets,
+  // program-locations, etc.) see a populated `user` and attach the auth
+  // header. Without this, child useEffects fire before AuthProvider's
+  // restoration runs and 401 against the gated APIs.
+  const [initialized, setInitialized] = useState(false);
 
   // Restore cached session on mount — silently refresh if expired
   useEffect(() => {
@@ -64,7 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Token still valid
           setUser(parsed);
         } else {
-          // Token expired — try silent refresh via MSAL
+          // Token expired — kick off silent refresh in background (don't
+          // block render on it; MSAL silent refresh can take 500-2000ms).
           getMsal().then(async (msal) => {
             const accounts = msal.getAllAccounts();
             if (accounts.length === 0) {
@@ -90,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       // ignore parse errors
+    } finally {
+      setInitialized(true);
     }
   }, []);
 
@@ -219,6 +228,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAuthTokenGetter(getIdToken);
   }, [getIdToken]);
+
+  // Block render until localStorage has been checked. Server renders null
+  // (matches the initial client render — no hydration mismatch). The whole
+  // app pauses for one paint frame on cold start; trivial cost for not
+  // racing API calls against auth restoration.
+  if (!initialized) return null;
 
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signInSilent, signOut, getIdToken, getMsalAccessToken }}>
