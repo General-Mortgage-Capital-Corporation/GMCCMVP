@@ -117,36 +117,46 @@ export default function ChatTab() {
   const addToolOutputRef = useRef(addToolOutput);
   addToolOutputRef.current = addToolOutput;
 
+  // If the most recent assistant turn left a HITL tool call awaiting a
+  // response (askUser / askForConfirmation), route `text` into that tool's
+  // result and return true. Otherwise return false so the caller can fall
+  // back to sendMessage. Without this, typing into the main composer while
+  // a HITL prompt is pending causes AI_MissingToolResultsError on the next
+  // turn — the user message gets sent alongside an orphaned tool-call.
+  const routePendingHitl = useCallback((text: string): boolean => {
+    const lastAssistant = [...messagesRef.current].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return false;
+    for (const part of lastAssistant.parts) {
+      if (!isToolUIPart(part) || part.state !== "input-available") continue;
+      const toolName = getToolName(part);
+
+      if (toolName === "askUser") {
+        addToolOutputRef.current({ tool: "askUser", toolCallId: part.toolCallId, output: text });
+        return true;
+      }
+      if (toolName === "askForConfirmation") {
+        const lower = text.toLowerCase();
+        const approved =
+          lower.includes("yes") ||
+          lower.includes("approve") ||
+          lower.includes("confirm") ||
+          lower.includes("go ahead");
+        addToolOutputRef.current({
+          tool: "askForConfirmation",
+          toolCallId: part.toolCallId,
+          output: approved ? "User approved." : "User rejected.",
+        });
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
   // STT: mic → text → routes to pending askUser/askForConfirmation or sendMessage
   const stt = useSpeechRecognition((finalText) => {
     const text = finalText.trim();
     if (!text) return;
-
-    // Check for a pending askUser or askForConfirmation tool call
-    const lastAssistant = [...messagesRef.current].reverse().find((m) => m.role === "assistant");
-    if (lastAssistant) {
-      for (const part of lastAssistant.parts) {
-        if (!isToolUIPart(part) || part.state !== "input-available") continue;
-        const toolName = getToolName(part);
-
-        if (toolName === "askUser") {
-          addToolOutputRef.current({ tool: "askUser", toolCallId: part.toolCallId, output: text });
-          return;
-        }
-        if (toolName === "askForConfirmation") {
-          const lower = text.toLowerCase();
-          const approved = lower.includes("yes") || lower.includes("approve") || lower.includes("confirm") || lower.includes("go ahead");
-          addToolOutputRef.current({
-            tool: "askForConfirmation",
-            toolCallId: part.toolCallId,
-            output: approved ? "User approved." : "User rejected.",
-          });
-          return;
-        }
-      }
-    }
-
-    // No pending tool calls — send as regular chat message
+    if (routePendingHitl(text)) return;
     if (statusRef.current === "ready") {
       sendMessage({ text });
     }
@@ -414,6 +424,14 @@ export default function ChatTab() {
   function handleSubmit(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
+    // If the agent left a HITL prompt pending (askUser / askForConfirmation),
+    // treat the typed text as the answer instead of starting a new turn.
+    // Otherwise the orphaned tool-call would 500 the next /api/chat call
+    // with AI_MissingToolResultsError.
+    if (routePendingHitl(trimmed)) {
+      setInput("");
+      return;
+    }
     trackEvent("agent_message_sent", { messageLength: trimmed.length });
     sendMessage({ text: trimmed });
     setInput("");
