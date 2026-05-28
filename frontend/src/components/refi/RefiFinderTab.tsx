@@ -115,10 +115,13 @@ export default function RefiFinderTab({
 }: RefiFinderTabProps = {}) {
   const { user, signIn, getIdToken } = useAuth();
   // Confirmation-dialog state for batch fetches when creditMode is on. The
-  // dialog is rendered at the bottom of the tab; setting confirmFetch.pending
-  // pops it up.
+  // dialog is rendered at the bottom of the tab; setting confirmFetch pops it
+  // up. effectiveLimit is the actual rows we'll request (and therefore the
+  // exact credit cost) — for small result sets it's smaller than PAGE_SIZE so
+  // the user isn't charged for rows PR can't return.
   const [confirmFetch, setConfirmFetch] = useState<{
     appendMode: boolean;
+    effectiveLimit: number;
   } | null>(null);
 
   // Access tier. Gates the entire tab: anonymous → log-in CTA, no_access →
@@ -350,14 +353,15 @@ export default function RefiFinderTab({
   // For "fetch more", appendMode=true appends to the current rows.
   //
   // When creditMode is on, this routes to /api/refi/unlock-search which deducts
-  // PAGE_SIZE property credits atomically before calling PR. The caller (the
-  // Fetch button onClick) is responsible for showing the UnlockConfirmDialog
-  // and only invoking runFetch on confirm.
-  const runFetch = useCallback(async (appendMode: boolean) => {
+  // `limitOverride` property credits atomically before calling PR. The caller
+  // (requestFetch) computes the effective limit so we never charge the user
+  // for rows PR can't return (e.g. only 13 matches → charge 13, not PAGE_SIZE).
+  const runFetch = useCallback(async (appendMode: boolean, limitOverride?: number) => {
     setError(null);
     setCapError(null);
     appendMode ? setFetchingMore(true) : setLoading(true);
     try {
+      const limit = limitOverride ?? PAGE_SIZE;
       const serverPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
       const endpoint = creditMode ? "/api/refi/unlock-search" : "/api/refi/search";
       const reqBody: Record<string, unknown> = {
@@ -365,9 +369,9 @@ export default function RefiFinderTab({
         geography: geoForRequest,
         filters,
         page: serverPage,
-        limit: PAGE_SIZE,
+        limit,
       };
-      if (creditMode) reqBody.confirmedLimit = PAGE_SIZE;
+      if (creditMode) reqBody.confirmedLimit = limit;
       const res = await authedFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -414,13 +418,23 @@ export default function RefiFinderTab({
 
   // Wrapper: in creditMode, show the confirmation modal before runFetch; in
   // legacy mode, call runFetch directly. Bound to the Fetch + Fetch-more buttons.
+  //
+  // effectiveLimit caps PAGE_SIZE at what's actually available so users aren't
+  // charged for rows PR can't return:
+  //   - First fetch  → min(PAGE_SIZE, preview.totalResultCount)
+  //   - Fetch more   → min(PAGE_SIZE, rowsAvailable - rows.length)
   const requestFetch = useCallback((appendMode: boolean) => {
+    const available = appendMode
+      ? Math.max(0, rowsAvailable - rows.length)
+      : preview?.totalResultCount ?? PAGE_SIZE;
+    const effectiveLimit = Math.min(PAGE_SIZE, available);
+    if (effectiveLimit <= 0) return;
     if (creditMode) {
-      setConfirmFetch({ appendMode });
+      setConfirmFetch({ appendMode, effectiveLimit });
     } else {
-      void runFetch(appendMode);
+      void runFetch(appendMode, effectiveLimit);
     }
-  }, [creditMode, runFetch]);
+  }, [creditMode, runFetch, preview?.totalResultCount, rowsAvailable, rows.length]);
 
   function resetAll() {
     setActivePresetId(null);
@@ -667,24 +681,30 @@ export default function RefiFinderTab({
       )}
 
       {/* Credit-mode batch fetch confirmation. Pops up when user clicks
-          Fetch/Fetch-more while creditMode is on. */}
-      {creditMode && balance && (
+          Fetch/Fetch-more while creditMode is on. effectiveLimit is the
+          actual cost — capped at what PR can return so we never deduct
+          for rows that don't exist. */}
+      {creditMode && balance && confirmFetch && (
         <UnlockConfirmDialog
-          open={confirmFetch !== null}
-          title={confirmFetch?.appendMode ? `Fetch ${PAGE_SIZE} more` : `Fetch ${PAGE_SIZE} properties`}
+          open
+          title={
+            confirmFetch.appendMode
+              ? `Fetch ${confirmFetch.effectiveLimit} more`
+              : `Fetch ${confirmFetch.effectiveLimit} ${confirmFetch.effectiveLimit === 1 ? "property" : "properties"}`
+          }
           items={[
             {
-              label: `Search ${PAGE_SIZE} properties`,
-              count: PAGE_SIZE,
+              label: `Search ${confirmFetch.effectiveLimit} ${confirmFetch.effectiveLimit === 1 ? "property" : "properties"}`,
+              count: confirmFetch.effectiveLimit,
               pool: "property",
             },
           ]}
           balance={balance}
           onCancel={() => setConfirmFetch(null)}
           onConfirm={async () => {
-            const appendMode = confirmFetch?.appendMode ?? false;
+            const { appendMode, effectiveLimit } = confirmFetch;
             setConfirmFetch(null);
-            await runFetch(appendMode);
+            await runFetch(appendMode, effectiveLimit);
           }}
         />
       )}
@@ -694,19 +714,11 @@ export default function RefiFinderTab({
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function Header({ quota }: { quota: QuotaResp | null }) {
-  const remaining = quota?.quantity_free_remaining ?? null;
-  // Cap-line health (warn at <20%, danger at <5%)
-  const monthlyTotal = 10_000;
-  const pct = remaining != null ? (remaining / monthlyTotal) * 100 : null;
-  const tone = pct == null ? "neutral" : pct < 5 ? "danger" : pct < 20 ? "warn" : "ok";
-  const toneClasses = {
-    ok:      "border-emerald-200 bg-emerald-50 text-emerald-900",
-    warn:    "border-amber-200 bg-amber-50 text-amber-900",
-    danger:  "border-red-300 bg-red-50 text-red-900",
-    neutral: "border-gray-200 bg-white text-gray-700",
-  }[tone];
-
+function Header(_props: { quota: QuotaResp | null }) {
+  // The PR company-plan quota used to render here ("Credits remaining this
+  // month") was the LIVE PropertyRadar quota — real money. We now expose only
+  // the per-user / buffer balances via CreditsHeaderPill + CreditsCard, so the
+  // company quota is intentionally hidden from end users.
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -715,22 +727,6 @@ function Header({ quota }: { quota: QuotaResp | null }) {
           Surface refinance prospects from public mortgage records. Pick a scenario, narrow the geography, preview the count for free, then fetch the table.
         </p>
       </div>
-      {quota && (
-        <div className={`rounded-xl border px-4 py-2.5 ${toneClasses}`}>
-          {remaining != null ? (
-            <>
-              <div className="text-[11px] font-medium uppercase tracking-wide opacity-75">Credits remaining this month</div>
-              <div className="mt-0.5 text-2xl font-semibold tabular-nums">{remaining.toLocaleString()}</div>
-              <div className="mt-0.5 text-[11px] opacity-75">of 10,000 · today: {quota.today_spend} used</div>
-            </>
-          ) : (
-            <>
-              <div className="text-[11px] font-medium uppercase tracking-wide opacity-75">Today&apos;s spend</div>
-              <div className="mt-0.5 text-lg font-semibold tabular-nums">{quota.today_spend} <span className="text-xs font-normal opacity-75">/ {quota.daily_cap} cap</span></div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -997,13 +993,28 @@ function DateRangeField({ label, value, onChange }: { label: string; value: { fr
 }
 
 function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFetch, onReset }: { phase: Phase; preview: PreviewResp | null; loading: boolean; canPreview: boolean; onPreview: () => void; onFetch: () => void; onReset: () => void }) {
+  // Cap the displayed cost at the actual match count — fewer than PAGE_SIZE
+  // matches means fewer credits charged.
+  const totalMatches = preview?.totalResultCount ?? 0;
+  const willCharge = Math.min(25, totalMatches);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex-1">
         {preview ? (
           <div className="text-sm">
-            <span className="font-semibold text-gray-900 tabular-nums">{(preview.totalResultCount ?? 0).toLocaleString()}</span>
-            <span className="text-gray-600"> properties match. Fetching the first 25 will charge <span className="font-semibold tabular-nums text-gray-900">25</span> records ({preview.quantityFreeRemaining != null ? `${preview.quantityFreeRemaining.toLocaleString()} remaining this month` : ""}).</span>
+            <span className="font-semibold text-gray-900 tabular-nums">{totalMatches.toLocaleString()}</span>
+            {totalMatches === 0 ? (
+              <span className="text-gray-600"> properties match. Adjust filters to find more.</span>
+            ) : willCharge < 25 ? (
+              <span className="text-gray-600">
+                {totalMatches === 1 ? " property matches" : " properties match"}.
+                Fetching {totalMatches === 1 ? "it" : `all ${willCharge}`} will charge{" "}
+                <span className="font-semibold tabular-nums text-gray-900">{willCharge}</span>{" "}
+                property {willCharge === 1 ? "credit" : "credits"}.
+              </span>
+            ) : (
+              <span className="text-gray-600"> properties match. Fetching the first {willCharge} will charge <span className="font-semibold tabular-nums text-gray-900">{willCharge}</span> property credits.</span>
+            )}
           </div>
         ) : (
           <div className="text-sm text-gray-500">Preview is free — it tells you how many properties match before any records are charged.</div>
