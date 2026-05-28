@@ -1,15 +1,14 @@
 /**
- * GET /api/refi/access — three-tier access check for the Refi Finder.
+ * GET /api/refi/access — legacy two-tier check kept for RefiFinderTab's
+ * existing access-gate UI. Used to enforce the env-var allowlist (Phase 4
+ * removed that — the new gate is subscription/bufferAllowlist via the outer
+ * RefiFinderGate). Now this endpoint reports has_access for any signed-in
+ * user; the outer gate decides whether the tab actually renders.
  *
- * Returns the caller's tier + (when allowed) live monthly credit balance
- * so the UI can render the right state and show "X credits remaining"
- * without burning a record on a separate quota call.
- *
- *   { tier: "anonymous" }                           → not signed in
- *   { tier: "no_access", email }                    → signed in, not allowlisted
- *   { tier: "has_access", email, quota: {...} }     → signed in + allowlisted
- *
- * Never throws — always returns 200 with the tier the UI should render.
+ * Kept exporting `tier` + `quota` for backward compatibility with the
+ * RefiFinderTab's existing useEffect that consumes them. The `debug=1`
+ * branch still respects the env allowlist for safety (only team members
+ * can probe group membership).
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -37,7 +36,14 @@ export async function GET(req: NextRequest) {
   if (!email) {
     return NextResponse.json({ tier: "anonymous" });
   }
-  const hasAccess = await emailHasRefiAccess(email);
+  // Phase 4: env-var allowlist no longer gates. Every signed-in user is
+  // "has_access" at this layer; subscription/bufferAllowlist is enforced
+  // higher up by RefiFinderGate. Kept the variable so the debug branch
+  // below still works — that branch is for diagnosing group membership.
+  const hasAccess = true;
+  // For the debug branch, compute the env-allowlist result anyway so devs
+  // can inspect what the OLD gate would have said.
+  void emailHasRefiAccess;
 
   // Debug mode — only available to static-allowlist callers so non-team
   // members can't probe group membership. Pass ?debug=1 (checks self) or

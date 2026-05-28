@@ -24,11 +24,15 @@ import { useState } from "react";
 import RefiFinderTab from "./RefiFinderTab";
 import CreditsCard from "./CreditsCard";
 import SubscribeDialog from "./SubscribeDialog";
+import ActivityLogTable from "./ActivityLogTable";
 import { useRefiSubscription } from "@/hooks/useRefiSubscription";
+
+type ActiveView = "search" | "history";
 
 export default function RefiFinderGate() {
   const [aggressive, setAggressive] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [view, setView] = useState<ActiveView>("search");
   const { status, loading, refresh } = useRefiSubscription({ aggressive });
 
   // Auto-close the dialog once the user becomes active (their payment posted).
@@ -47,11 +51,16 @@ export default function RefiFinderGate() {
     return (
       <div className="space-y-4">
         <CreditsCard status={status} onChange={refresh} />
-        <RefiFinderTab
-          creditMode
-          balance={status.balance}
-          onCreditChange={refresh}
-        />
+        <SubViewToggle view={view} onChange={setView} />
+        {view === "search" ? (
+          <RefiFinderTab
+            creditMode
+            balance={status.balance}
+            onCreditChange={refresh}
+          />
+        ) : (
+          <ActivityLogTable />
+        )}
       </div>
     );
   }
@@ -153,6 +162,55 @@ function PitchPanel({
         onClose={() => setDialogOpen(false)}
       />
     </>
+  );
+}
+
+function SubViewToggle({
+  view,
+  onChange,
+}: {
+  view: ActiveView;
+  onChange: (v: ActiveView) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs">
+      <ToggleButton
+        active={view === "search"}
+        onClick={() => onChange("search")}
+      >
+        Search
+      </ToggleButton>
+      <ToggleButton
+        active={view === "history"}
+        onClick={() => onChange("history")}
+      >
+        History
+      </ToggleButton>
+    </div>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3 py-1 font-medium transition ${
+        active
+          ? "bg-red-600 text-white shadow-sm"
+          : "text-gray-600 hover:text-gray-900"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

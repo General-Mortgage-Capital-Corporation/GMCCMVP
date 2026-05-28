@@ -91,6 +91,22 @@ export async function emailHasRefiAccess(email: string | null | undefined): Prom
  * Verify the request's bearer token AND check the allowlist. Returns the
  * caller's email. Throws AccessError on any failure (caller converts to
  * HTTP status).
+ *
+ * **Phase 4 of the credit-system migration**: the env-var allowlist
+ * (REFI_FINDER_ALLOWED_EMAILS / REFI_FINDER_GROUP_ID) is no longer the gate.
+ * Any signed-in user passes this check; the real gate is now the subscription
+ * + bufferAllowlist enforced inside each unlock endpoint via resolveSubscription
+ * (see lib/refi-credits/subscription.ts and the /api/refi/unlock-* routes).
+ *
+ * We keep this function exported so the legacy /api/refi/{search,unlock-contact,
+ * preview,presets,quota,access} routes continue to compile and verify auth.
+ * Those routes never charge credits — they were the old free-tier path. The
+ * credit-deducting routes (/api/refi/unlock-search, /unlock-contact-paid)
+ * don't use withRefiAccess; they call resolveSubscription directly.
+ *
+ * emailHasRefiAccess() is still exported for callers (e.g. the legacy
+ * /api/refi/access route) that want to know whether the env-var allowlist
+ * would have granted access. It's no longer load-bearing.
  */
 export async function requireRefiAccess(req: NextRequest): Promise<string> {
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -107,13 +123,9 @@ export async function requireRefiAccess(req: NextRequest): Promise<string> {
   if (!verified?.email) {
     throw new AccessError("Token missing email claim.", 401, "anonymous");
   }
-  if (!(await emailHasRefiAccess(verified.email))) {
-    throw new AccessError(
-      "Refi Finder isn't enabled for this account yet.",
-      403,
-      "no_access",
-    );
-  }
+  // Old allowlist check intentionally removed — Phase 4 of the credit-system
+  // migration. Any signed-in user gets through this checkpoint; subscription
+  // and bufferAllowlist gating happens inside the credit-deducting routes.
   return verified.email;
 }
 
