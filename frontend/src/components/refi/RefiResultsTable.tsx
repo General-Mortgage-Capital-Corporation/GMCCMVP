@@ -26,6 +26,15 @@ type Props = {
   onFetchMore: () => void;
   onSelectRow: (row: RefiRow) => void;
   onUnlockRequest: (rows: RefiRow[]) => void;
+  /**
+   * Per-row, per-channel reveal. Set in credit-mode flows; when omitted the
+   * Contact column doesn't render the inline reveal buttons and users have
+   * to use the multi-select + bulk unlock flow above. Single-row reveals
+   * skip the confirmation modal — cost is on the button label.
+   */
+  onRevealChannel?: (row: RefiRow, channel: "email" | "text") => void;
+  /** Radar IDs whose reveals are in flight — drives per-row button loading state. */
+  revealingByRow?: Record<string, { email?: boolean; text?: boolean }>;
 };
 
 function fmtMoney(v: number | undefined | null): string {
@@ -124,6 +133,7 @@ export default function RefiResultsTable({
   rows, rowsLoaded, rowsAvailable, viewPage, viewPageSize, viewTotalPages,
   cacheHit, moreAvailable, fetchingMore, unlocked,
   onPageChange, onFetchMore, onSelectRow, onUnlockRequest,
+  onRevealChannel, revealingByRow,
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("AvailableEquity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -252,7 +262,16 @@ export default function RefiResultsTable({
                     <div className="text-xs text-gray-500">{r.FirstLoanType ?? ""}{r.FirstRateType ? ` · ${r.FirstRateType}` : ""}{r.FirstTermInYears ? ` · ${r.FirstTermInYears}yr` : ""}</div>
                   </td>
                   <td className="px-3 py-2 align-top min-w-[240px] max-w-[320px]">
-                    <ContactCell contact={c} />
+                    {onRevealChannel ? (
+                      <ChannelRevealCell
+                        row={r}
+                        contact={c}
+                        revealing={revealingByRow?.[r.RadarID]}
+                        onReveal={(channel) => onRevealChannel(r, channel)}
+                      />
+                    ) : (
+                      <ContactCell contact={c} />
+                    )}
                   </td>
                 </tr>
               );
@@ -277,7 +296,8 @@ export default function RefiResultsTable({
         </div>
       )}
 
-      {/* Local-only pagination through already-loaded rows */}
+      {/* Local-only pagination through already-loaded rows.
+          Inline ChannelRevealCell defined below this block. */}
       {viewTotalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <button type="button" disabled={viewPage === 0} onClick={() => onPageChange(viewPage - 1)}
@@ -292,5 +312,120 @@ export default function RefiResultsTable({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Credit-mode contact cell: per-row, per-channel reveal buttons with the
+ * cost inline on the label.
+ *
+ *  - If both email + text already revealed → render full ContactCell.
+ *  - For each channel still hidden:
+ *      - If the row's Persons array has no entries of that channel,
+ *        render "No email on file" (greyed). Saves users credits — we
+ *        already know PR has nothing.
+ *      - Else render "Reveal email (1)" / "Reveal text (1)" buttons.
+ *  - If a reveal returned null from PR (we tried but PR had nothing),
+ *    `phone_error` / `email_error` is set; show "Not available" instead
+ *    of the button. (No credit was charged — server-side refunded.)
+ */
+function ChannelRevealCell({
+  row,
+  contact,
+  revealing,
+  onReveal,
+}: {
+  row: RefiRow;
+  contact: UnlockResultMap[string] | undefined;
+  revealing?: { email?: boolean; text?: boolean };
+  onReveal: (channel: "email" | "text") => void;
+}) {
+  const availability = contactAvailability(row);
+  const hasEmail = !!contact?.email;
+  const hasPhone = !!contact?.phone;
+  const triedEmail = contact?.email_error != null && !hasEmail;
+  const triedPhone = contact?.phone_error != null && !hasPhone;
+
+  // If both channels are resolved (revealed or known-empty), defer to the
+  // structured ContactCell so users see consistent rendering.
+  if ((hasEmail || triedEmail) && (hasPhone || triedPhone)) {
+    return <ContactCell contact={contact} />;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {/* Email row */}
+      <ChannelLine
+        label="Email"
+        value={contact?.email}
+        triedEmpty={triedEmail}
+        knownUnavailable={!availability.email}
+        loading={!!revealing?.email}
+        onReveal={() => onReveal("email")}
+      />
+      {/* Text row */}
+      <ChannelLine
+        label="Text"
+        value={contact?.phone}
+        triedEmpty={triedPhone}
+        knownUnavailable={!availability.phone}
+        loading={!!revealing?.text}
+        onReveal={() => onReveal("text")}
+      />
+      {/* If neither person has phone OR email, surface the structured
+          "no persons" message from ContactCell. */}
+      {(row.Persons ?? []).length === 0 && (
+        <div className="text-[11px] text-gray-400">PR has no owner record for this property.</div>
+      )}
+    </div>
+  );
+}
+
+function ChannelLine({
+  label,
+  value,
+  triedEmpty,
+  knownUnavailable,
+  loading,
+  onReveal,
+}: {
+  label: string;
+  value: string | null | undefined;
+  triedEmpty: boolean;
+  knownUnavailable: boolean;
+  loading: boolean;
+  onReveal: () => void;
+}) {
+  if (value) {
+    return (
+      <div className="text-xs">
+        <span className="text-gray-500">{label}:</span>{" "}
+        <span className="text-gray-900">{value}</span>
+      </div>
+    );
+  }
+  if (triedEmpty) {
+    return (
+      <div className="text-xs text-gray-400">
+        {label}: not available on file
+      </div>
+    );
+  }
+  if (knownUnavailable) {
+    return (
+      <div className="text-xs text-gray-400">
+        No {label.toLowerCase()} on file
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onReveal}
+      disabled={loading}
+      className="rounded border border-red-200 bg-white px-2 py-0.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+    >
+      {loading ? "Revealing…" : `Reveal ${label.toLowerCase()} (1)`}
+    </button>
   );
 }

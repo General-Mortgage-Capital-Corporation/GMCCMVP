@@ -162,6 +162,12 @@ export default function RefiFinderTab({
   // Unlocked contact info, keyed by RadarID. Persisted so reload doesn't lose
   // paid unlocks.
   const [unlocked, setUnlocked] = useState<UnlockResultMap>({});
+  // Per-row in-flight tracker for single-row, single-channel reveals (credit
+  // mode only). Maps RadarID → { email?: true, text?: true } so multiple
+  // channels can spin independently on the same row.
+  const [revealingByRow, setRevealingByRow] = useState<
+    Record<string, { email?: boolean; text?: boolean }>
+  >({});
   const [unlockingRows, setUnlockingRows] = useState<RefiRow[] | null>(null);
   const [unlockSummary, setUnlockSummary] = useState<string | null>(null);
 
@@ -549,6 +555,81 @@ export default function RefiFinderTab({
     }
   }, [authedFetch, creditMode, onCreditChange]);
 
+  // Per-row, per-channel reveal — credit-mode only. Skips the bulk
+  // confirmation modal; deducts 1 contact credit (server-side); refunds it
+  // if PR returns null for that channel. Result merges into the same
+  // `unlocked` map the bulk flow writes to, so the table cell flips to
+  // "value" or "not available on file" without an extra round trip.
+  const runRevealChannel = useCallback(async (row: RefiRow, channel: "email" | "text") => {
+    const radarId = row.RadarID;
+    if (!radarId) return;
+    setRevealingByRow((prev) => ({
+      ...prev,
+      [radarId]: { ...prev[radarId], [channel]: true },
+    }));
+    try {
+      const res = await authedFetch("/api/refi/unlock-contact-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: [
+            {
+              radar_id: radarId,
+              address: row.Address ?? "unknown",
+              email: channel === "email",
+              text: channel === "text",
+            },
+          ],
+        }),
+      });
+      const data = await res.json() as {
+        success?: boolean;
+        emailOnly?: { results?: Array<Record<string, unknown>> };
+        textOnly?: { results?: Array<Record<string, unknown>> };
+        error?: string;
+      };
+      if (res.status === 402) {
+        setError("Out of contact credits. Buy a $20 recharge or wait for renewal.");
+        return;
+      }
+      if (!data.success) throw new Error(data.error ?? "Reveal failed");
+      // Always trigger a balance refresh — server may have refunded if PR had no data.
+      onCreditChange?.();
+
+      const bucket = channel === "email" ? data.emailOnly?.results : data.textOnly?.results;
+      const result = (bucket ?? [])[0] as {
+        radar_id?: string;
+        phone?: string | null;
+        email?: string | null;
+        phone_error?: string | null;
+        email_error?: string | null;
+      } | undefined;
+      if (!result) return;
+
+      setUnlocked((prev) => ({
+        ...prev,
+        [radarId]: {
+          phone: result.phone ?? prev[radarId]?.phone,
+          email: result.email ?? prev[radarId]?.email,
+          phone_error: result.phone_error ?? prev[radarId]?.phone_error ?? null,
+          email_error: result.email_error ?? prev[radarId]?.email_error ?? null,
+          persons: prev[radarId]?.persons,
+        },
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reveal failed");
+    } finally {
+      setRevealingByRow((prev) => {
+        const next = { ...prev };
+        const row = { ...(next[radarId] ?? {}) };
+        delete row[channel];
+        if (Object.keys(row).length === 0) delete next[radarId];
+        else next[radarId] = row;
+        return next;
+      });
+    }
+  }, [authedFetch, onCreditChange]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (accessTier === "loading") {
@@ -654,6 +735,10 @@ export default function RefiFinderTab({
                 onFetchMore={() => requestFetch(true)}
                 onSelectRow={(row) => setDetailRow(row)}
                 onUnlockRequest={(selected) => setUnlockingRows(selected)}
+                {...(creditMode ? {
+                  onRevealChannel: runRevealChannel,
+                  revealingByRow,
+                } : {})}
               />
             </>
           )}
