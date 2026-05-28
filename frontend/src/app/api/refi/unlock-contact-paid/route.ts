@@ -57,6 +57,9 @@ interface PyContactResult {
   phone_error?: string | null;
   email_error?: string | null;
   persons?: unknown[];
+  /** Python sets this when the row was served from cross-LO Redis cache
+   *  (14-day TTL). PR wasn't charged — neither should the user. */
+  cache_hit?: boolean;
 }
 
 interface PyContactResponse {
@@ -202,10 +205,13 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Walk requested rows, compute partial refund + activity entries.
+  // Per-row cache_hit means PR wasn't charged for that row — neither should
+  // the user for whichever channels they requested on it.
   let refundContact = 0;
   const activityWrites: Array<Promise<unknown>> = [];
   for (const [radarId, req] of Object.entries(requested)) {
     const res = byRadar.get(radarId);
+    const cacheHit = !!res?.cache_hit;
     const gotEmail = !!res?.email;
     const gotText = !!res?.phone;
     const emailErr = res?.email_error ?? (res === undefined ? "no_response" : null);
@@ -213,6 +219,7 @@ export async function POST(req: NextRequest) {
 
     if (req.wantEmail) {
       if (gotEmail) {
+        if (cacheHit) refundContact += 1;
         activityWrites.push(
           logActivity({
             email: verified.email,
@@ -220,11 +227,12 @@ export async function POST(req: NextRequest) {
             propertyId: radarId,
             propertyAddress: req.address,
             ownerName: req.ownerName,
-            creditsUsed: { contact: 1 },
+            creditsUsed: { contact: cacheHit ? 0 : 1 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,
             balanceAfter: balanceAfterDeduct,
             revealedValue: res?.email ?? undefined,
+            fromCache: cacheHit || undefined,
           }),
         );
       } else {
@@ -248,6 +256,7 @@ export async function POST(req: NextRequest) {
 
     if (req.wantText) {
       if (gotText) {
+        if (cacheHit) refundContact += 1;
         activityWrites.push(
           logActivity({
             email: verified.email,
@@ -255,11 +264,12 @@ export async function POST(req: NextRequest) {
             propertyId: radarId,
             propertyAddress: req.address,
             ownerName: req.ownerName,
-            creditsUsed: { contact: 1 },
+            creditsUsed: { contact: cacheHit ? 0 : 1 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,
             balanceAfter: balanceAfterDeduct,
             revealedValue: res?.phone ?? undefined,
+            fromCache: cacheHit || undefined,
           }),
         );
       } else {

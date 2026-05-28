@@ -29,6 +29,10 @@ interface LogActivityInput {
   revealedValue?: string;
   /** Owner name when available — sourced from the search row. */
   ownerName?: string;
+  /** Mark this as cache-served (cross-LO Redis hit) so History can show a
+   *  "cached · no charge" badge. Caller is responsible for the corresponding
+   *  refund + zeroed creditsUsed. */
+  fromCache?: boolean;
 }
 
 export async function logActivity(input: LogActivityInput): Promise<string> {
@@ -58,6 +62,9 @@ export async function logActivity(input: LogActivityInput): Promise<string> {
   }
   if (input.ownerName) {
     payload.ownerName = input.ownerName;
+  }
+  if (input.fromCache) {
+    payload.fromCache = true;
   }
   await ref.set(payload);
   return ref.id;

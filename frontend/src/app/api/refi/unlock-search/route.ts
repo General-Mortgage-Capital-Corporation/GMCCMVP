@@ -48,6 +48,13 @@ interface SearchRowMinimal {
   [k: string]: unknown;
 }
 
+interface SearchResponse {
+  rows?: SearchRowMinimal[];
+  results?: SearchRowMinimal[];
+  cache_hit?: boolean;
+  [k: string]: unknown;
+}
+
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("Authorization") ?? "";
   if (!auth.startsWith("Bearer ")) {
@@ -119,9 +126,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. PR call via Python.
-  let pyData: { rows?: SearchRowMinimal[]; [k: string]: unknown };
+  let pyData: SearchResponse;
   try {
-    pyData = await pyPost<typeof pyData>("/api/refi/search", pyBody);
+    pyData = await pyPost<SearchResponse>("/api/refi/search", pyBody);
   } catch (err) {
     // 3a. Refund + log failure.
     await refundCredits({
@@ -148,24 +155,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg, refunded: true }, { status });
   }
 
+  // 3. Cache-hit refund. Python sets cache_hit:true when the entire page came
+  // from Redis (cross-LO 24h TTL) — PR wasn't charged, so neither should the
+  // user. Refund the full upfront deduction and zero out per-row creditsUsed.
+  const cacheHit = !!pyData.cache_hit;
+  let finalBalance = balanceAfter;
+  if (cacheHit) {
+    try {
+      const ref = await refundCredits({
+        email: verified.email,
+        pool,
+        amount: { contact: 0, property: limit },
+      });
+      finalBalance = ref.balanceAfter;
+    } catch (rerr) {
+      console.error("[unlock-search] cache-hit refund failed:", rerr);
+    }
+  }
+
   // 4. Per-row activity log on success.
-  const rows = pyData.rows ?? [];
+  const rows = pyData.rows ?? pyData.results ?? [];
   await Promise.all(
     rows.map((row) =>
       logActivity({
         email: verified.email,
         action: "unlock_property",
         propertyId: String(row.RadarID ?? "unknown"),
-        propertyAddress: row.Address ?? "unknown",
-        creditsUsed: { property: 1 },
+        propertyAddress: typeof row.Address === "string" ? row.Address : "unknown",
+        creditsUsed: { property: cacheHit ? 0 : 1 },
         propertyRadarRef: String(row.RadarID ?? "unknown"),
         drewFromBuffer: pool.drewFromBuffer,
-        balanceAfter,
+        balanceAfter: finalBalance,
+        fromCache: cacheHit || undefined,
       }).catch((err) =>
         console.warn("[unlock-search] per-row activity log failed:", err),
       ),
     ),
   );
 
-  return NextResponse.json({ ...pyData, success: true, balanceAfter });
+  return NextResponse.json({
+    ...pyData,
+    success: true,
+    balanceAfter: finalBalance,
+    refundedPropertyCredits: cacheHit ? limit : 0,
+  });
 }

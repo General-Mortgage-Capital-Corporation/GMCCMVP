@@ -85,6 +85,10 @@ export interface ActivityEntry {
   revealedValue?: string;
   /** Owner display name when available — for history table outreach context. */
   ownerName?: string;
+  /** Served from the cross-LO Redis cache — no PR charge, no user credit
+   *  spent. creditsUsed will be 0 in this case (refunded after the upfront
+   *  estimate); History should render a "cached · no charge" badge. */
+  fromCache?: boolean;
 }
 
 /** Amount to deduct. Both fields default to 0; deduction errors if both are 0. */

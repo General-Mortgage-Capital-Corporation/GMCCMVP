@@ -28,6 +28,7 @@ interface ActivityEntryJSON {
   failureReason?: string;
   revealedValue?: string;
   ownerName?: string;
+  fromCache?: boolean;
 }
 
 const ACTION_LABEL: Record<ActivityAction, string> = {
@@ -126,6 +127,11 @@ export default function ActivityLogTable() {
                   {e.action === "unlock_failed" && e.failureReason && (
                     <div className="mt-0.5 text-[10px] text-amber-700">
                       {shortReason(e.failureReason)} · refunded
+                    </div>
+                  )}
+                  {e.fromCache && (
+                    <div className="mt-0.5 inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                      cached · no charge
                     </div>
                   )}
                 </Td>
