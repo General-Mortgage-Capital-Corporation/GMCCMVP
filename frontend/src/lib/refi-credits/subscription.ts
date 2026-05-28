@@ -67,8 +67,17 @@ export async function resolveSubscription(
   const subDoc = (subSnap.data() ?? {}) as { refi_finder?: RefiSubscription };
   const sub = subDoc.refi_finder ?? {};
   const cycleEndsAt = pack.cycleEndsAt?.toDate() ?? null;
-  const isInCycle = cycleEndsAt !== null && cycleEndsAt.getTime() > Date.now();
 
+  // Webhook-mid-write defense: if the credit pack doc exists but cycleEndsAt
+  // is missing (or hasn't been written yet by the Bill.com webhook), treat
+  // it as never_subscribed so the user sees the marketing pitch instead of a
+  // confusing "your cycle has ended" message during the brief window between
+  // pack creation and full webhook completion.
+  if (cycleEndsAt === null) {
+    return { state: "never_subscribed", email: normalized };
+  }
+
+  const isInCycle = cycleEndsAt.getTime() > Date.now();
   if (!isInCycle) {
     return { state: "expired", email: normalized, cycleEndsAt };
   }

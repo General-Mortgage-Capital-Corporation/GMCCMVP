@@ -155,26 +155,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg, refunded: true }, { status });
   }
 
-  // 3. Cache-hit refund. Python sets cache_hit:true when the entire page came
-  // from Redis (cross-LO 24h TTL) — PR wasn't charged, so neither should the
-  // user. Refund the full upfront deduction and zero out per-row creditsUsed.
+  // 3. Compute the refund. Two independent reasons we may owe credits back:
+  //    a) cache_hit:true → Python served the whole page from Redis (24h
+  //       cross-LO TTL), so PR wasn't billed at all. Refund the full deduction.
+  //    b) PR returned fewer rows than the user paid for (narrow criteria
+  //       or end-of-result-set). Refund the unused per-row credits.
+  // Only (a) applies when cache_hit; otherwise (b) kicks in if rows < limit.
   const cacheHit = !!pyData.cache_hit;
+  const rows = pyData.rows ?? pyData.results ?? [];
+  const rowsReturned = rows.length;
+  const propertyRefund = cacheHit
+    ? limit
+    : Math.max(0, limit - rowsReturned);
   let finalBalance = balanceAfter;
-  if (cacheHit) {
+  if (propertyRefund > 0) {
     try {
       const ref = await refundCredits({
         email: verified.email,
         pool,
-        amount: { contact: 0, property: limit },
+        amount: { contact: 0, property: propertyRefund },
       });
       finalBalance = ref.balanceAfter;
     } catch (rerr) {
-      console.error("[unlock-search] cache-hit refund failed:", rerr);
+      console.error("[unlock-search] post-PR refund failed:", rerr);
     }
   }
 
-  // 4. Per-row activity log on success.
-  const rows = pyData.rows ?? pyData.results ?? [];
+  // 4. Per-row activity log. Every entry stamps the SAME post-refund
+  // `finalBalance` — these N rows happened together as one user action,
+  // not a journal of N sequential balance changes, so a single snapshot is
+  // both accurate and what users want in the History view.
   await Promise.all(
     rows.map((row) =>
       logActivity({
@@ -197,6 +207,6 @@ export async function POST(req: NextRequest) {
     ...pyData,
     success: true,
     balanceAfter: finalBalance,
-    refundedPropertyCredits: cacheHit ? limit : 0,
+    refundedPropertyCredits: propertyRefund,
   });
 }

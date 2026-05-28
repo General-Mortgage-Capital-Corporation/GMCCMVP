@@ -15,7 +15,7 @@
  * that's the caller's job (resolveSubscription) before reaching this code.
  */
 
-import { FieldValue, type Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getDb } from "@/lib/firestore-admin";
 import { getRefiMeta } from "./meta";
 import {
@@ -71,7 +71,7 @@ export async function deductCredits(
       contact: poolData.contactCredits ?? 0,
       property: poolData.propertyCredits ?? 0,
     };
-    let bufferWasReset = false;
+    let bufferResetAt: Date | null = null;
     if (ctx.pool.poolRef === "creditPacks/company_buffer") {
       const cycleStart = computeCycleStart(meta.planAnniversary);
       const lastReset = poolData.lastResetAt?.toDate() ?? new Date(0);
@@ -80,7 +80,7 @@ export async function deductCredits(
           contact: BUFFER_CONTACT_RESET,
           property: BUFFER_PROPERTY_RESET,
         };
-        bufferWasReset = true;
+        bufferResetAt = cycleStart;
       }
     }
 
@@ -101,8 +101,13 @@ export async function deductCredits(
       propertyCredits: balanceAfter.property,
       updatedAt: FieldValue.serverTimestamp(),
     };
-    if (bufferWasReset) {
-      poolWrite.lastResetAt = FieldValue.serverTimestamp();
+    if (bufferResetAt) {
+      // Pin to the deterministic cycle-start instant (NOT serverTimestamp).
+      // A second transaction in the same cycle will read this back as
+      // exactly equal to cycleStart and short-circuit the reset cleanly,
+      // even if Firestore's serverTimestamp resolution is slightly later
+      // than wall-clock cycleStart.
+      poolWrite.lastResetAt = Timestamp.fromDate(bufferResetAt);
     }
     tx.set(poolDocRef, poolWrite, { merge: true });
 

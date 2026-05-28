@@ -20,7 +20,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RefiFinderTab from "./RefiFinderTab";
 import CreditsCard from "./CreditsCard";
 import SubscribeDialog from "./SubscribeDialog";
@@ -49,11 +49,20 @@ export default function RefiFinderGate({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [view, setView] = useState<ActiveView>("search");
 
-  // Auto-close the dialog once the user becomes active (their payment posted).
-  if (dialogOpen && status?.state === "active") {
-    setDialogOpen(false);
-    setAggressive?.(false);
-  }
+  // Derive the actual dialog visibility from user intent + subscription state.
+  // When the webhook lands and status flips to "active", the pitch panel is
+  // gone (rendered by the active branch below), so the dialog has nothing to
+  // sit on top of — hide it automatically.
+  const displayDialogOpen = dialogOpen && status?.state !== "active";
+
+  // Side-effect: once the user is active, tell the parent to drop back to
+  // the slow polling cadence. We don't reset `dialogOpen` from here — that's
+  // user intent, not state to sync.
+  useEffect(() => {
+    if (status?.state === "active" && setAggressive) {
+      setAggressive(false);
+    }
+  }, [status?.state, setAggressive]);
 
   if (loading || !status) {
     return (
@@ -99,7 +108,7 @@ export default function RefiFinderGate({
           setAggressive?.(true);
           setDialogOpen(true);
         }}
-        dialogOpen={dialogOpen}
+        dialogOpen={displayDialogOpen}
         setDialogOpen={setDialogOpen}
       />
     );

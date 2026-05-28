@@ -624,6 +624,16 @@ export default function RefiFinderTab({
 
       setUnlocked((prev) => {
         const prevEntry = prev[radarId];
+        // Persons array logic: prefer the fresh result only when it actually
+        // carries useful data (at least one person with a phone OR email).
+        // PR-returned-null responses include persons with empty arrays that
+        // would clobber a previously-revealed channel's data.
+        const incomingPersons = (result as { persons?: Array<{ phones?: string[]; emails?: string[] }> }).persons;
+        const incomingHasData =
+          Array.isArray(incomingPersons) &&
+          incomingPersons.some(
+            (p) => (p?.phones?.length ?? 0) > 0 || (p?.emails?.length ?? 0) > 0,
+          );
         return {
           ...prev,
           [radarId]: {
@@ -638,10 +648,9 @@ export default function RefiFinderTab({
             email_error: channel === "email"
               ? (result.email_error ?? prevEntry?.email_error ?? null)
               : (prevEntry?.email_error ?? null),
-            // Persons list is used by the detail modal. Keep prev if the new
-            // result has no populated persons (e.g. PR-returned-null case
-            // gives us empty arrays that would clobber real data).
-            persons: prevEntry?.persons,
+            persons: incomingHasData
+              ? (incomingPersons as typeof prevEntry.persons)
+              : prevEntry?.persons,
           },
         };
       });

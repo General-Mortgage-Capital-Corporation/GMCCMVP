@@ -69,7 +69,17 @@ export default function Home() {
   // Single source of truth — one polling loop, identical balances on both
   // surfaces. `aggressive` flips to 3s cadence during payment flows so the
   // waiting dialog sees the webhook land quickly; gate code below toggles it.
-  const [refiAggressive, setRefiAggressive] = useState(false);
+  // Safety: auto-untoggle after 10 minutes so a dismissed dialog can't
+  // keep polling at 3s forever.
+  const [refiAggressive, setRefiAggressiveRaw] = useState(false);
+  const setRefiAggressive = useCallback((v: boolean) => {
+    setRefiAggressiveRaw(v);
+  }, []);
+  useEffect(() => {
+    if (!refiAggressive) return;
+    const timer = setTimeout(() => setRefiAggressiveRaw(false), 10 * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [refiAggressive]);
   const refiSub = useRefiSubscription({ aggressive: refiAggressive });
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);

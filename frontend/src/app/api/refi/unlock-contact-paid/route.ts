@@ -157,16 +157,41 @@ export async function POST(req: NextRequest) {
   const textOnly = body.rows.filter((r) => r.text && !r.email);
   const both = body.rows.filter((r) => r.email && r.text);
 
-  let combined: { emailOnly?: PyContactResponse; textOnly?: PyContactResponse; both?: PyContactResponse } = {};
-  try {
-    const [eo, to, b] = await Promise.all([
-      callPython(emailOnly, { phone: false, email: true }),
-      callPython(textOnly, { phone: true, email: false }),
-      callPython(both, { phone: true, email: true }),
-    ]);
-    combined = { emailOnly: eo, textOnly: to, both: b };
-  } catch (err) {
-    // Whole call failed — full refund + log + return.
+  // Use Promise.allSettled so a failure in one bucket (e.g. `both`) doesn't
+  // discard work the other buckets already paid PR for. Buckets that
+  // fulfilled get their normal per-row processing below; failed buckets get
+  // their requested credits refunded and their requested rows logged as
+  // unlock_failed.
+  const settled = await Promise.allSettled([
+    callPython(emailOnly, { phone: false, email: true }),
+    callPython(textOnly, { phone: true, email: false }),
+    callPython(both, { phone: true, email: true }),
+  ]);
+  const combined: { emailOnly?: PyContactResponse; textOnly?: PyContactResponse; both?: PyContactResponse } = {
+    emailOnly: settled[0].status === "fulfilled" ? settled[0].value : undefined,
+    textOnly: settled[1].status === "fulfilled" ? settled[1].value : undefined,
+    both: settled[2].status === "fulfilled" ? settled[2].value : undefined,
+  };
+  // Track per-row failures from bucket-level failures. Rows belonging to a
+  // failed bucket get a full refund (1 credit per requested channel) +
+  // unlock_failed activity entry below. Rows in fulfilled buckets go through
+  // the normal cache/null walk.
+  const bucketFailures = new Map<string, string>(); // radar_id → reason
+  function recordBucketFailure(rows: UnlockRow[], reason: string): void {
+    for (const r of rows) bucketFailures.set(r.radar_id, reason);
+  }
+  if (settled[0].status === "rejected") {
+    recordBucketFailure(emailOnly, errToStr(settled[0].reason));
+  }
+  if (settled[1].status === "rejected") {
+    recordBucketFailure(textOnly, errToStr(settled[1].reason));
+  }
+  if (settled[2].status === "rejected") {
+    recordBucketFailure(both, errToStr(settled[2].reason));
+  }
+  // If ALL buckets failed, behave like the legacy whole-batch failure path
+  // so callers still get a single clear error response.
+  if (settled.every((s) => s.status === "rejected")) {
     await refundCredits({
       email: verified.email,
       pool,
@@ -174,6 +199,9 @@ export async function POST(req: NextRequest) {
     }).catch((rerr) =>
       console.error("[unlock-contact-paid] refund failed:", rerr),
     );
+    const firstErr = settled.find((s) => s.status === "rejected") as
+      | PromiseRejectedResult
+      | undefined;
     await logActivity({
       email: verified.email,
       action: "unlock_failed",
@@ -183,11 +211,17 @@ export async function POST(req: NextRequest) {
       propertyRadarRef: "n/a",
       drewFromBuffer: pool.drewFromBuffer,
       balanceAfter: balanceAfterDeduct,
-      failureReason: String(err),
+      failureReason: errToStr(firstErr?.reason),
     }).catch(() => {});
 
-    const status = err instanceof PythonServiceError ? err.status : 502;
-    const msg = err instanceof PythonServiceError ? err.message : "unlock_failed";
+    const status =
+      firstErr?.reason instanceof PythonServiceError
+        ? firstErr.reason.status
+        : 502;
+    const msg =
+      firstErr?.reason instanceof PythonServiceError
+        ? firstErr.reason.message
+        : "unlock_failed";
     return NextResponse.json(
       { error: msg, refunded: true },
       { status: status === 200 ? 502 : status },
@@ -204,12 +238,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 4. Walk requested rows, compute partial refund + activity entries.
-  // Per-row cache_hit means PR wasn't charged for that row — neither should
-  // the user for whichever channels they requested on it.
+  // 4. Walk requested rows in two passes:
+  //   Pass A: build the list of activity "specs" (without balanceAfter) and
+  //           accumulate refundContact total. This decides what to refund.
+  //   Pass B: after the refund actually lands, stamp every spec with the
+  //           same finalBalance and submit all the writes.
+  // This keeps the History view honest — every entry from one batch action
+  // shows the actual post-refund balance, not an intermediate value.
+  type PendingEntry = Omit<Parameters<typeof logActivity>[0], "balanceAfter">;
+  const pending: PendingEntry[] = [];
   let refundContact = 0;
-  const activityWrites: Array<Promise<unknown>> = [];
   for (const [radarId, req] of Object.entries(requested)) {
+    const bucketFailReason = bucketFailures.get(radarId);
     const res = byRadar.get(radarId);
     const cacheHit = !!res?.cache_hit;
     const gotEmail = !!res?.email;
@@ -218,81 +258,99 @@ export async function POST(req: NextRequest) {
     const phoneErr = res?.phone_error ?? (res === undefined ? "no_response" : null);
 
     if (req.wantEmail) {
-      if (gotEmail) {
+      if (bucketFailReason) {
+        // Bucket-level failure → refund + unlock_failed.
+        refundContact += 1;
+        pending.push({
+          email: verified.email,
+          action: "unlock_failed",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: 0 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          failureReason: `email: ${bucketFailReason}`,
+        });
+      } else if (gotEmail) {
         if (cacheHit) refundContact += 1;
-        activityWrites.push(
-          logActivity({
-            email: verified.email,
-            action: "unlock_email",
-            propertyId: radarId,
-            propertyAddress: req.address,
-            ownerName: req.ownerName,
-            creditsUsed: { contact: cacheHit ? 0 : 1 },
-            propertyRadarRef: radarId,
-            drewFromBuffer: pool.drewFromBuffer,
-            balanceAfter: balanceAfterDeduct,
-            revealedValue: res?.email ?? undefined,
-            fromCache: cacheHit || undefined,
-          }),
-        );
+        pending.push({
+          email: verified.email,
+          action: "unlock_email",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: cacheHit ? 0 : 1 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          revealedValue: res?.email ?? undefined,
+          fromCache: cacheHit || undefined,
+        });
       } else {
         refundContact += 1;
-        activityWrites.push(
-          logActivity({
-            email: verified.email,
-            action: "unlock_failed",
-            propertyId: radarId,
-            propertyAddress: req.address,
-            ownerName: req.ownerName,
-            creditsUsed: { contact: 0 },
-            propertyRadarRef: radarId,
-            drewFromBuffer: pool.drewFromBuffer,
-            balanceAfter: balanceAfterDeduct,
-            failureReason: `email: ${emailErr ?? "not available"}`,
-          }),
-        );
+        pending.push({
+          email: verified.email,
+          action: "unlock_failed",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: 0 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          failureReason: `email: ${emailErr ?? "not available"}`,
+        });
       }
     }
 
     if (req.wantText) {
-      if (gotText) {
+      if (bucketFailReason) {
+        refundContact += 1;
+        pending.push({
+          email: verified.email,
+          action: "unlock_failed",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: 0 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          failureReason: `text: ${bucketFailReason}`,
+        });
+      } else if (gotText) {
         if (cacheHit) refundContact += 1;
-        activityWrites.push(
-          logActivity({
-            email: verified.email,
-            action: "unlock_text",
-            propertyId: radarId,
-            propertyAddress: req.address,
-            ownerName: req.ownerName,
-            creditsUsed: { contact: cacheHit ? 0 : 1 },
-            propertyRadarRef: radarId,
-            drewFromBuffer: pool.drewFromBuffer,
-            balanceAfter: balanceAfterDeduct,
-            revealedValue: res?.phone ?? undefined,
-            fromCache: cacheHit || undefined,
-          }),
-        );
+        pending.push({
+          email: verified.email,
+          action: "unlock_text",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: cacheHit ? 0 : 1 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          revealedValue: res?.phone ?? undefined,
+          fromCache: cacheHit || undefined,
+        });
       } else {
         refundContact += 1;
-        activityWrites.push(
-          logActivity({
-            email: verified.email,
-            action: "unlock_failed",
-            propertyId: radarId,
-            propertyAddress: req.address,
-            ownerName: req.ownerName,
-            creditsUsed: { contact: 0 },
-            propertyRadarRef: radarId,
-            drewFromBuffer: pool.drewFromBuffer,
-            balanceAfter: balanceAfterDeduct,
-            failureReason: `text: ${phoneErr ?? "not available"}`,
-          }),
-        );
+        pending.push({
+          email: verified.email,
+          action: "unlock_failed",
+          propertyId: radarId,
+          propertyAddress: req.address,
+          ownerName: req.ownerName,
+          creditsUsed: { contact: 0 },
+          propertyRadarRef: radarId,
+          drewFromBuffer: pool.drewFromBuffer,
+          failureReason: `text: ${phoneErr ?? "not available"}`,
+        });
       }
     }
   }
 
-  // 5. Partial refund + post-refund balance.
+  // 5. Pass B: refund first, THEN stamp every pending entry with the actual
+  // final balance and submit. This way the History view shows one consistent
+  // post-batch snapshot for every row in the action — not the worst-case
+  // pre-refund balance.
   let finalBalance = balanceAfterDeduct;
   if (refundContact > 0) {
     try {
@@ -308,8 +366,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await Promise.all(activityWrites).catch((werr) =>
-    console.warn("[unlock-contact-paid] activity log write batch failed:", werr),
+  await Promise.all(
+    pending.map((p) =>
+      logActivity({ ...p, balanceAfter: finalBalance }).catch((werr) =>
+        console.warn("[unlock-contact-paid] activity log write failed:", werr),
+      ),
+    ),
   );
 
   return NextResponse.json({
@@ -318,6 +380,12 @@ export async function POST(req: NextRequest) {
     balanceAfter: finalBalance,
     refundedContactCredits: refundContact,
   });
+}
+
+function errToStr(reason: unknown): string {
+  if (reason instanceof PythonServiceError) return reason.message;
+  if (reason instanceof Error) return reason.message;
+  return String(reason);
 }
 
 async function callPython(
