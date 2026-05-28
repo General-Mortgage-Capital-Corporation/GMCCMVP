@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import RefiResultsTable from "./RefiResultsTable";
 import RefiDetailModal from "./RefiDetailModal";
 import RefiUnlockModal, { type UnlockResultMap } from "./RefiUnlockModal";
+import UnlockConfirmDialog from "./UnlockConfirmDialog";
 import type {
   Geography,
   PreviewResp,
@@ -90,8 +91,35 @@ type PersistedState = {
   unlocked: UnlockResultMap;
 };
 
-export default function RefiFinderTab() {
+interface RefiFinderTabProps {
+  /**
+   * When true, the tab routes search + contact unlocks through the new
+   * credit-deducting endpoints (/api/refi/unlock-search,
+   * /api/refi/unlock-contact-paid) and shows a confirmation modal before
+   * each batch action. When false (default), the legacy free-tier endpoints
+   * are used so existing has_access users keep working unchanged.
+   *
+   * Phase 4 will remove this prop entirely once the legacy gate is flipped off.
+   */
+  creditMode?: boolean;
+  /** Current credit balance from useRefiSubscription. Required when creditMode. */
+  balance?: { contact: number; property: number };
+  /** Called after a successful credit-deducting action so the parent can refresh. */
+  onCreditChange?: () => void;
+}
+
+export default function RefiFinderTab({
+  creditMode = false,
+  balance,
+  onCreditChange,
+}: RefiFinderTabProps = {}) {
   const { user, signIn, getIdToken } = useAuth();
+  // Confirmation-dialog state for batch fetches when creditMode is on. The
+  // dialog is rendered at the bottom of the tab; setting confirmFetch.pending
+  // pops it up.
+  const [confirmFetch, setConfirmFetch] = useState<{
+    appendMode: boolean;
+  } | null>(null);
 
   // Access tier. Gates the entire tab: anonymous → log-in CTA, no_access →
   // "coming soon" with future-subscription pitch, has_access → full UI.
@@ -320,29 +348,45 @@ export default function RefiFinderTab() {
 
   // Fetch — initial OR "fetch more". For "initial", appendMode=false replaces rows.
   // For "fetch more", appendMode=true appends to the current rows.
+  //
+  // When creditMode is on, this routes to /api/refi/unlock-search which deducts
+  // PAGE_SIZE property credits atomically before calling PR. The caller (the
+  // Fetch button onClick) is responsible for showing the UnlockConfirmDialog
+  // and only invoking runFetch on confirm.
   const runFetch = useCallback(async (appendMode: boolean) => {
     setError(null);
     setCapError(null);
     appendMode ? setFetchingMore(true) : setLoading(true);
     try {
       const serverPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
-      const res = await authedFetch("/api/refi/search", {
+      const endpoint = creditMode ? "/api/refi/unlock-search" : "/api/refi/search";
+      const reqBody: Record<string, unknown> = {
+        preset_id: activePresetId,
+        geography: geoForRequest,
+        filters,
+        page: serverPage,
+        limit: PAGE_SIZE,
+      };
+      if (creditMode) reqBody.confirmedLimit = PAGE_SIZE;
+      const res = await authedFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          preset_id: activePresetId,
-          geography: geoForRequest,
-          filters,
-          page: serverPage,
-          limit: PAGE_SIZE,
-        }),
+        body: JSON.stringify(reqBody),
       });
-      const data: SearchResp = await res.json();
+      const data: SearchResp & { error?: string; refunded?: boolean } = await res.json();
       if (res.status === 429 || data.code === "daily_cap") {
         setCapError(data.error ?? "Daily record cap reached. Try again tomorrow or raise the cap.");
         return;
       }
+      if (res.status === 402) {
+        setError(
+          `Out of credits — ${data.error === "insufficient_credits" ? "your balance is too low for this fetch." : "subscribe or recharge to continue."}`,
+        );
+        return;
+      }
       if (!data.success) throw new Error(data.error ?? "Search failed");
+      // creditMode success → trigger balance refresh on parent
+      if (creditMode) onCreditChange?.();
 
       const newRows = data.results ?? [];
       if (appendMode) {
@@ -366,7 +410,17 @@ export default function RefiFinderTab() {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey, authedFetch]);
+  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey, authedFetch, creditMode, onCreditChange]);
+
+  // Wrapper: in creditMode, show the confirmation modal before runFetch; in
+  // legacy mode, call runFetch directly. Bound to the Fetch + Fetch-more buttons.
+  const requestFetch = useCallback((appendMode: boolean) => {
+    if (creditMode) {
+      setConfirmFetch({ appendMode });
+    } else {
+      void runFetch(appendMode);
+    }
+  }, [creditMode, runFetch]);
 
   function resetAll() {
     setActivePresetId(null);
@@ -395,10 +449,27 @@ export default function RefiFinderTab() {
       return;
     }
     try {
-      const res = await authedFetch("/api/refi/unlock-contact", {
+      const endpoint = creditMode
+        ? "/api/refi/unlock-contact-paid"
+        : "/api/refi/unlock-contact";
+      const reqBody: Record<string, unknown> = creditMode
+        ? {
+            // creditMode endpoint takes structured rows with per-channel flags.
+            // For now we always request both email+text (matches legacy bundled
+            // behavior). Future polish: split into per-row reveal-email vs
+            // reveal-text buttons in RefiResultsTable.
+            rows: selectedRows.map((r) => ({
+              radar_id: r.RadarID,
+              address: r.Address ?? "unknown",
+              email: true,
+              text: true,
+            })),
+          }
+        : { radar_ids: radarIds, phone: true, email: true };
+      const res = await authedFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ radar_ids: radarIds, phone: true, email: true }),
+        body: JSON.stringify(reqBody),
       });
       const data = await res.json() as {
         success: boolean;
@@ -410,9 +481,28 @@ export default function RefiFinderTab() {
           email_error?: string|null;
           persons?: { person_key?: string; name?: string; role?: string; is_primary?: boolean; phones: string[]; emails: string[] }[];
         }[];
+        emailOnly?: { results?: Array<Record<string, unknown>> };
+        textOnly?: { results?: Array<Record<string, unknown>> };
+        both?: { results?: Array<Record<string, unknown>> };
         error?: string;
       };
+      if (res.status === 402) {
+        setError("Out of contact credits. Buy a $20 recharge or wait for renewal.");
+        return;
+      }
       if (!data.success) throw new Error(data.error ?? "Unlock failed");
+      if (creditMode) onCreditChange?.();
+      // In creditMode the response has per-group buckets (emailOnly/textOnly/both).
+      // Merge them into the same `results` shape the legacy path uses so the
+      // post-unlock UI doesn't care which mode we're in.
+      if (creditMode && !data.results) {
+        const merged = [
+          ...(data.both?.results ?? []),
+          ...(data.emailOnly?.results ?? []),
+          ...(data.textOnly?.results ?? []),
+        ] as unknown as typeof data.results;
+        data.results = merged;
+      }
 
       const results = data.results ?? [];
       setUnlocked((prev) => {
@@ -443,7 +533,7 @@ export default function RefiFinderTab() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unlock failed");
     }
-  }, [authedFetch]);
+  }, [authedFetch, creditMode, onCreditChange]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -524,7 +614,7 @@ export default function RefiFinderTab() {
             loading={loading}
             canPreview={canPreview}
             onPreview={runPreview}
-            onFetch={() => runFetch(false)}
+            onFetch={() => requestFetch(false)}
             onReset={resetAll}
           />
 
@@ -547,7 +637,7 @@ export default function RefiFinderTab() {
                 fetchingMore={fetchingMore}
                 unlocked={unlocked}
                 onPageChange={(p) => setViewPage(p)}
-                onFetchMore={() => runFetch(true)}
+                onFetchMore={() => requestFetch(true)}
                 onSelectRow={(row) => setDetailRow(row)}
                 onUnlockRequest={(selected) => setUnlockingRows(selected)}
               />
@@ -572,6 +662,29 @@ export default function RefiFinderTab() {
           onConfirm={async (toUnlock) => {
             setUnlockingRows(null);
             await runUnlock(toUnlock);
+          }}
+        />
+      )}
+
+      {/* Credit-mode batch fetch confirmation. Pops up when user clicks
+          Fetch/Fetch-more while creditMode is on. */}
+      {creditMode && balance && (
+        <UnlockConfirmDialog
+          open={confirmFetch !== null}
+          title={confirmFetch?.appendMode ? `Fetch ${PAGE_SIZE} more` : `Fetch ${PAGE_SIZE} properties`}
+          items={[
+            {
+              label: `Search ${PAGE_SIZE} properties`,
+              count: PAGE_SIZE,
+              pool: "property",
+            },
+          ]}
+          balance={balance}
+          onCancel={() => setConfirmFetch(null)}
+          onConfirm={async () => {
+            const appendMode = confirmFetch?.appendMode ?? false;
+            setConfirmFetch(null);
+            await runFetch(appendMode);
           }}
         />
       )}

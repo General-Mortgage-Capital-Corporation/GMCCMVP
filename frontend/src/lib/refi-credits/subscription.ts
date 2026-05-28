@@ -51,9 +51,12 @@ export async function resolveSubscription(
     };
   }
 
+  // subscriptions doc lives at /subscriptions/{email} (NOT /users/{email}/subscriptions/...)
+  // with refi_finder as a nested field. This matches the MLO portal's existing
+  // schema — the source of truth lives under subscriptions/{email}.refi_finder.
   const [packSnap, subSnap] = await Promise.all([
     db.doc(`users/${normalized}/creditPacks/refi_finder`).get(),
-    db.doc(`users/${normalized}/subscriptions/refi_finder`).get(),
+    db.doc(`subscriptions/${normalized}`).get(),
   ]);
 
   if (!packSnap.exists) {
@@ -61,7 +64,8 @@ export async function resolveSubscription(
   }
 
   const pack = packSnap.data() as RefiCreditPack;
-  const sub = (subSnap.data() ?? {}) as RefiSubscription;
+  const subDoc = (subSnap.data() ?? {}) as { refi_finder?: RefiSubscription };
+  const sub = subDoc.refi_finder ?? {};
   const cycleEndsAt = pack.cycleEndsAt?.toDate() ?? null;
   const isInCycle = cycleEndsAt !== null && cycleEndsAt.getTime() > Date.now();
 

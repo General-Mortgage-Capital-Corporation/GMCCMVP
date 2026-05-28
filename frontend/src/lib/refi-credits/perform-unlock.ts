@@ -1,0 +1,148 @@
+/**
+ * Orchestrator for credit-gated PropertyRadar unlocks.
+ *
+ * Used by the unlock API routes. Implements the spec's required flow:
+ *
+ *   1. Resolve subscription — must be active or buffer; else 402.
+ *   2. Resolve pool (buffer vs personal).
+ *   3. Atomic Firestore txn: check balance, decrement pool, increment usage.
+ *      Throws InsufficientCreditsError if balance is short.
+ *   4. Call PropertyRadar (via the Python service).
+ *   5. On PR success: write one activity entry per discrete action; return.
+ *   6. On PR failure: refund the deduction + write an unlock_failed entry.
+ *
+ * Why this is a separate file: both the search-unlock and contact-unlock
+ * routes share the deduct-then-call-then-log-or-refund choreography. Only
+ * the inner PR call + per-row activity actions differ.
+ */
+
+import type { ResolvedPool, CreditAmount, ActivityAction } from "./types";
+import { deductCredits, refundCredits } from "./deduct";
+import { logActivity } from "./activity";
+import { InsufficientCreditsError } from "./types";
+
+interface UnlockRunInput {
+  email: string;
+  pool: ResolvedPool;
+  /** Total credits to deduct upfront (sum of per-row costs). */
+  amount: CreditAmount;
+  /** Per-row activity entries to log on success. One per discrete action. */
+  rowActions: Array<{
+    action: ActivityAction;
+    propertyId: string;
+    propertyAddress: string;
+    creditsUsed: { contact?: number; property?: number };
+  }>;
+  /**
+   * The actual PropertyRadar call. Receives the post-deduction balance so
+   * an idempotency key can be derived from it if needed. Returns whatever
+   * the caller wants to surface back to the client; on PR failure, throw.
+   */
+  call: (postDeductionBalance: {
+    contact: number;
+    property: number;
+  }) => Promise<{ propertyRadarRef: string; result: unknown }>;
+}
+
+interface UnlockRunResult {
+  result: unknown;
+  balanceAfter: { contact: number; property: number };
+}
+
+export async function performUnlock(
+  input: UnlockRunInput,
+): Promise<UnlockRunResult> {
+  validateConsistency(input);
+
+  // 1. Atomic deduction. Throws InsufficientCreditsError on short balance.
+  const { balanceAfter } = await deductCredits({
+    email: input.email,
+    pool: input.pool,
+    amount: input.amount,
+  });
+
+  // 2. PR call. Failure must trigger a refund.
+  let prResult: { propertyRadarRef: string; result: unknown };
+  try {
+    prResult = await input.call(balanceAfter);
+  } catch (err) {
+    await safeRefundAndLogFailure(input, err);
+    throw err;
+  }
+
+  // 3. Success — write one activity entry per row action.
+  await Promise.all(
+    input.rowActions.map((row) =>
+      logActivity({
+        email: input.email,
+        action: row.action,
+        propertyId: row.propertyId,
+        propertyAddress: row.propertyAddress,
+        creditsUsed: row.creditsUsed,
+        propertyRadarRef: prResult.propertyRadarRef,
+        drewFromBuffer: input.pool.drewFromBuffer,
+        balanceAfter,
+      }),
+    ),
+  );
+
+  return { result: prResult.result, balanceAfter };
+}
+
+async function safeRefundAndLogFailure(
+  input: UnlockRunInput,
+  err: unknown,
+): Promise<void> {
+  try {
+    await refundCredits({
+      email: input.email,
+      pool: input.pool,
+      amount: input.amount,
+    });
+  } catch (refundErr) {
+    // Refund failure is bad — surface in logs but don't mask the original PR
+    // error (the caller's catch block needs to see what actually failed).
+    console.error("[refi-credits] refund after PR failure also failed:", refundErr);
+  }
+
+  try {
+    // Log a single unlock_failed entry summarizing the whole batch.
+    await logActivity({
+      email: input.email,
+      action: "unlock_failed",
+      propertyId: input.rowActions[0]?.propertyId ?? "unknown",
+      propertyAddress: input.rowActions[0]?.propertyAddress ?? "unknown",
+      creditsUsed: { contact: 0, property: 0 }, // refunded — no net charge
+      propertyRadarRef: "n/a",
+      drewFromBuffer: input.pool.drewFromBuffer,
+      balanceAfter: { contact: 0, property: 0 },
+      failureReason: String(err),
+    });
+  } catch (logErr) {
+    console.error("[refi-credits] failed to log unlock_failed entry:", logErr);
+  }
+}
+
+function validateConsistency(input: UnlockRunInput): void {
+  // The sum of rowActions' creditsUsed must equal input.amount. If they
+  // disagree, the caller built a bad request and we'd write a misleading
+  // activity log. Fail loud.
+  const summed = input.rowActions.reduce(
+    (acc, r) => ({
+      contact: acc.contact + (r.creditsUsed.contact ?? 0),
+      property: acc.property + (r.creditsUsed.property ?? 0),
+    }),
+    { contact: 0, property: 0 },
+  );
+  if (
+    summed.contact !== input.amount.contact ||
+    summed.property !== input.amount.property
+  ) {
+    throw new Error(
+      `[refi-credits/performUnlock] sum mismatch — amount=${JSON.stringify(input.amount)} but rowActions sum to ${JSON.stringify(summed)}`,
+    );
+  }
+}
+
+// Re-export so route handlers don't have to chain imports.
+export { InsufficientCreditsError };

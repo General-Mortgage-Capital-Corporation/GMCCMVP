@@ -47,7 +47,11 @@ export default function RefiFinderGate() {
     return (
       <div className="space-y-4">
         <CreditsCard status={status} onChange={refresh} />
-        <RefiFinderTab />
+        <RefiFinderTab
+          creditMode
+          balance={status.balance}
+          onCreditChange={refresh}
+        />
       </div>
     );
   }
