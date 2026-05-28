@@ -8,7 +8,9 @@ import MarketingSearchForm from "@/components/marketing/MarketingSearchForm";
 import MarketingTable from "@/components/marketing/MarketingTable";
 import MarketingFilters from "@/components/marketing/MarketingFilters";
 import CRACheckTab from "@/components/cra/CRACheckTab";
-import RefiFinderTab from "@/components/refi/RefiFinderTab";
+import RefiFinderGate from "@/components/refi/RefiFinderGate";
+import CreditsHeaderPill from "@/components/refi/CreditsHeaderPill";
+import { useRefiSubscription } from "@/hooks/useRefiSubscription";
 import SignInButton from "@/components/auth/SignInButton";
 import SettingsModal from "@/components/SettingsModal";
 import ModalErrorBoundary from "@/components/ModalErrorBoundary";
@@ -63,6 +65,10 @@ export default function Home() {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
+  // Polled status feeding both the header pill and the in-tab card. Polling
+  // runs at page level so the pill stays live across all tabs (and so we only
+  // pay for one polling loop, not one per consumer).
+  const refiSub = useRefiSubscription();
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
   const [programLocations, setProgramLocations] = useState<ProgramLocationEntry[]>([]);
@@ -525,6 +531,10 @@ export default function Home() {
                 <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
               </svg>
             </button>
+            <CreditsHeaderPill
+              status={refiSub.status}
+              onClick={() => setActiveTab("refi")}
+            />
             <SignInButton />
           </div>
         </div>
@@ -666,7 +676,7 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
-            {activeTab === "refi" && <RefiFinderTab />}
+            {activeTab === "refi" && <RefiFinderGate />}
             {/* ChatTab stays mounted but hidden to preserve conversation state */}
             <div className={activeTab === "chat" ? "" : "hidden"}>
               <ChatTab />
