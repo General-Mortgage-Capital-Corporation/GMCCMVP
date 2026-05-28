@@ -23,7 +23,7 @@ export async function resolvePool(email: string): Promise<ResolvedPool> {
   const meta = await getRefiMeta();
   const onAllowlist = meta.bufferAllowlist.includes(normalized);
   if (onAllowlist) {
-    return { poolRef: "company_buffer", drewFromBuffer: true };
+    return { poolRef: "creditPacks/company_buffer", drewFromBuffer: true };
   }
   return {
     poolRef: `users/${normalized}/creditPacks/refi_finder`,

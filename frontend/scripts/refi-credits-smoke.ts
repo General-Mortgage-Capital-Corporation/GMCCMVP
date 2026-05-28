@@ -49,7 +49,7 @@ async function main() {
 
   // 2. Pool resolution
   const bufferPool = await resolvePool(BUFFER_USER);
-  expect(bufferPool.poolRef === "company_buffer", "buffer user pool");
+  expect(bufferPool.poolRef === "creditPacks/company_buffer", "buffer user pool");
   expect(bufferPool.drewFromBuffer === true, "drewFromBuffer = true");
   ok("buffer user → company_buffer");
 

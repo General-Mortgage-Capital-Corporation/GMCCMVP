@@ -89,8 +89,8 @@ export interface CreditAmount {
 
 /** Result of pool resolution — tells the caller where deductions go. */
 export interface ResolvedPool {
-  /** Firestore doc ref path for the pool we deduct from. */
-  poolRef: "company_buffer" | `users/${string}/creditPacks/refi_finder`;
+  /** Firestore doc ref path (collection/doc, even-numbered components). */
+  poolRef: "creditPacks/company_buffer" | `users/${string}/creditPacks/refi_finder`;
   /** True when user is on bufferAllowlist; stamped onto ActivityEntry.drewFromBuffer. */
   drewFromBuffer: boolean;
 }
