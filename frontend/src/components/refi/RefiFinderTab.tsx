@@ -668,7 +668,45 @@ export default function RefiFinderTab({
         />
       )}
 
-      {unlockingRows && (
+      {/* Contact unlock confirmation.
+          - In creditMode: itemized UnlockConfirmDialog that surfaces the exact
+            credit cost (1 email + 1 text per billable row = 2 contact credits).
+          - In legacy mode: existing RefiUnlockModal with the PR-export-credit
+            language. Both filter out rows that already have unlocked contact
+            so the user isn't recharged for cached data. */}
+      {unlockingRows && creditMode && balance && (() => {
+        const billable = unlockingRows.filter((r) => {
+          const u = unlocked[r.RadarID];
+          return !(u && (u.phone || u.email));
+        });
+        const n = billable.length;
+        return (
+          <UnlockConfirmDialog
+            open
+            title={`Reveal contact info for ${n} ${n === 1 ? "property" : "properties"}`}
+            items={n === 0 ? [] : [
+              {
+                label: n === 1 ? "Reveal 1 email" : `Reveal ${n} emails`,
+                count: n,
+                pool: "contact",
+              },
+              {
+                label: n === 1 ? "Reveal 1 text" : `Reveal ${n} texts`,
+                count: n,
+                pool: "contact",
+              },
+            ]}
+            balance={balance}
+            onCancel={() => setUnlockingRows(null)}
+            onConfirm={async () => {
+              const toUnlock = billable;
+              setUnlockingRows(null);
+              if (toUnlock.length > 0) await runUnlock(toUnlock);
+            }}
+          />
+        );
+      })()}
+      {unlockingRows && !creditMode && (
         <RefiUnlockModal
           rows={unlockingRows}
           alreadyUnlocked={unlocked}
