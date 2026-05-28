@@ -1,24 +1,16 @@
 /**
  * GET /api/refi/access — legacy two-tier check kept for RefiFinderTab's
- * existing access-gate UI. Used to enforce the env-var allowlist (Phase 4
- * removed that — the new gate is subscription/bufferAllowlist via the outer
- * RefiFinderGate). Now this endpoint reports has_access for any signed-in
- * user; the outer gate decides whether the tab actually renders.
- *
- * Kept exporting `tier` + `quota` for backward compatibility with the
- * RefiFinderTab's existing useEffect that consumes them. The `debug=1`
- * branch still respects the env allowlist for safety (only team members
- * can probe group membership).
+ * existing access-gate UI. Phase 4 retired the env-var allowlist; this
+ * endpoint now reports has_access for any signed-in user. The outer
+ * RefiFinderGate decides whether the tab actually renders by reading
+ * subscription/bufferAllowlist state via /api/refi-subscription/status.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyIdTokenWithEmail } from "@/lib/firestore-admin";
-import { emailHasRefiAccess, emailMatchesStaticAllowlist } from "@/lib/refi-access";
-import { debugGroupCheck } from "@/lib/graph-groups";
 import { pyGet, PythonServiceError } from "@/lib/python-client";
 
 export const dynamic = "force-dynamic";
-
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
@@ -36,54 +28,11 @@ export async function GET(req: NextRequest) {
   if (!email) {
     return NextResponse.json({ tier: "anonymous" });
   }
-  // Phase 4: env-var allowlist no longer gates. Every signed-in user is
-  // "has_access" at this layer; subscription/bufferAllowlist is enforced
-  // higher up by RefiFinderGate. Kept the variable so the debug branch
-  // below still works — that branch is for diagnosing group membership.
-  const hasAccess = true;
-  // For the debug branch, compute the env-allowlist result anyway so devs
-  // can inspect what the OLD gate would have said.
-  void emailHasRefiAccess;
 
-  // Debug mode — only available to static-allowlist callers so non-team
-  // members can't probe group membership. Pass ?debug=1 (checks self) or
-  // ?debug=1&for=other@email to inspect why a teammate isn't getting access.
-  if (req.nextUrl.searchParams.get("debug") === "1") {
-    if (!emailMatchesStaticAllowlist(email)) {
-      return NextResponse.json({
-        tier: hasAccess ? "has_access" : "no_access",
-        email,
-        debug_error: "debug mode requires the caller to be on REFI_FINDER_ALLOWED_EMAILS",
-      });
-    }
-    const target = (req.nextUrl.searchParams.get("for") || email).toLowerCase().trim();
-    const debugInfo = await debugGroupCheck(target);
-    return NextResponse.json({
-      caller_email: email,
-      env: {
-        REFI_FINDER_GROUP_ID: !!process.env.REFI_FINDER_GROUP_ID,
-        REFI_FINDER_GROUP_MAIL: process.env.REFI_FINDER_GROUP_MAIL ?? null,
-        REFI_FINDER_ALLOWED_EMAILS: (process.env.REFI_FINDER_ALLOWED_EMAILS ?? "")
-          .split(",").map((s) => s.trim()).filter(Boolean).length,
-        REFI_FINDER_ALLOWED_DOMAINS: (process.env.REFI_FINDER_ALLOWED_DOMAINS ?? "")
-          .split(",").map((s) => s.trim()).filter(Boolean),
-        AZURE_CLIENT_ID: !!process.env.NEXT_PUBLIC_AZURE_CLIENT_ID,
-        AZURE_CLIENT_SECRET: !!(process.env.AZURE_CLIENT_SECRET_VALUE ?? process.env.AZURE_CLIENT_SECRET),
-        AZURE_TENANT_ID: !!process.env.NEXT_PUBLIC_AZURE_TENANT_ID,
-      },
-      target_email: target,
-      static_allowlist_match: emailMatchesStaticAllowlist(target),
-      graph: debugInfo,
-      final_has_access: emailMatchesStaticAllowlist(target) || debugInfo.final_inGroup,
-    });
-  }
-
-  if (!hasAccess) {
-    return NextResponse.json({ tier: "no_access", email });
-  }
-
-  // Fetch live credit balance for the header. This makes one free preview
-  // call on the backend (Purchase=0) so the LO sees real remaining credits.
+  // Fetch the company-level PR quota for back-compat with the existing
+  // RefiFinderTab useEffect that reads quota. We no longer surface this to
+  // end users (the header pill + Refi-tab card show per-user balance), but
+  // the field is still returned for legacy callers.
   let quota: Record<string, unknown> | null = null;
   try {
     quota = await pyGet<Record<string, unknown>>("/api/refi/quota?check_remaining=1");

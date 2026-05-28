@@ -65,6 +65,11 @@ export default function RefiFinderGate() {
     );
   }
 
+  // When payments are disabled (mirroring the MLO portal's flag), hide the
+  // Subscribe CTA and swap to a "Coming soon" pitch — existing subscribers
+  // and buffer users are unaffected (caught by the active/buffer branch above).
+  const paymentsEnabled = status.paymentsEnabled !== false;
+
   if (status.state === "expired") {
     return (
       <PitchPanel
@@ -74,7 +79,8 @@ export default function RefiFinderGate() {
             ? `Last active until ${new Date(status.cycleEndsAt).toLocaleDateString()}.`
             : "Resubscribe to restore your credits and continue."
         }
-        ctaLabel="Resubscribe ($100/mo)"
+        ctaLabel={paymentsEnabled ? "Resubscribe ($100/mo)" : "Coming soon"}
+        ctaDisabled={!paymentsEnabled}
         onCta={() => {
           setAggressive(true);
           setDialogOpen(true);
@@ -88,9 +94,18 @@ export default function RefiFinderGate() {
   // never_subscribed
   return (
     <PitchPanel
-      title="Find refi-ready borrowers — for $100/month"
-      subtitle="Subscribe to unlock GMCC's Refi Finder: real-time PropertyRadar searches with 5,000 property credits + 200 contact credits each month."
-      ctaLabel="Subscribe ($100/mo)"
+      title={
+        paymentsEnabled
+          ? "Find refi-ready borrowers — for $100/month"
+          : "Refi Finder is coming soon"
+      }
+      subtitle={
+        paymentsEnabled
+          ? "Subscribe to unlock GMCC's Refi Finder: real-time PropertyRadar searches with 5,000 property credits + 200 contact credits each month."
+          : "We're getting ready to launch. Check back shortly — your GMCC team will let you know when subscriptions open up."
+      }
+      ctaLabel={paymentsEnabled ? "Subscribe ($100/mo)" : "Coming soon"}
+      ctaDisabled={!paymentsEnabled}
       onCta={() => {
         setAggressive(true);
         setDialogOpen(true);
@@ -105,6 +120,7 @@ interface PitchProps {
   title: string;
   subtitle: string;
   ctaLabel: string;
+  ctaDisabled?: boolean;
   onCta: () => void;
   dialogOpen: boolean;
   setDialogOpen: (v: boolean) => void;
@@ -114,6 +130,7 @@ function PitchPanel({
   title,
   subtitle,
   ctaLabel,
+  ctaDisabled,
   onCta,
   dialogOpen,
   setDialogOpen,
@@ -147,13 +164,16 @@ function PitchPanel({
           <button
             type="button"
             onClick={onCta}
-            className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+            disabled={ctaDisabled}
+            className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:bg-gray-300"
           >
             {ctaLabel}
           </button>
-          <span className="text-xs text-gray-500">
-            Billed monthly via Bill.com. Hard-reset cycle — credits do not roll over.
-          </span>
+          {!ctaDisabled && (
+            <span className="text-xs text-gray-500">
+              Billed monthly via Bill.com. Hard-reset cycle — credits do not roll over.
+            </span>
+          )}
         </div>
       </div>
 

@@ -26,8 +26,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const status = await resolveSubscription(verified.email);
-    // Serialize Date → ISO so the client can JSON.parse it cleanly.
-    return NextResponse.json(serializeStatus(status));
+    return NextResponse.json({
+      ...serializeStatus(status),
+      // Surface the payments-disabled flag so the client can hide
+      // Subscribe / Recharge CTAs while preserving existing access. Mirrors
+      // the MLO portal's REFI_FINDER_PAYMENTS_DISABLED — keep both flipped
+      // together so the two sites don't diverge.
+      paymentsEnabled: process.env.REFI_FINDER_PAYMENTS_DISABLED !== "true",
+    });
   } catch (e) {
     console.error("[refi-subscription/status] error:", e);
     return NextResponse.json(

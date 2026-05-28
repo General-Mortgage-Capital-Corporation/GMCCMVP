@@ -27,6 +27,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_token" }, { status: 401 });
   }
 
+  if (process.env.REFI_FINDER_PAYMENTS_DISABLED === "true") {
+    return NextResponse.json(
+      { error: "payments_disabled" },
+      { status: 503 },
+    );
+  }
+
   try {
     const result = await addonCreateInvoice(idToken, { type: "refi_finder" });
     return NextResponse.json(result);

@@ -8,12 +8,18 @@
 
 import { getDb } from "@/lib/firestore-admin";
 import type { RefiMeta } from "./types";
+import { computeCycleId } from "./cycle";
 
 const META_DOC_PATH = "meta/refiFinder";
 const CACHE_TTL_MS = 60 * 1000;
 
 let _cache: { value: RefiMeta; expiresAt: number } | null = null;
 
+/**
+ * Reads meta/refiFinder + computes the live cycle ID. We DO NOT read
+ * meta.currentCycleId from Firestore — that field is recomputed here on
+ * every call so no cron is needed to roll it on planAnniversary.
+ */
 export async function getRefiMeta(): Promise<RefiMeta> {
   const now = Date.now();
   if (_cache && _cache.expiresAt > now) return _cache.value;
@@ -26,16 +32,14 @@ export async function getRefiMeta(): Promise<RefiMeta> {
     throw new Error(`[refi-credits/meta] ${META_DOC_PATH} does not exist`);
   }
   const data = snap.data() as Partial<RefiMeta>;
+  const planAnniversary = data.planAnniversary ?? 1;
   const value: RefiMeta = {
     bufferAllowlist: (data.bufferAllowlist ?? []).map((e) => e.toLowerCase()),
-    planAnniversary: data.planAnniversary ?? 1,
-    currentCycleId: data.currentCycleId ?? "",
+    planAnniversary,
+    // Derived, not read. Reflects whichever cycle we're in TODAY based on
+    // planAnniversary; rolls automatically when the anniversary passes.
+    currentCycleId: computeCycleId(planAnniversary),
   };
-  if (!value.currentCycleId) {
-    throw new Error(
-      "[refi-credits/meta] meta/refiFinder.currentCycleId is empty — MLO portal cron should have set this",
-    );
-  }
   _cache = { value, expiresAt: now + CACHE_TTL_MS };
   return value;
 }

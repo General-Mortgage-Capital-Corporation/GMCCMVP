@@ -61,6 +61,7 @@ function ActiveCard({
   status: Extract<SubscriptionStatusJSON, { state: "active" }>;
   onChange?: () => void;
 }) {
+  const paymentsEnabled = status.paymentsEnabled !== false;
   const cycleEnd = new Date(status.cycleEndsAt);
   const cycleLabel = cycleEnd.toLocaleDateString(undefined, {
     month: "short",
@@ -116,14 +117,20 @@ function ActiveCard({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
-        <button
-          type="button"
-          onClick={handleRecharge}
-          disabled={rechargeLoading}
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
-        >
-          {rechargeLoading ? "Opening Bill.com…" : "Buy 200 contact credits ($20)"}
-        </button>
+        {paymentsEnabled ? (
+          <button
+            type="button"
+            onClick={handleRecharge}
+            disabled={rechargeLoading}
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+          >
+            {rechargeLoading ? "Opening Bill.com…" : "Buy 200 contact credits ($20)"}
+          </button>
+        ) : (
+          // Filler so the cancel link still right-aligns. Recharge is hidden
+          // until the org-wide payments flag flips back on.
+          <span />
+        )}
 
         {!canceled && (
           <CancelAutoRenewLink onChange={onChange} />

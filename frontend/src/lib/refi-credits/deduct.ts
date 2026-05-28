@@ -15,9 +15,14 @@
  * that's the caller's job (resolveSubscription) before reaching this code.
  */
 
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Timestamp } from "firebase-admin/firestore";
 import { getDb } from "@/lib/firestore-admin";
 import { getRefiMeta } from "./meta";
+import {
+  computeCycleStart,
+  BUFFER_CONTACT_RESET,
+  BUFFER_PROPERTY_RESET,
+} from "./cycle";
 import {
   InsufficientCreditsError,
   type CreditAmount,
@@ -55,11 +60,29 @@ export async function deductCredits(
     const poolData = (poolSnap.data() ?? {}) as {
       contactCredits?: number;
       propertyCredits?: number;
+      lastResetAt?: Timestamp;
     };
-    const have = {
+
+    // Lazy buffer reset: if this is the company buffer and lastResetAt is
+    // before the current cycle's start, reset it to the configured size
+    // BEFORE checking balance. Single transaction, race-safe — Firestore
+    // serializes writes on the buffer doc.
+    let have = {
       contact: poolData.contactCredits ?? 0,
       property: poolData.propertyCredits ?? 0,
     };
+    let bufferWasReset = false;
+    if (ctx.pool.poolRef === "creditPacks/company_buffer") {
+      const cycleStart = computeCycleStart(meta.planAnniversary);
+      const lastReset = poolData.lastResetAt?.toDate() ?? new Date(0);
+      if (lastReset < cycleStart) {
+        have = {
+          contact: BUFFER_CONTACT_RESET,
+          property: BUFFER_PROPERTY_RESET,
+        };
+        bufferWasReset = true;
+      }
+    }
 
     if (
       have.contact < ctx.amount.contact ||
@@ -73,15 +96,15 @@ export async function deductCredits(
       property: have.property - ctx.amount.property,
     };
 
-    tx.set(
-      poolDocRef,
-      {
-        contactCredits: balanceAfter.contact,
-        propertyCredits: balanceAfter.property,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+    const poolWrite: Record<string, unknown> = {
+      contactCredits: balanceAfter.contact,
+      propertyCredits: balanceAfter.property,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (bufferWasReset) {
+      poolWrite.lastResetAt = FieldValue.serverTimestamp();
+    }
+    tx.set(poolDocRef, poolWrite, { merge: true });
 
     // company_usage counter — atomic increment. set({merge}) instead of
     // update() so the doc gets created if the MLO portal cron hasn't yet

@@ -21,7 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { authedFetch } from "@/lib/authed-fetch";
 
-export type SubscriptionStatusJSON =
+type SubscriptionStatusBase =
   | {
       state: "active";
       email: string;
@@ -43,6 +43,13 @@ export type SubscriptionStatusJSON =
       state: "never_subscribed";
       email: string;
     };
+
+/** Status payload plus the server-driven paymentsEnabled flag — mirrors
+ *  REFI_FINDER_PAYMENTS_DISABLED on the MLO portal so the two surfaces
+ *  show/hide payment CTAs together. */
+export type SubscriptionStatusJSON = SubscriptionStatusBase & {
+  paymentsEnabled?: boolean;
+};
 
 interface UseRefiSubscriptionOpts {
   /** Poll cadence in ms. Default 8s. */

@@ -6,14 +6,19 @@ account's monthly export quota (Solo=10K, Team=25K, Business=50K). Previews
 (Purchase=0) and RadarID-only fetches are free.
 
 Safety rails:
-- Every paid call MUST pass through ``fetch_search`` / ``get_property`` /
+- Every paid call passes through ``fetch_search`` / ``get_property`` /
   ``get_transactions`` / ``get_documents``, which append to
   ``data/pr_quota_log.jsonl`` so spend is auditable.
-- A daily record cap (env: ``PROPERTY_RADAR_DAILY_RECORD_CAP``, default 500)
-  prevents a runaway loop from wiping the monthly quota.
 - ``preview_search`` is the only way to learn ``totalResultCount`` and
   ``quantityFreeRemaining`` without spending; the UI should always preview
   before fetching.
+
+The PROPERTY_RADAR_DAILY_RECORD_CAP env-var rail was retired alongside the
+credit-system migration. Per-user subscription caps (5,000 property +
+200 contact per cycle) and the internal buffer cap (200/2,000 for
+allowlisted users) now constrain usage at finer-grained layers above this
+client. The ``_daily_cap`` function returns 0 (== no cap) so any straggling
+caller is a no-op.
 """
 
 import json
@@ -94,11 +99,11 @@ def _token() -> str:
 
 
 def _daily_cap() -> int:
-    raw = os.getenv("PROPERTY_RADAR_DAILY_RECORD_CAP", "500")
-    try:
-        return max(0, int(raw))
-    except ValueError:
-        return 500
+    """Daily-spend cap was retired alongside the credit-system migration.
+    Per-user subscription caps + buffer caps now constrain usage at a
+    finer grain. Kept the function returning 0 so any straggling caller
+    treats it as "no cap" (`if cap > 0` short-circuits)."""
+    return 0
 
 
 def _headers() -> dict[str, str]:
