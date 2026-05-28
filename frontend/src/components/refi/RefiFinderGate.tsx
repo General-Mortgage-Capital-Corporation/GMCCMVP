@@ -25,20 +25,34 @@ import RefiFinderTab from "./RefiFinderTab";
 import CreditsCard from "./CreditsCard";
 import SubscribeDialog from "./SubscribeDialog";
 import ActivityLogTable from "./ActivityLogTable";
-import { useRefiSubscription } from "@/hooks/useRefiSubscription";
+import type { SubscriptionStatusJSON } from "@/hooks/useRefiSubscription";
 
 type ActiveView = "search" | "history";
 
-export default function RefiFinderGate() {
-  const [aggressive, setAggressive] = useState(false);
+interface RefiFinderGateProps {
+  /** Subscription status from the page-level hook — shared with the header
+   *  pill so both surfaces show identical balances after every refund. */
+  status: SubscriptionStatusJSON | null;
+  loading: boolean;
+  /** Force a status refetch — call after any action that may have changed credits. */
+  refresh: () => void;
+  /** Flip the page-level poll to aggressive (3s) cadence during payment flows. */
+  setAggressive?: (v: boolean) => void;
+}
+
+export default function RefiFinderGate({
+  status,
+  loading,
+  refresh,
+  setAggressive,
+}: RefiFinderGateProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [view, setView] = useState<ActiveView>("search");
-  const { status, loading, refresh } = useRefiSubscription({ aggressive });
 
   // Auto-close the dialog once the user becomes active (their payment posted).
   if (dialogOpen && status?.state === "active") {
     setDialogOpen(false);
-    setAggressive(false);
+    setAggressive?.(false);
   }
 
   if (loading || !status) {
@@ -82,7 +96,7 @@ export default function RefiFinderGate() {
         ctaLabel={paymentsEnabled ? "Resubscribe ($100/mo)" : "Coming soon"}
         ctaDisabled={!paymentsEnabled}
         onCta={() => {
-          setAggressive(true);
+          setAggressive?.(true);
           setDialogOpen(true);
         }}
         dialogOpen={dialogOpen}
@@ -107,7 +121,7 @@ export default function RefiFinderGate() {
       ctaLabel={paymentsEnabled ? "Subscribe ($100/mo)" : "Coming soon"}
       ctaDisabled={!paymentsEnabled}
       onCta={() => {
-        setAggressive(true);
+        setAggressive?.(true);
         setDialogOpen(true);
       }}
       dialogOpen={dialogOpen}

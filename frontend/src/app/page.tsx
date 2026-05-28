@@ -65,10 +65,12 @@ export default function Home() {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
-  // Polled status feeding both the header pill and the in-tab card. Polling
-  // runs at page level so the pill stays live across all tabs (and so we only
-  // pay for one polling loop, not one per consumer).
-  const refiSub = useRefiSubscription();
+  // Polled status feeding both the header pill and the in-tab card/gate.
+  // Single source of truth — one polling loop, identical balances on both
+  // surfaces. `aggressive` flips to 3s cadence during payment flows so the
+  // waiting dialog sees the webhook land quickly; gate code below toggles it.
+  const [refiAggressive, setRefiAggressive] = useState(false);
+  const refiSub = useRefiSubscription({ aggressive: refiAggressive });
   const [modalListing, setModalListing] = useState<RentCastListing | null>(null);
   const [programs, setPrograms] = useState<string[]>([]);
   const [programLocations, setProgramLocations] = useState<ProgramLocationEntry[]>([]);
@@ -676,7 +678,14 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
-            {activeTab === "refi" && <RefiFinderGate />}
+            {activeTab === "refi" && (
+              <RefiFinderGate
+                status={refiSub.status}
+                loading={refiSub.loading}
+                refresh={refiSub.refresh}
+                setAggressive={setRefiAggressive}
+              />
+            )}
             {/* ChatTab stays mounted but hidden to preserve conversation state */}
             <div className={activeTab === "chat" ? "" : "hidden"}>
               <ChatTab />
