@@ -214,11 +214,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
     // Clear the middleware-gate cookie so the next navigation lands on /login.
     fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+    // Clear local MSAL cache only — do NOT call logoutPopup/logoutRedirect.
+    // Those endpoints hit login.microsoftonline.com/logout and sign the user
+    // out of Microsoft *globally* (Outlook, Teams, MLO portal, everything).
+    // We only want to sign out of this app. Killing the global MS session
+    // also breaks the MLO-portal handoff afterwards: ssoSilent fails with
+    // AADSTS50058 because no AAD session exists for the iframe to attach
+    // to — especially under Chrome's third-party cookie restrictions.
     getMsal().then((msal) => {
-      const accounts = msal.getAllAccounts();
-      if (accounts.length > 0) {
-        msal.logoutPopup({ account: accounts[0] }).catch(() => {});
-      }
+      msal.clearCache().catch(() => {});
     }).catch(() => {});
   }, []);
 
