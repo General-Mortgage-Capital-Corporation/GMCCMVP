@@ -338,7 +338,7 @@ Two projects under the `gmcc` team:
 
 [vercel.json](vercel.json) at the repo root wires `server.py` into `@vercel/python` and routes all traffic to it. [frontend/vercel.json](frontend/vercel.json) wires up cron jobs and global security headers.
 
-`gmccmvp-two` is an older frontend Vercel project still active for some legacy workflows; treat it as deprecated.
+**Production URL is `gmccmvp-two.vercel.app`** (the Vercel project may still be named `gmccmvp` — the public alias was kept as `-two` for historical reasons; check the Vercel dashboard if you need to confirm project ↔ alias mapping).
 
 **Env vars are NOT shared between Vercel projects.** Set them in each project's Settings → Environment Variables (scope: Production / Preview / Development separately). The frontend's `PYTHON_SERVICE_URL` must point at the backend Vercel project's URL for the matching scope.
 
@@ -384,12 +384,14 @@ cd frontend && vercel               # preview
 
 ### Sign-in flow
 
-1. User hits any page → middleware checks for `gmcc_session` cookie → redirects to `/login` if missing.
-2. `/login` renders a "Sign in with Microsoft" button. MSAL pops up GMCC's Azure AD tenant.
+1. User hits any page → middleware checks for `gmcc_session` cookie → redirects to `/login` if missing. Middleware also forces `/login` when the URL carries `?sso_hint=` (MLO portal handoff), even if the cookie is present — otherwise a stale cookie would skip the silent-SSO logic that only runs on `/login`.
+2. `/login` renders a "Sign in with Microsoft" button. MSAL pops up GMCC's Azure AD tenant. If `?sso_hint=` is present, MSAL `ssoSilent` runs first via a hidden iframe pointed at `/blank.html` — if Azure has a live tenant session, the user is signed in without a click.
 3. The browser MSAL access token is POSTed to `/api/auth/sso-exchange`, which calls the Firebase Cloud Function `exchangeMsalToken` → returns a Firebase custom token.
 4. Browser signs into Firebase Auth with that custom token, gets a Firebase ID token.
-5. ID token is POSTed to `/api/auth/session` → Next.js calls `verifyIdToken` (Firebase Admin) → sets `gmcc_session` HttpOnly cookie.
+5. ID token is POSTed to `/api/auth/session` → Next.js calls `verifyIdToken` (Firebase Admin) → sets `gmcc_session` HttpOnly cookie. Cookie lifetime: 90 days (matches the typical AAD refresh-token sliding window). The cookie is a UX marker only; the real auth check is the Bearer token on each API call.
 6. All subsequent API calls include `Authorization: Bearer <firebase-id-token>` (see [authed-fetch.ts](frontend/src/lib/authed-fetch.ts) and [require-auth.ts](frontend/src/lib/require-auth.ts)).
+
+**Zombie-cookie protection.** Because the cookie's lifetime is decoupled from the real session, a user can end up with a valid cookie but expired Firebase/MSAL state. [AuthContext](frontend/src/contexts/AuthContext.tsx) detects this on mount — if localStorage has no usable user and MSAL silent refresh can't recover one, it `DELETE`s the cookie and bounces to `/login`. Without this, the gate would let the user through to a signed-out dashboard where every API call 401s.
 
 ### Refi Finder gating
 
@@ -738,7 +740,7 @@ In flight or queued (May 2026):
 - Cloud Function contracts: [FILL_PDF_FLIER_API.md](FILL_PDF_FLIER_API.md), [EXCHANGE_MSAL_TOKEN_API.md](EXCHANGE_MSAL_TOKEN_API.md)
 - Pricing design doc: [property-search-unified-pricing.md](property-search-unified-pricing.md)
 - Original program guidelines: PDFs and PPTs in `data/` and repo root
-- Vercel team: `gmcc` — projects `gmccmvp` (frontend), `gmcc-listing-python` (backend)
+- Vercel team: `gmcc` — frontend project (prod alias: `gmccmvp-two.vercel.app`) + `gmcc-listing-python` backend
 - Firebase project: `gmcc-66e1e`
 - PostHog project id: `394518`
 - Develop preview: `https://gmccmvp-git-develop-gmcc.vercel.app`
