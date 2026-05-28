@@ -25,6 +25,10 @@ interface LogActivityInput {
   balanceAfter: { contact: number; property: number };
   /** Required for action: "unlock_failed". */
   failureReason?: string;
+  /** Set on successful unlock_email / unlock_text — the actual contact value. */
+  revealedValue?: string;
+  /** Owner name when available — sourced from the search row. */
+  ownerName?: string;
 }
 
 export async function logActivity(input: LogActivityInput): Promise<string> {
@@ -48,6 +52,12 @@ export async function logActivity(input: LogActivityInput): Promise<string> {
   };
   if (input.action === "unlock_failed" && input.failureReason) {
     payload.failureReason = input.failureReason;
+  }
+  if (input.revealedValue) {
+    payload.revealedValue = input.revealedValue;
+  }
+  if (input.ownerName) {
+    payload.ownerName = input.ownerName;
   }
   await ref.set(payload);
   return ref.id;

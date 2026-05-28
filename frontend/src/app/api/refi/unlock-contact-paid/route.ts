@@ -44,6 +44,8 @@ export const dynamic = "force-dynamic";
 interface UnlockRow {
   radar_id: string;
   address?: string;
+  /** Owner display name from the search row — stamped onto the activity entry. */
+  owner_name?: string;
   email?: boolean;
   text?: boolean;
 }
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
   // Per-row request summary. We index by radar_id for the post-PR walk.
   const requested: Record<
     string,
-    { address: string; wantEmail: boolean; wantText: boolean }
+    { address: string; ownerName?: string; wantEmail: boolean; wantText: boolean }
   > = {};
   let contactNeeded = 0;
   for (const row of body.rows) {
@@ -110,6 +112,7 @@ export async function POST(req: NextRequest) {
     }
     requested[row.radar_id] = {
       address: row.address ?? "unknown",
+      ownerName: row.owner_name?.trim() || undefined,
       wantEmail,
       wantText,
     };
@@ -216,10 +219,12 @@ export async function POST(req: NextRequest) {
             action: "unlock_email",
             propertyId: radarId,
             propertyAddress: req.address,
+            ownerName: req.ownerName,
             creditsUsed: { contact: 1 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,
             balanceAfter: balanceAfterDeduct,
+            revealedValue: res?.email ?? undefined,
           }),
         );
       } else {
@@ -230,6 +235,7 @@ export async function POST(req: NextRequest) {
             action: "unlock_failed",
             propertyId: radarId,
             propertyAddress: req.address,
+            ownerName: req.ownerName,
             creditsUsed: { contact: 0 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,
@@ -248,10 +254,12 @@ export async function POST(req: NextRequest) {
             action: "unlock_text",
             propertyId: radarId,
             propertyAddress: req.address,
+            ownerName: req.ownerName,
             creditsUsed: { contact: 1 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,
             balanceAfter: balanceAfterDeduct,
+            revealedValue: res?.phone ?? undefined,
           }),
         );
       } else {
@@ -262,6 +270,7 @@ export async function POST(req: NextRequest) {
             action: "unlock_failed",
             propertyId: radarId,
             propertyAddress: req.address,
+            ownerName: req.ownerName,
             creditsUsed: { contact: 0 },
             propertyRadarRef: radarId,
             drewFromBuffer: pool.drewFromBuffer,

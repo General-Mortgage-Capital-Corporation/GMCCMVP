@@ -67,6 +67,21 @@ const PROPERTY_TYPE_OPTIONS = [
   { value: "COM", label: "Commercial" },
 ] as const;
 
+/** Full address for activity-log readability: street + city/state/zip. */
+function formatFullAddress(row: RefiRow): string {
+  const street = row.Address ?? "";
+  const cityState = [row.City, row.State].filter(Boolean).join(", ");
+  const zip = row.ZipFive ?? "";
+  return [street, cityState, zip].filter(Boolean).join(", ") || "unknown";
+}
+
+/** Owner display name for activity-log outreach context. */
+function formatOwnerName(row: RefiRow): string | undefined {
+  if (row.Owner) return row.Owner;
+  const fl = `${row.OwnerFirstName ?? ""} ${row.OwnerLastName ?? ""}`.trim();
+  return fl || undefined;
+}
+
 // Stable JSON stringify for criteria-key derivation (object key order matters).
 function stableKey(obj: unknown): string {
   return JSON.stringify(obj, (_k, v) => {
@@ -475,12 +490,12 @@ export default function RefiFinderTab({
       const reqBody: Record<string, unknown> = creditMode
         ? {
             // creditMode endpoint takes structured rows with per-channel flags.
-            // For now we always request both email+text (matches legacy bundled
-            // behavior). Future polish: split into per-row reveal-email vs
-            // reveal-text buttons in RefiResultsTable.
+            // The bulk action always requests both email+text — single-channel
+            // reveals come in through runRevealChannel (per-row buttons).
             rows: selectedRows.map((r) => ({
               radar_id: r.RadarID,
-              address: r.Address ?? "unknown",
+              address: formatFullAddress(r),
+              owner_name: formatOwnerName(r),
               email: true,
               text: true,
             })),
@@ -575,7 +590,8 @@ export default function RefiFinderTab({
           rows: [
             {
               radar_id: radarId,
-              address: row.Address ?? "unknown",
+              address: formatFullAddress(row),
+              owner_name: formatOwnerName(row),
               email: channel === "email",
               text: channel === "text",
             },

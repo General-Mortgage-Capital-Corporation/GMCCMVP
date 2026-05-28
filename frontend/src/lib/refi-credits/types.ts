@@ -72,6 +72,7 @@ export interface ActivityEntry {
   ts: Timestamp;
   action: ActivityAction;
   propertyId: string;
+  /** Full street + city/state/zip when available; falls back to street only. */
   propertyAddress: string;
   creditsUsed: { contact?: number; property?: number };
   propertyRadarRef: string;
@@ -79,6 +80,11 @@ export interface ActivityEntry {
   balanceAfter: { contact: number; property: number };
   /** Set on action: "unlock_failed". */
   failureReason?: string;
+  /** The actual email or phone number revealed — only set on successful
+   *  unlock_email / unlock_text entries. Lets History show what was paid for. */
+  revealedValue?: string;
+  /** Owner display name when available — for history table outreach context. */
+  ownerName?: string;
 }
 
 /** Amount to deduct. Both fields default to 0; deduction errors if both are 0. */

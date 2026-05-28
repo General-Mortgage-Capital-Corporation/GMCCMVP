@@ -26,6 +26,8 @@ interface ActivityEntryJSON {
   drewFromBuffer: boolean;
   balanceAfter: { contact: number; property: number };
   failureReason?: string;
+  revealedValue?: string;
+  ownerName?: string;
 }
 
 const ACTION_LABEL: Record<ActivityAction, string> = {
@@ -97,14 +99,14 @@ export default function ActivityLogTable() {
               <Th>Date</Th>
               <Th>Action</Th>
               <Th>Property</Th>
-              <Th align="right">Credits used</Th>
-              <Th align="right">Balance after</Th>
+              <Th>Unlocked value</Th>
+              <Th align="right">Credits</Th>
               <Th>Source</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {entries.map((e) => (
-              <tr key={e.id} className="hover:bg-gray-50">
+              <tr key={e.id} className="align-top hover:bg-gray-50">
                 <Td>
                   {e.ts
                     ? new Date(e.ts).toLocaleString(undefined, {
@@ -121,19 +123,32 @@ export default function ActivityLogTable() {
                   >
                     {ACTION_LABEL[e.action]}
                   </span>
+                  {e.action === "unlock_failed" && e.failureReason && (
+                    <div className="mt-0.5 text-[10px] text-amber-700">
+                      {shortReason(e.failureReason)} · refunded
+                    </div>
+                  )}
                 </Td>
                 <Td>
-                  <div className="max-w-xs truncate" title={e.propertyAddress}>
-                    {e.propertyAddress}
+                  <div className="max-w-xs">
+                    <div className="truncate" title={e.propertyAddress}>
+                      {e.propertyAddress}
+                    </div>
+                    {e.ownerName && (
+                      <div className="truncate text-[11px] text-gray-500" title={e.ownerName}>
+                        {e.ownerName}
+                      </div>
+                    )}
                   </div>
+                </Td>
+                <Td>
+                  {renderRevealedValue(e)}
                 </Td>
                 <Td align="right">
                   {renderCreditsUsed(e.creditsUsed)}
-                </Td>
-                <Td align="right">
-                  <span className="text-xs text-gray-500">
-                    {e.balanceAfter.contact}c · {e.balanceAfter.property}p
-                  </span>
+                  <div className="text-[10px] text-gray-400">
+                    bal {e.balanceAfter.contact}c · {e.balanceAfter.property}p
+                  </div>
                 </Td>
                 <Td>
                   {e.drewFromBuffer ? (
@@ -176,6 +191,46 @@ function renderCreditsUsed(c: { contact?: number; property?: number }): string {
   if (c.property) parts.push(`${c.property} property`);
   if (c.contact) parts.push(`${c.contact} contact`);
   return parts.length === 0 ? "—" : parts.join(" + ");
+}
+
+function renderRevealedValue(e: ActivityEntryJSON): React.ReactNode {
+  if (e.action === "unlock_failed" || e.action === "unlock_property") {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+  if (!e.revealedValue) {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+  if (e.action === "unlock_email") {
+    return (
+      <a
+        href={`mailto:${e.revealedValue}`}
+        className="break-all text-xs text-gray-800 hover:text-red-600 hover:underline"
+      >
+        {e.revealedValue}
+      </a>
+    );
+  }
+  if (e.action === "unlock_text") {
+    const digits = e.revealedValue.replace(/[^0-9+]/g, "");
+    const href = digits.length === 10 ? `tel:+1${digits}` : `tel:${digits}`;
+    return (
+      <a
+        href={href}
+        className="break-all text-xs font-medium text-gray-800 hover:text-red-600 hover:underline tabular-nums"
+      >
+        {e.revealedValue}
+      </a>
+    );
+  }
+  return <span className="text-xs text-gray-800">{e.revealedValue}</span>;
+}
+
+function shortReason(reason: string): string {
+  // PR error strings can be long; the activity table is dense, so condense.
+  if (reason.toLowerCase().includes("no phone")) return "no phone on file";
+  if (reason.toLowerCase().includes("no email")) return "no email on file";
+  if (reason.length > 60) return reason.slice(0, 57) + "…";
+  return reason;
 }
 
 function Th({
