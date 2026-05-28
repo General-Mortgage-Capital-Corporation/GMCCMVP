@@ -20,7 +20,12 @@ const SESSION_COOKIE = "gmcc_session";
 
 export function middleware(req: NextRequest) {
   const hasSession = req.cookies.get(SESSION_COOKIE)?.value;
-  if (hasSession) return NextResponse.next();
+  // Portal handoff: when the URL carries `sso_hint`, always route through
+  // /login so silent SSO can fire — otherwise a stale gmcc_session cookie
+  // lets the user land on the dashboard signed-out (the hint is only read
+  // by /login on mount).
+  const hasSsoHint = req.nextUrl.searchParams.has("sso_hint");
+  if (hasSession && !hasSsoHint) return NextResponse.next();
 
   const url = req.nextUrl.clone();
   const next = url.pathname + (url.search || "");

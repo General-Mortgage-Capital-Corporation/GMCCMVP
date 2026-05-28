@@ -38,6 +38,27 @@ const STORAGE_KEY = "gmcc_auth_user";
 // 5-minute buffer before expiry to trigger refresh early
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
+/**
+ * Zombie-cookie cleanup. The gmcc_session cookie has a long fixed lifetime
+ * (independent of the underlying MSAL/Firebase session), so it can outlive
+ * a real sign-in. When we can't restore a real user, clear the cookie and
+ * bounce to /login — without this the middleware lets the user through to
+ * a signed-out dashboard where every API call 401s.
+ *
+ * Skips the bounce if we're already on /login (to avoid loops) or if the
+ * URL carries sso_hint (let the login page run silent SSO instead).
+ */
+function clearSessionAndBounce(): void {
+  if (typeof window === "undefined") return;
+  // /login handles its own auth flow (silent SSO, button, sso_token exchange).
+  // Don't race it with a DELETE — signIn()'s POST might land first and we'd
+  // wipe the cookie immediately after it gets set.
+  if (window.location.pathname === "/login") return;
+  fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+  const next = window.location.pathname + window.location.search;
+  window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+}
+
 // Lazily created MSAL instance (browser-only)
 let _msalInstance: import("@azure/msal-browser").PublicClientApplication | null = null;
 
@@ -76,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const accounts = msal.getAllAccounts();
             if (accounts.length === 0) {
               localStorage.removeItem(STORAGE_KEY);
+              clearSessionAndBounce();
               return;
             }
             try {
@@ -87,16 +109,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(refreshed);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
             } catch {
-              // Silent refresh failed — user will need to sign in manually
+              // Silent refresh failed — clear the zombie cookie and bounce.
               localStorage.removeItem(STORAGE_KEY);
+              clearSessionAndBounce();
             }
           }).catch(() => {
             localStorage.removeItem(STORAGE_KEY);
+            clearSessionAndBounce();
           });
         }
+      } else {
+        // No localStorage entry but middleware let us through — that means
+        // the cookie outlived the real session. Clear it and bounce.
+        clearSessionAndBounce();
       }
     } catch {
-      // ignore parse errors
+      // Parse failure — treat as no session.
+      clearSessionAndBounce();
     } finally {
       setInitialized(true);
     }

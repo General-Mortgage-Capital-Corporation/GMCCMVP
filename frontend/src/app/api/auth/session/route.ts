@@ -16,7 +16,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const COOKIE_NAME = "gmcc_session";
-const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
+// Match the typical Azure AD refresh-token sliding window (90 days). Past
+// this, MSAL silent refresh will fail anyway. The cookie is only a UX
+// marker — AuthContext clears it if it outlives the real session, so a
+// longer lifetime can't strand users in a zombie state.
+const SESSION_COOKIE_MAX_AGE_SECONDS = 90 * 24 * 60 * 60;
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: THIRTY_DAYS_SECONDS,
+    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
   });
   return res;
 }
