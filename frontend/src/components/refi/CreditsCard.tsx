@@ -72,9 +72,14 @@ function ActiveCard({
 
   const [rechargeLoading, setRechargeLoading] = useState(false);
   const [rechargeError, setRechargeError] = useState<string | null>(null);
+  // Shown after the payment tab opens so the user knows the balance won't
+  // update instantly. Bill.com → webhook → Firestore round-trip typically
+  // takes a few minutes; clearing this avoids "did it work?" anxiety.
+  const [rechargeLaunched, setRechargeLaunched] = useState(false);
 
   async function handleRecharge() {
     setRechargeError(null);
+    setRechargeLaunched(false);
     setRechargeLoading(true);
     try {
       const res = await authedFetch("/api/refi-subscription/recharge", {
@@ -84,6 +89,7 @@ function ActiveCard({
       const data = (await res.json()) as { paymentUrl?: string };
       if (data.paymentUrl) {
         window.open(data.paymentUrl, "_blank", "noopener,noreferrer");
+        setRechargeLaunched(true);
         onChange?.();
       } else {
         setRechargeError("No payment URL returned. Try again.");
@@ -139,6 +145,20 @@ function ActiveCard({
 
       {rechargeError && (
         <p className="mt-2 text-xs text-red-600">{rechargeError}</p>
+      )}
+
+      {rechargeLaunched && (
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
+          Payment opened in a new tab. After you complete it, your contact
+          balance will update here in <strong>4–5 minutes</strong>.
+        </div>
+      )}
+
+      {!rechargeLaunched && paymentsEnabled && (
+        <p className="mt-2 text-[11px] text-gray-500">
+          Recharges and renewals process via Bill.com — credits typically
+          appear here 4–5 minutes after payment.
+        </p>
       )}
     </div>
   );

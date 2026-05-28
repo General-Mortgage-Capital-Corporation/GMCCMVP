@@ -156,11 +156,17 @@ export default function SubscribeDialog({
 
           {phase === "waiting" && (
             <div className="text-sm text-gray-700">
-              <p>
-                Your invoice is open in a new tab. Once you complete payment,
-                your credits will appear here automatically (usually within a
-                few seconds).
-              </p>
+              <p>Your invoice is open in a new tab.</p>
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p className="font-medium">
+                  After you complete payment, credits typically appear here in
+                  4–5 minutes.
+                </p>
+                <p className="mt-1 text-amber-800">
+                  You can close this dialog and come back — the balance will
+                  refresh on its own once the payment processes.
+                </p>
+              </div>
               {paymentUrl && (
                 <p className="mt-3 text-xs text-gray-500">
                   Tab didn&apos;t open?{" "}

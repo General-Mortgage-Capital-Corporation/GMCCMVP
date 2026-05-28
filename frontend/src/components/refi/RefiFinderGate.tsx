@@ -171,7 +171,8 @@ function PitchPanel({
           </button>
           {!ctaDisabled && (
             <span className="text-xs text-gray-500">
-              Billed monthly via Bill.com. Hard-reset cycle — credits do not roll over.
+              Billed monthly via Bill.com. Hard-reset cycle — credits do not roll over.{" "}
+              After paying, credits typically show up here in 4–5 minutes.
             </span>
           )}
         </div>
