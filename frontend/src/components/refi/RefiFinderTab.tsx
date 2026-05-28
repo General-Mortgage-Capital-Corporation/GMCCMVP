@@ -606,16 +606,29 @@ export default function RefiFinderTab({
       } | undefined;
       if (!result) return;
 
-      setUnlocked((prev) => ({
-        ...prev,
-        [radarId]: {
-          phone: result.phone ?? prev[radarId]?.phone,
-          email: result.email ?? prev[radarId]?.email,
-          phone_error: result.phone_error ?? prev[radarId]?.phone_error ?? null,
-          email_error: result.email_error ?? prev[radarId]?.email_error ?? null,
-          persons: prev[radarId]?.persons,
-        },
-      }));
+      setUnlocked((prev) => {
+        const prevEntry = prev[radarId];
+        return {
+          ...prev,
+          [radarId]: {
+            // Only touch the channel that was actually requested; the other
+            // channel's existing value/error stays as-is. Prevents a null
+            // reveal on one channel from blowing away the other's display.
+            phone: channel === "text" ? (result.phone ?? prevEntry?.phone) : prevEntry?.phone,
+            email: channel === "email" ? (result.email ?? prevEntry?.email) : prevEntry?.email,
+            phone_error: channel === "text"
+              ? (result.phone_error ?? prevEntry?.phone_error ?? null)
+              : (prevEntry?.phone_error ?? null),
+            email_error: channel === "email"
+              ? (result.email_error ?? prevEntry?.email_error ?? null)
+              : (prevEntry?.email_error ?? null),
+            // Persons list is used by the detail modal. Keep prev if the new
+            // result has no populated persons (e.g. PR-returned-null case
+            // gives us empty arrays that would clobber real data).
+            persons: prevEntry?.persons,
+          },
+        };
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reveal failed");
     } finally {

@@ -224,7 +224,17 @@ export default function RefiResultsTable({
               <HeaderCell k="FirstRate" label="Est. rate" align="right" />
               <HeaderCell k="FirstDate" label="Loan date" />
               <HeaderCell k="FirstLenderOriginal" label="Lender" />
-              <th className="sticky top-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-600">Contact</th>
+              {/* Credit mode: Email + Text as separate columns so each
+                  channel's state is rendered independently. Legacy mode:
+                  single Contact column with bundled per-person display. */}
+              {onRevealChannel ? (
+                <>
+                  <th className="sticky top-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-600">Email</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-600">Text</th>
+                </>
+              ) : (
+                <th className="sticky top-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-600">Contact</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -261,23 +271,37 @@ export default function RefiResultsTable({
                     <div className="text-gray-900">{r.FirstLenderOriginal ?? "—"}</div>
                     <div className="text-xs text-gray-500">{r.FirstLoanType ?? ""}{r.FirstRateType ? ` · ${r.FirstRateType}` : ""}{r.FirstTermInYears ? ` · ${r.FirstTermInYears}yr` : ""}</div>
                   </td>
-                  <td className="px-3 py-2 align-top min-w-[240px] max-w-[320px]">
-                    {onRevealChannel ? (
-                      <ChannelRevealCell
-                        row={r}
-                        contact={c}
-                        revealing={revealingByRow?.[r.RadarID]}
-                        onReveal={(channel) => onRevealChannel(r, channel)}
-                      />
-                    ) : (
+                  {onRevealChannel ? (
+                    <>
+                      <td className="px-3 py-2 align-top min-w-[180px] max-w-[260px]">
+                        <ChannelCell
+                          channel="email"
+                          row={r}
+                          contact={c}
+                          loading={!!revealingByRow?.[r.RadarID]?.email}
+                          onReveal={() => onRevealChannel(r, "email")}
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top min-w-[160px] max-w-[220px]">
+                        <ChannelCell
+                          channel="text"
+                          row={r}
+                          contact={c}
+                          loading={!!revealingByRow?.[r.RadarID]?.text}
+                          onReveal={() => onRevealChannel(r, "text")}
+                        />
+                      </td>
+                    </>
+                  ) : (
+                    <td className="px-3 py-2 align-top min-w-[240px] max-w-[320px]">
                       <ContactCell contact={c} />
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={12} className="px-3 py-8 text-center text-sm text-gray-500">No rows on this page.</td></tr>
+              <tr><td colSpan={onRevealChannel ? 13 : 12} className="px-3 py-8 text-center text-sm text-gray-500">No rows on this page.</td></tr>
             )}
           </tbody>
         </table>
@@ -316,108 +340,78 @@ export default function RefiResultsTable({
 }
 
 /**
- * Credit-mode contact cell: per-row, per-channel reveal buttons with the
- * cost inline on the label.
+ * Single-channel table cell for credit-mode Email + Text columns. Renders
+ * independently of the other channel — no shared persons-array state, so
+ * revealing one channel can never blow away the other's display.
  *
- *  - If both email + text already revealed → render full ContactCell.
- *  - For each channel still hidden:
- *      - If the row's Persons array has no entries of that channel,
- *        render "No email on file" (greyed). Saves users credits — we
- *        already know PR has nothing.
- *      - Else render "Reveal email (1)" / "Reveal text (1)" buttons.
- *  - If a reveal returned null from PR (we tried but PR had nothing),
- *    `phone_error` / `email_error` is set; show "Not available" instead
- *    of the button. (No credit was charged — server-side refunded.)
+ * Display priority:
+ *   1. Channel value present                  → render the value (clickable mailto/tel)
+ *   2. Channel was attempted but PR had none  → "Not on file" (greyed)
+ *   3. Row's Persons array says PR has none   → "No {channel} on file" (greyed, no button)
+ *   4. Otherwise                              → "Reveal {channel} (1)" button
+ *
+ * Case 3 saves users a credit by hiding the button when we already know PR
+ * can't fulfill. Case 2 covers the "we tried, refund happened" outcome.
  */
-function ChannelRevealCell({
+function ChannelCell({
+  channel,
   row,
   contact,
-  revealing,
-  onReveal,
-}: {
-  row: RefiRow;
-  contact: UnlockResultMap[string] | undefined;
-  revealing?: { email?: boolean; text?: boolean };
-  onReveal: (channel: "email" | "text") => void;
-}) {
-  const availability = contactAvailability(row);
-  const hasEmail = !!contact?.email;
-  const hasPhone = !!contact?.phone;
-  const triedEmail = contact?.email_error != null && !hasEmail;
-  const triedPhone = contact?.phone_error != null && !hasPhone;
-
-  // If both channels are resolved (revealed or known-empty), defer to the
-  // structured ContactCell so users see consistent rendering.
-  if ((hasEmail || triedEmail) && (hasPhone || triedPhone)) {
-    return <ContactCell contact={contact} />;
-  }
-
-  return (
-    <div className="space-y-1.5">
-      {/* Email row */}
-      <ChannelLine
-        label="Email"
-        value={contact?.email}
-        triedEmpty={triedEmail}
-        knownUnavailable={!availability.email}
-        loading={!!revealing?.email}
-        onReveal={() => onReveal("email")}
-      />
-      {/* Text row */}
-      <ChannelLine
-        label="Text"
-        value={contact?.phone}
-        triedEmpty={triedPhone}
-        knownUnavailable={!availability.phone}
-        loading={!!revealing?.text}
-        onReveal={() => onReveal("text")}
-      />
-      {/* If neither person has phone OR email, surface the structured
-          "no persons" message from ContactCell. */}
-      {(row.Persons ?? []).length === 0 && (
-        <div className="text-[11px] text-gray-400">PR has no owner record for this property.</div>
-      )}
-    </div>
-  );
-}
-
-function ChannelLine({
-  label,
-  value,
-  triedEmpty,
-  knownUnavailable,
   loading,
   onReveal,
 }: {
-  label: string;
-  value: string | null | undefined;
-  triedEmpty: boolean;
-  knownUnavailable: boolean;
+  channel: "email" | "text";
+  row: RefiRow;
+  contact: UnlockResultMap[string] | undefined;
   loading: boolean;
   onReveal: () => void;
 }) {
+  const availability = contactAvailability(row);
+  const value = channel === "email" ? contact?.email : contact?.phone;
+  const errorVal =
+    channel === "email" ? contact?.email_error : contact?.phone_error;
+  const knownUnavailable =
+    channel === "email" ? !availability.email : !availability.phone;
+  const label = channel === "email" ? "email" : "text";
+
   if (value) {
+    if (channel === "email") {
+      return (
+        <a
+          href={`mailto:${value}`}
+          className="break-all text-xs text-gray-900 hover:text-red-600 hover:underline"
+        >
+          {value}
+        </a>
+      );
+    }
     return (
-      <div className="text-xs">
-        <span className="text-gray-500">{label}:</span>{" "}
-        <span className="text-gray-900">{value}</span>
-      </div>
+      <a
+        href={`tel:${value.replace(/[^0-9+]/g, "")}`}
+        className="break-all text-xs font-medium text-gray-900 hover:text-red-600 hover:underline tabular-nums"
+      >
+        {value}
+      </a>
     );
   }
-  if (triedEmpty) {
+
+  if (errorVal) {
     return (
-      <div className="text-xs text-gray-400">
-        {label}: not available on file
-      </div>
+      <span
+        className="text-[11px] text-gray-400"
+        title={errorVal}
+      >
+        Not on file
+      </span>
     );
   }
-  if (knownUnavailable) {
+
+  if (knownUnavailable || (row.Persons ?? []).length === 0) {
     return (
-      <div className="text-xs text-gray-400">
-        No {label.toLowerCase()} on file
-      </div>
+      <span className="text-[11px] text-gray-400">No {label} on file</span>
     );
   }
+
   return (
     <button
       type="button"
@@ -425,7 +419,7 @@ function ChannelLine({
       disabled={loading}
       className="rounded border border-red-200 bg-white px-2 py-0.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
     >
-      {loading ? "Revealing…" : `Reveal ${label.toLowerCase()} (1)`}
+      {loading ? "Revealing…" : `Reveal ${label} (1)`}
     </button>
   );
 }
