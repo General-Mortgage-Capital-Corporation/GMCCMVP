@@ -46,47 +46,53 @@ A third runtime — **Firebase Cloud Functions** — hosts the PDF flier generat
 ## Architecture
 
 ```
-                      Browser (LO at gmccmvp.vercel.app)
+                      Browser (LO at gmccmvp-two.vercel.app)
                                  │
                                  ▼
         ┌──────────────────────────────────────────────────┐
-        │     Next.js (Vercel, project = gmccmvp)          │
+        │     Next.js (Vercel)                             │
         │                                                  │
-        │  middleware.ts          → gmcc_session cookie     │
-        │  /api/auth/sso-exchange → MSAL → Firebase token   │
-        │  /api/search            → RentCast (server-side) │
-        │  /api/match[-batch]     → proxy to Python        │
-        │  /api/chat              → AI SDK ToolLoopAgent   │
-        │  /api/refi/*            → proxy to Python        │
-        │  /api/refi/access       → M365 group / allowlist │
-        │  /api/cron/*            → Vercel Cron handlers   │
-        │  /api/generate-flier    → Firebase Cloud Func    │
-        │  /api/suggest-email     → Gemini                 │
-        │  /api/pricing/*         → MLO pricing engine      │
+        │  middleware.ts             → gmcc_session cookie  │
+        │  /api/auth/sso-exchange    → MSAL → Firebase tok  │
+        │  /api/search               → RentCast            │
+        │  /api/match[-batch]        → proxy to Python     │
+        │  /api/chat                 → AI SDK ToolLoopAgent│
+        │  /api/refi/*               → proxy to Python     │
+        │  /api/refi/unlock-search   → credit-gated search │
+        │  /api/refi/unlock-contact… → credit-gated contact│
+        │  /api/refi/activity        → user history page   │
+        │  /api/refi-subscription/*  → Bill.com proxies    │
+        │  /api/reverse-geocode      → Google Geocoding    │
+        │  /api/cron/*               → Vercel Cron handlers│
+        │  /api/generate-flier       → Firebase Cloud Func │
+        │  /api/suggest-email        → Gemini              │
+        │  /api/pricing/*            → MLO pricing engine  │
         └──────────────────────────────────────────────────┘
                                  │
        ┌─────────────────────────┼─────────────────────────┐
        ▼                         ▼                         ▼
- ┌───────────────┐   ┌──────────────────────────┐   ┌────────────────┐
- │ Python (Flask │   │   External APIs          │   │ Firebase Cloud │
- │   on Vercel)  │   │  RentCast                │   │   Functions    │
- │               │   │  Google Places / Maps    │   │ fillPdfFlier   │
- │ /api/match    │   │  Gemini Flash            │   │ exchangeMsal…  │
- │ /api/explain  │   │  AI Gateway (Claude)     │   │                │
- │ /api/refi/*   │   │  FFIEC GeoMap            │   │ Firebase Auth, │
- │ /api/programs │   │  Census ACS              │   │ Firestore      │
- │ matching/     │   │  PropertyRadar           │   │ (sentEmails,   │
- │ census, etc.  │   │  Microsoft Graph         │   │  flyers, etc.) │
- └───────┬───────┘   │  PostHog                 │   └────────────────┘
-         │           └──────────────────────────┘
-         ▼
- ┌──────────────────────┐
- │ Upstash Redis        │
- │ (shared cache:       │
- │  geocode, ACS,       │
- │  refi:search,        │
- │  pr:spend:records)   │
- └──────────────────────┘
+ ┌───────────────┐   ┌──────────────────────────┐   ┌─────────────────────┐
+ │ Python (Flask │   │   External APIs          │   │ Firebase Cloud Fns  │
+ │   on Vercel)  │   │  RentCast                │   │ fillPdfFlier        │
+ │               │   │  Google Places / Maps    │   │ exchangeMsalToken   │
+ │ /api/match    │   │  Gemini Flash            │   │ billcomWebhook      │
+ │ /api/explain  │   │  AI Gateway (Claude)     │   │ billcomAddon*       │
+ │ /api/refi/*   │   │  FFIEC GeoMap            │   │ billcomCancel…      │
+ │ /api/programs │   │  Census ACS              │   │ billcomRefiFinder…  │
+ │ matching/     │   │  PropertyRadar           │   ├─────────────────────┤
+ │ census, etc.  │   │  Microsoft Graph         │   │ Firebase Auth +     │
+ └───────┬───────┘   │  PostHog                 │   │ Firestore (gmcc-66e1e):
+         │           │  Bill.com (via cloud fns)│   │  users/{email}/…    │
+         │           └──────────────────────────┘   │  subscriptions/…    │
+         ▼                                          │  creditPacks/…       │
+ ┌──────────────────────────┐                       │  meta/refiFinder    │
+ │ Upstash Redis            │                       │  sentEmails, flyers │
+ │  geocode, ACS            │                       └─────────────────────┘
+ │  refi:search   (3d TTL)  │
+ │  refi:contacts (365d TTL)│
+ │  pr:spend:records        │
+ │  chat history            │
+ └──────────────────────────┘
 ```
 
 Three things to internalize:
@@ -114,10 +120,10 @@ GMCCMVP/
 │   ├── explain.py             Gemini-powered talking points
 │   ├── models.py              Pydantic models (ListingInput, results)
 │   ├── property_types.py
-│   ├── propertyradar.py       PR API client + quota log
+│   ├── propertyradar.py       PR API client (daily cap retired May 2026)
 │   ├── refi_presets.py        6 curated refi scenarios
 │   ├── refi_search.py         UI-filter → PR Criteria normalizer + tract enrichment
-│   └── cache.py               Upstash Redis client
+│   └── cache.py               Upstash Redis client (3d search, 365d contacts)
 │
 ├── rag/                       (Legacy folder — RAG was removed March 2026.
 │   ├── schemas.py             Schemas + config still live here.)
@@ -161,19 +167,31 @@ GMCCMVP/
 │   │   │   ├── property/, refi/, search/, shared/
 │   │   │   └── (top-level: PropertyCard, PropertyModal, FollowUpDashboard, …)
 │   │   ├── contexts/AuthContext.tsx
-│   │   ├── hooks/             useSearch, usePagination, useRateSheets
+│   │   ├── hooks/             useSearch, usePagination, useRateSheets,
+│   │   │                       useRefiSubscription (polled credit balance)
 │   │   ├── lib/
 │   │   │   ├── api.ts                Frontend → backend client
 │   │   │   ├── python-client.ts      Server-side proxy to Flask
+│   │   │   ├── cloud-functions.ts    Bill.com cloud-fn helpers (refi credits)
 │   │   │   ├── agents/gmcc-agent.ts  AI SDK ToolLoopAgent definition
 │   │   │   ├── tools/                21 agent tools (one per file)
+│   │   │   ├── refi-credits/         Credit-deduction infrastructure:
+│   │   │   │   ├── cycle.ts          Dynamic cycleId from planAnniversary
+│   │   │   │   ├── meta.ts           meta/refiFinder cached reader
+│   │   │   │   ├── pool-resolver.ts  user → personal pool vs company_buffer
+│   │   │   │   ├── subscription.ts   active / buffer / expired / never_subscribed
+│   │   │   │   ├── deduct.ts         Atomic deduct + refund + lazy buffer reset
+│   │   │   │   ├── activity.ts       logActivity + paginated listActivity
+│   │   │   │   ├── perform-unlock.ts Shared deduct→PR→log→refund orchestrator
+│   │   │   │   └── types.ts          Shared TS types
 │   │   │   ├── pricing/              MLO pricing engine wrappers
 │   │   │   ├── rate-sheets/          SharePoint rate-sheet sync
 │   │   │   ├── services/             Email draft, follow-up, realtor research
 │   │   │   ├── voice/                TTS + speech recognition
 │   │   │   ├── auth-token.ts, authed-fetch.ts, firebase-auth.ts,
-│   │   │   ├── firestore-admin.ts, graph-client.ts, graph-groups.ts,
-│   │   │   ├── msal-config.ts, posthog.ts, refi-access.ts,
+│   │   │   ├── firestore-admin.ts, graph-client.ts,
+│   │   │   ├── msal-config.ts, posthog.ts,
+│   │   │   ├── refi-access.ts        Auth-only after Phase 4 gate flip
 │   │   │   ├── rentcast.ts, require-auth.ts, redis-cache.ts,
 │   │   │   ├── ratelimit.ts, recent-searches.ts, headshot-store.ts,
 │   │   │   ├── lo-info-store.ts, signature-store.ts, match-stream.ts,
@@ -252,12 +270,13 @@ vercel env pull .env
 |---|---|---|
 | `GEMINI_API_KEY` | yes (for `/api/explain`) | Gemini Flash — talking-points generation |
 | `PROPERTY_RADAR_API_ACCESS_TOKEN` | yes (for refi) | PropertyRadar API |
-| `PROPERTY_RADAR_DAILY_RECORD_CAP` | no (default 500) | Hard per-day record cap. Prevents runaway spend |
-| `UPSTASH_REDIS_REST_URL` | recommended | Shared cache (geocode, ACS, refi search, daily-spend counter) |
+| `UPSTASH_REDIS_REST_URL` | recommended | Shared cache (geocode, ACS, refi search, contacts) |
 | `UPSTASH_REDIS_REST_TOKEN` | recommended | Pair with the URL above |
 | `FRONTEND_ORIGIN` | optional | Extra allowed CORS origin (e.g. ad-hoc preview URL) |
 | `FLASK_DEBUG` | dev only | Enables Flask debug mode |
 | `PORT` | dev only | Defaults to 5001 |
+
+> **Retired:** `PROPERTY_RADAR_DAILY_RECORD_CAP` was removed in May 2026 when the per-user credit system shipped. Per-user subscription caps (5K/200) and the buffer cap (2K/200) constrain spend at finer-grained layers above this client.
 
 ### Next.js frontend (`frontend/.env.local`)
 
@@ -282,9 +301,9 @@ vercel env pull .env
 | `CHAT_TTL_DAYS` | Days to keep chat history (default 4) |
 | `POSTHOG_PERSONAL_API_KEY` | (Dev-only, not deployed) Dashboard API access |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Cache + ratelimit |
-| `REFI_FINDER_GROUP_ID` *or* `REFI_FINDER_GROUP_MAIL` | M365 group gating refi access |
-| `REFI_FINDER_ALLOWED_EMAILS` | Escape-hatch allowlist (comma-separated) |
-| `REFI_FINDER_ALLOWED_DOMAINS` | Escape-hatch domain allowlist |
+| `REFI_FINDER_PAYMENTS_DISABLED` | Set to `true` to hide Subscribe + Recharge CTAs (coming-soon mode). Mirrors the MLO portal's flag of the same name. Active subscribers and buffer users are unaffected. |
+
+> **Retired:** `REFI_FINDER_GROUP_ID` / `REFI_FINDER_GROUP_MAIL` / `REFI_FINDER_ALLOWED_EMAILS` / `REFI_FINDER_ALLOWED_DOMAINS` were retired in May 2026 (Phase 4 of the credit-system migration). The new access gate is subscription state + `meta/refiFinder.bufferAllowlist` in Firestore. Delete these env vars from Vercel.
 
 **Client-side (`NEXT_PUBLIC_*` — embedded in the browser bundle):**
 
@@ -393,15 +412,27 @@ cd frontend && vercel               # preview
 
 **Zombie-cookie protection.** Because the cookie's lifetime is decoupled from the real session, a user can end up with a valid cookie but expired Firebase/MSAL state. [AuthContext](frontend/src/contexts/AuthContext.tsx) detects this on mount — if localStorage has no usable user and MSAL silent refresh can't recover one, it `DELETE`s the cookie and bounces to `/login`. Without this, the gate would let the user through to a signed-out dashboard where every API call 401s.
 
-### Refi Finder gating
+### Refi Finder gating (credit system)
 
-Refi Finder is private-beta gated. Access is granted to any user matching **any** of:
+Phase 4 of the credit-system migration (May 2026) retired the env-var allowlist. Access is now subscription-based:
 
-1. Member of the M365 group identified by `REFI_FINDER_GROUP_ID` (UUID, preferred) or `REFI_FINDER_GROUP_MAIL` (resolved via Graph, cached 1h). Member list cached 10 min per Node instance.
-2. Email present in `REFI_FINDER_ALLOWED_EMAILS` (comma-separated).
-3. Email domain present in `REFI_FINDER_ALLOWED_DOMAINS` (comma-separated).
+| User state | Behavior |
+|---|---|
+| **Active subscription** (`creditPacks/refi_finder.cycleEndsAt > now`) | Full UI, deducts from per-user pool. Auto-renews every 30 days via Bill.com. |
+| **On bufferAllowlist** (`meta/refiFinder.bufferAllowlist[]` in Firestore) | Full UI, deducts from `creditPacks/company_buffer` (shared 200 contact / 2K property). For dev + managerial staff. |
+| **Expired** (paid before, cycle ended, not renewed) | "Your cycle has ended" pitch with Resubscribe button. |
+| **Never subscribed** | Marketing pitch + Subscribe ($100/mo) CTA. |
 
-Implemented in [frontend/src/lib/refi-access.ts](frontend/src/lib/refi-access.ts) and checked by `/api/refi/access` plus every `/api/refi/*` route.
+Logic lives in [frontend/src/lib/refi-credits/subscription.ts](frontend/src/lib/refi-credits/subscription.ts) (`resolveSubscription`). It reads:
+- `users/{email}/creditPacks/refi_finder` for the per-user pack
+- `subscriptions/{email}` for `autoRenewCanceled` (this is the MLO portal's path — flat doc with `refi_finder` as a nested field, NOT a subcollection)
+- `meta/refiFinder.bufferAllowlist` for the internal escape hatch
+
+**Cycle math is derived, not stored.** [`cycle.ts`](frontend/src/lib/refi-credits/cycle.ts) computes the active `cycleId` from `meta/refiFinder.planAnniversary` + today's date on every request, so the system has no cron to flip a month-rollover field. Buffer reset is lazy too — first deduction past `cycleStart` does the reset inside the same atomic transaction.
+
+To add/remove bufferAllowlist members: edit the array in `meta/refiFinder` in the Firebase console. No deploy required.
+
+[`refi-access.ts`](frontend/src/lib/refi-access.ts) is now auth-only (verify Firebase ID token, return email). The legacy `/api/refi/access` endpoint reports `has_access` for any signed-in user; the real UI gate is the subscription check inside [`RefiFinderGate.tsx`](frontend/src/components/refi/RefiFinderGate.tsx).
 
 ### Microsoft Graph permissions required
 
@@ -442,40 +473,110 @@ Reverse direction: pick a program → get a streamed result set of listings in c
 
 Filter-driven RentCast search across regions, with table view + extra filters (price, type, days-on-market) and PostHog event instrumentation.
 
-### 6. Refi Finder (`refi`) — private beta
+### 6. Refi Finder (`refi`) — paid subscription tier
 
-PropertyRadar-powered refi prospecting. Preset → preview count (free) → fetch records (paid, capped) → drill-in modal → unlock phone/email (separately billed) → CSV export.
+PropertyRadar-powered refi prospecting with a per-user $100/mo credit system. Preset → preview (free) → confirm cost → fetch records (deducts property credits) → drill-in modal → reveal email or text per row (deducts contact credits) → CSV export → activity log of every unlock.
 
-See the [project memory](#) and the architecture below.
+#### Architecture
 
 ```
-Backend (Flask):
-  matching/propertyradar.py    Thin PR API client + per-call quota log
-  matching/refi_presets.py     6 curated presets (rate/term, cash-out, FHA→conv, IRRRL, ARM reset, recent-purchase)
-  matching/refi_search.py      UI-filter → PR Criteria normalizer + tract enrichment + 2-tier cache
-  matching/cache.py            refi:search:* Redis namespace (cross-LO)
-  server.py                    /api/refi/{presets,preview,search,unlock-contact,unlock-preview,quota}
-
 Frontend:
-  src/app/api/refi/*           proxy routes
-  src/components/refi/         RefiFinderTab orchestrator, results table, detail + unlock modals
+  components/refi/
+    RefiFinderGate.tsx     Subscription/buffer wrap; mounts pitch panel
+                           or tab + sub-toggle (Search | History)
+    RefiFinderTab.tsx      Preset picker, filter form, search flow
+    CreditsHeaderPill.tsx  Compact balance in global header (active/buffer only)
+    CreditsCard.tsx        Full balance + recharge + cancel-auto-renew
+    SubscribeDialog.tsx    SLA acknowledge + Bill.com payment kickoff
+    UnlockConfirmDialog.tsx Itemized cost confirmation (batch actions)
+    RefiResultsTable.tsx   Two-column Email / Text reveal buttons (credit mode)
+    RefiDetailModal.tsx    Drill-in panel
+    ActivityLogTable.tsx   User-facing history with revealed values + cached badges
+  hooks/useRefiSubscription.ts  Polled status (8s; 3s aggressive during payments)
+  lib/cloud-functions.ts        Server-side Bill.com proxies
+
+Next.js routes:
+  /api/refi-subscription/
+    status                 Read Firestore subscription/buffer state
+    acknowledge            SLA marker before invoice creation
+    subscribe              Create $100 invoice via billcomAddonCreateInvoice
+    recharge               Create $20 / +200 contact-credit invoice
+    cancel                 Stop auto-renewal (keeps current cycle's credits)
+  /api/refi/
+    unlock-search          Credit-gated wrapper around Python /api/refi/search
+                           (deduct → call → log → refund on cache_hit OR short rows)
+    unlock-contact-paid    Credit-gated wrapper around Python /api/refi/unlock-contact
+                           Splits into up to 3 PR calls (email/text/both),
+                           per-channel refund when PR returns null
+    activity               Paginated user activity log
+    {access, presets, preview, search, quota, ...}  Legacy paths still mounted
+
+Python (Flask):
+  matching/propertyradar.py    Thin PR API client (no daily cap after May 2026)
+  matching/refi_presets.py     6 curated presets
+  matching/refi_search.py      Filter → PR Criteria + tract enrichment + 2-tier cache
+  matching/cache.py            refi:search 3d / refi:contacts 365d
+  server.py                    /api/refi/{presets, preview, search,
+                                          unlock-contact, unlock-preview, quota}
 ```
 
-Critical PropertyRadar gotchas (each one cost real records to learn — keep them):
+#### Firestore credit-system schema (Firebase project `gmcc-66e1e`, shared with MLO portal)
 
-- **API trial is separate from the regular trial.** Activate via PR Account Settings → API → "Get API Free Trial". Otherwise every call returns `access_denied`.
-- **`Fields=All` is NOT a superset of `LimitedREI`** — it drops loan + owner fields. Use the curated `REFI_GRID_FIELDS` constant in [matching/propertyradar.py](matching/propertyradar.py).
-- **50-field hard cap on `Fields`.** Fieldset names expand into their constituents for counting.
-- **Cost is per row, not per field.** Fetching one record with one field or fifty costs the same.
+```
+users/{email}/creditPacks/refi_finder   ← Bill.com webhook writes; we only deduct
+  { contactCredits, propertyCredits, cycleEndsAt, billcomCustomerId, history,
+    pendingRecharge?, updatedAt }
+
+users/{email}/refiFinderActivity/{auto-id}   ← we write one per discrete action
+  { ts, action, propertyId, propertyAddress, ownerName?, creditsUsed,
+    propertyRadarRef, drewFromBuffer, balanceAfter,
+    revealedValue?, failureReason?, fromCache? }
+
+subscriptions/{email}                     ← legacy path, refi_finder as a field
+  { refi_finder: { paymentStatus, billcomRecurringInvoiceId, nextBillingDate,
+                   autoRenewCanceled? } }
+
+creditPacks/company_buffer                ← shared by bufferAllowlist
+  { contactCredits, propertyCredits, lastResetAt }
+
+creditPacks/company_usage_{cycleId}       ← cycle-total counters (cycleId derived,
+                                            see cycle.ts)
+  { contactCreditsUsed, propertyCreditsUsed, cycleStart, cycleEnd }
+
+meta/refiFinder                           ← central config
+  { bufferAllowlist: ["naitik.poddar@gmccloan.com", "jjin@gmccloan.com"],
+    planAnniversary: 19,           // PR billing day of the month
+    currentCycleId: "2026-05"      // STALE — we compute this ourselves now
+  }
+```
+
+#### Cost model
+
+- 1 search row = 1 property credit (deducted upfront; refunded for cached results AND rows PR didn't return)
+- 1 email reveal = 1 contact credit (refunded if PR returns null)
+- 1 text reveal = 1 contact credit (refunded if PR returns null)
+- All deductions go through atomic Firestore transactions in [`deduct.ts`](frontend/src/lib/refi-credits/deduct.ts).
+- After-payment latency: ~4-5 min for the Bill.com webhook to fire and the balance to refresh.
+
+#### Cross-LO caching
+
+| Cache | TTL | Effect |
+|---|---|---|
+| `refi:search:<hash>` | 3 days | Any team member's repeat search is free for everyone for 3 days |
+| `refi:contacts:<radar_id>` | **365 days** | Once any team member unlocks a property's contact, everyone gets it free for a year (PR ownership is permanent — see [propertyradar.py:322](matching/propertyradar.py#L322)) |
+
+#### Critical PropertyRadar gotchas (keep these)
+
+- **API trial is separate from the regular trial.** Activate via PR Account Settings → API → "Get API Free Trial".
+- **`Fields=All` is NOT a superset of `LimitedREI`** — drops loan + owner fields. Use `REFI_GRID_FIELDS` in [matching/propertyradar.py](matching/propertyradar.py).
+- **50-field hard cap on `Fields`.** Fieldset names expand into their constituents.
+- **Cost is per row, not per field.**
 - **`Purchase=0` previews are free.** Always preview before fetching.
-- **`FirstPurpose` enum** is `CashOut|Construction|ELOC|PMoney|R&TRefi|Reverse|Wrap|Unknown` — not the `P/R/C/U` shorthand the reference doc lists.
-- **Phone/email unlocks are a SEPARATE paid budget** (~8¢ each on Solo plan), not against the record quota.
+- **`FirstPurpose` enum** is `CashOut|Construction|ELOC|PMoney|R&TRefi|Reverse|Wrap|Unknown`.
+- **Phone/email unlocks are a SEPARATE paid budget at PR** (~4¢ on the company plan).
+- **PR ownership is permanent.** Once we buy a contact, future `GET /properties/{id}/persons` calls return the owned values inline at no extra cost. Our 365-day Redis cache reflects this.
 
-Cost rails:
-
-- All paid calls go through `propertyradar.fetch_search` / `get_property` / `get_transactions` / `get_document`, which log to `data/pr_quota_log.jsonl` (local) and increment Redis `pr:spend:records:<UTC-date>` (production).
-- `PROPERTY_RADAR_DAILY_RECORD_CAP` (default 500) enforces a hard cap. `QuotaCapExceeded` → 429 `{code: 'daily_cap'}`.
-- UI ALWAYS shows explicit cost copy before any paid action ("Fetching the first 25 will charge 25 records (9,975 remaining)").
+Untested but likely viable: `fetch_property_persons(purchase=0)` for free ownership detection. If verified, we can wire a "L2 ownership check before paid unlock" path that makes unlocks free indefinitely (not just within the 365-day cache window). See the roadmap.
 
 ---
 
@@ -557,24 +658,44 @@ CORS allows `localhost:3000`, the `gmccmvp-two*.vercel.app` pattern, plus an opt
 
 Major handlers:
 
+**Auth & session**
 - `auth/sso-exchange` — MSAL → Firebase token swap
-- `auth/session` — set/clear `gmcc_session` cookie (verifies Firebase ID token)
+- `auth/session` — set/clear `gmcc_session` cookie (verifies Firebase ID token; 90d lifetime)
+
+**Search & geo**
 - `search`, `marketing-search` — RentCast wrappers
+- `place-details`, `place-photo`, `autocomplete`, `maps-key` — Google Places helpers
+- `reverse-geocode` — lat/lng → street address (Google Geocoding; used by "Use current location" button)
+- `zillow-photos` — fallback photo lookup
+
+**Match & programs**
 - `match`, `match-batch` — proxy to Flask
 - `programs`, `program-locations`, `program-search` — proxy to Flask
-- `chat` — AI agent endpoint (streaming)
-- `chat/history`, `chat/download` — conversation persistence
 - `cra-check` — CRA tab backend
-- `refi/{access,presets,preview,quota,search,unlock-contact,unlock-preview}` — proxy + access gate
+
+**AI agent**
+- `chat` — AI SDK ToolLoopAgent endpoint (streaming)
+- `chat/history`, `chat/download` — conversation persistence
+
+**Refi Finder (credit-gated)**
+- `refi-subscription/{status, acknowledge, subscribe, recharge, cancel}` — Bill.com cloud-fn proxies + Firestore status read
+- `refi/unlock-search` — credit-gated search (deducts property credits, refunds on cache or short rows)
+- `refi/unlock-contact-paid` — credit-gated contact reveal (deducts contact credits, partial refund on null channels)
+- `refi/activity` — paginated activity log read
+
+**Refi Finder (legacy / free-tier paths still mounted)**
+- `refi/{access, presets, preview, quota, search, unlock-contact, unlock-preview}` — Phase 4 made `access` always return `has_access`; the others are still callable but not gated by the new credit system
+
+**Communications & content**
 - `realtor-research` — Apify scrapers
 - `suggest-email`, `suggest-multi-email` — Gemini email drafts
 - `follow-up` — record/dismiss follow-up reminders
 - `generate-flier` — POSTs to Firebase Cloud Function `fillPdfFlier`
 - `pricing/*` — MLO pricing engine integration
 - `rate-sheets/*` — read latest rate sheet
-- `place-details`, `place-photo`, `autocomplete`, `maps-key` — Google Places helpers
-- `zillow-photos` — fallback photo lookup
 - `tts` — ElevenLabs proxy
+
+**Admin & ops**
 - `admin/usage` — per-LO email stats (Firestore aggregation)
 - `cron/follow-ups` — hourly follow-up dispatcher
 - `cron/sync-rate-sheets` — daily SharePoint → cache sync
@@ -590,16 +711,29 @@ A single Upstash database. Namespaced keys, no `KEYS` scans in prod paths.
 
 | Namespace | TTL | Cross-LO | Purpose |
 |---|---|---|---|
-| `geocode:*` | long | yes | FFIEC GeoMap address-geocode results |
-| `acs:*` | long | yes | Census ACS demographics by tract |
-| `refi:search:*` | 24h | yes | Hashed PropertyRadar query results |
-| `pr:spend:records:<UTC-date>` | 48h | yes | Daily PR record-spend counter (INCRBY atomic) |
+| `census:geocode:*` | 90 days | yes | FFIEC GeoMap address geocode |
+| `census:coord:*` | 90 days | yes | Coordinate (lat/lng) reverse geocode |
+| `census:acs:*` | 30 days | yes | Census ACS demographics by tract |
+| `refi:search:*` | **3 days** | yes | Hashed PropertyRadar query results |
+| `refi:contacts:v2:<radar_id>` | **365 days** | yes | Person records + unlocked phones/emails (PR ownership is permanent) |
+| `pr:spend:records:<UTC-date>` | 48h | yes | Daily PR record-spend counter (cap retired May 2026; counter kept for ops) |
 | `chat:*` | `CHAT_TTL_DAYS` | per-user | Conversation history |
 | `ratelimit:*` | short | per-IP/user | API rate limits ([ratelimit.ts](frontend/src/lib/ratelimit.ts)) |
 
-Cache keys for refi search are SHA256 of normalized criteria + page + limit (stable JSON sort, so filter key order is irrelevant). `cache_hit: true|false` is returned in every search response; UI shows a "cached · no records charged" pill when true.
+Cache keys for refi search are SHA256 of normalized criteria + page + limit (stable JSON sort, so filter key order is irrelevant). `cache_hit: true|false` is returned in every search response; UI shows a "cached · no records charged" pill when true. **The credit-gated routes (`/api/refi/unlock-search`, `/unlock-contact-paid`) refund the user's deducted credits on every cache hit** — the cross-LO cache directly translates to "no charge" for the user.
 
 The Python-side wrapper is [matching/cache.py](matching/cache.py). The Next.js wrapper is [frontend/src/lib/redis-cache.ts](frontend/src/lib/redis-cache.ts). Both read the same Upstash REST URL/token.
+
+### Firestore (separate from Redis — for the credit system)
+
+| Path | Purpose | Writer |
+|---|---|---|
+| `users/{email}/creditPacks/refi_finder` | Per-user balance + cycleEndsAt | Bill.com webhook (grants); our deduct.ts (decrements) |
+| `users/{email}/refiFinderActivity/{auto-id}` | Per-action history with revealed values | Our activity.ts |
+| `subscriptions/{email}.refi_finder` | Auto-renewal state, recurring template id | Bill.com cloud functions |
+| `creditPacks/company_buffer` | Shared internal pool (200/2K) | MLO portal cron (resets); our deduct.ts (decrements lazily) |
+| `creditPacks/company_usage_<cycleId>` | Cycle-total counter | Our deduct.ts (FieldValue.increment) |
+| `meta/refiFinder` | bufferAllowlist, planAnniversary | MLO portal admin (manual via Firebase console) |
 
 ---
 
@@ -661,12 +795,24 @@ cd frontend && npx tsc --noEmit        # Frontend: type-check
 
 `pytest.ini` defines an `integration` marker for tests that hit the live Gemini API; those are skipped unless a key is present.
 
-There is **no automated frontend test suite** yet. Smoke-test in the browser:
+There is **no automated frontend test suite** yet. A smoke test for the credit infra exists:
+
+```bash
+cd frontend && npx tsx --env-file=./.env.local scripts/refi-credits-smoke.ts
+# Read-only by default; verifies meta/refiFinder, bufferAllowlist seed,
+# pool resolution, subscription resolution.
+
+cd frontend && npx tsx --env-file=./.env.local scripts/refi-credits-smoke.ts --write
+# Adds: deduct(1,1) → refund(1,1) → logActivity against company_buffer
+# Net zero on the buffer; one extra activity entry under naitik's email.
+```
+
+Browser smoke-test:
 
 1. Local dev with both servers running.
 2. Hit each tab (find, program, marketing, cra, refi, chat).
 3. For chat: send "search for houses in 95014 under $2M" and confirm tool calls fire.
-4. For refi: pick "Rate-and-term refi" preset → enter zip `95014` → "Preview" should return ~44 rows (free) → "Fetch 25" should succeed and the quota counter should tick up.
+4. For refi (sign in as `naitik.poddar@gmccloan.com` or `jjin@gmccloan.com` — bufferAllowlist seeded): pick "Rate-and-term refi" preset → enter zip `95014` → "Preview" should return ~44 rows (free) → "Fetch 25" pops the confirmation modal showing "25 property credits" → confirm → header pill + in-tab card both drop in lockstep → on a repeat fetch within 3 days, "cached · no records charged" pill appears and credits are refunded.
 5. For CRA: enter `1 Apple Park Way, Cupertino, CA 95014` → confirm non-LMI tract is identified correctly.
 
 Useful refi test markets (validated during build):
@@ -698,11 +844,21 @@ Hard-won lessons. Read before deploying or refactoring.
 
 ### PropertyRadar (Refi)
 
-See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--private-beta) above. Plus:
+See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-tier) above. Plus:
 
-- **Daily record cap rolls at UTC 00:00** (= 4pm Pacific / 5pm PDT). A local-midnight reset is a future knob, not built yet.
-- **The audit log file didn't exist on Vercel originally**, so `_today_spend()` returned 0 and the cap was a no-op. Redis-backed counter fixed it; don't remove the Redis path.
-- **Phone/email unlocks are NOT in the records cap** — they're a separate PR billing budget. Add a separate Redis counter (`pr:spend:unlocks:<date>`) if/when we want to limit blast radius on bulk unlocks.
+- **The daily record cap (`PROPERTY_RADAR_DAILY_RECORD_CAP`) is retired** as of May 2026. Per-user subscription caps + buffer caps constrain spend at a finer grain. The Redis counter `pr:spend:records:<UTC-date>` is still incremented for ops visibility — no enforcement.
+- **Phone/email unlocks are a separate PR budget** — not against the record quota. Add a Redis counter (`pr:spend:unlocks:<date>`) if/when we want to limit blast radius on bulk unlocks (not built yet).
+
+### Refi credit system
+
+- **Cycle math is dynamic** ([cycle.ts](frontend/src/lib/refi-credits/cycle.ts)) — derived from `meta/refiFinder.planAnniversary` + today's date in UTC. `meta/refiFinder.currentCycleId` exists in Firestore but is **stale and ignored** on our side. The MLO portal team's cron will eventually rotate it; we don't depend on it.
+- **Buffer reset is lazy** — first deduction past `cycleStart` resets `creditPacks/company_buffer` to 200/2K inside the same Firestore transaction. `lastResetAt` is pinned to `Timestamp.fromDate(cycleStart)` (NOT serverTimestamp) so future checks are deterministic.
+- **Subscription doc lives at `subscriptions/{email}`** with `refi_finder` as a *nested field* — NOT `users/{email}/subscriptions/refi_finder`. This bit me on first pass; if you're looking for `autoRenewCanceled`, it's there.
+- **Bill.com webhook owns the grant side** ([users/{email}/creditPacks/refi_finder.contactCredits/.propertyCredits](https://us-central1-gmcc-66e1e.cloudfunctions.net/billcomWebhook)). Don't write to those fields directly — your deductions only decrement.
+- **`autoPayEnabled: false` in `/api/refi-subscription/acknowledge` is intentional and a no-op for refi_finder.** The deployed cloud function hard-codes `requiresRecurring = type === "refi_finder"`, so refi_finder gets a recurring template regardless of this flag. The field is load-bearing only for yearly addons (loannex, optimalblue, etc.).
+- **Two polling loops were a real bug** that's been fixed — the credit pill (page-level) and the in-tab CreditsCard now share a single `useRefiSubscription` hook lifted to [page.tsx](frontend/src/app/page.tsx). Don't call the hook twice; pass props down.
+- **`REFI_FINDER_PAYMENTS_DISABLED=true`** hides Subscribe + Recharge CTAs; cancel still works. Coordinate this flag with the MLO portal's matching flag so the two surfaces don't diverge.
+- **Cache-hit refunds**: cross-LO cache hits on `refi:search` or `refi:contacts` refund the user's deducted credits and stamp the activity log with `fromCache: true`. See [unlock-search/route.ts](frontend/src/app/api/refi/unlock-search/route.ts) and [unlock-contact-paid/route.ts](frontend/src/app/api/refi/unlock-contact-paid/route.ts).
 
 ### Census / FFIEC
 
@@ -724,11 +880,24 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--private-beta) above.
 
 ## Roadmap / planned work
 
-In flight or queued (May 2026):
+**Shipped May 2026:**
+- ✅ Refi Finder credit system (Phases 1–4): per-user subscription + bufferAllowlist + atomic deductions + history + cancel/recharge
+- ✅ Cross-LO cache refunds for both search (3d) and contacts (365d)
+- ✅ Per-row Email + Text reveal with per-channel null-refund
+- ✅ Activity log with revealed values, owner name, full address, cached badges
+- ✅ Dynamic cycle math (no cron needed for month rollover)
+- ✅ Lazy buffer reset inside deduction transaction
+- ✅ `REFI_FINDER_PAYMENTS_DISABLED` flag for coordinated soft-launch with MLO portal
+- ✅ Zombie-cookie cleanup in AuthContext
+- ✅ "Use current location" button on radius search
 
-- **Refi Finder v1 → v2**: GMCC pricing comparison column, "send to email outreach" row action, LMI tract badge, smarter universe-level caching at `(zip, preset)` granularity, save/name searches per LO. See the project memory for the ranked list.
+**In flight / queued:**
+- **PR `purchase=0` ownership check**: theoretically lets us serve owned contacts forever at no cost (currently 365-day Redis TTL covers ~99% of cases). 10-min API poke to verify; ~30 min to wire if confirmed. See ["PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-tier).
+- **Universe cache** at `(zip, preset)` granularity: cache 500-row supersets, apply finer filters client-side. Biggest credit-saver of all but more invasive.
+- **`get_property` + `get_transactions` Python caching**: not currently called by the refi flow, but worth adding if we surface property detail or transaction history in the UI.
+- **PostHog events for refi**: `refi_finder.preset_picked`, `refi_finder.search_fetched`, `refi_finder.contact_unlocked`, `refi_finder.subscribed`, `refi_finder.canceled`, `refi_finder.recharged`, `refi_finder.insufficient_credits`.
+- **Refi v2 product ideas**: GMCC pricing comparison column, "send to email outreach" row action, LMI tract badge, save/name searches per LO. See [project memory](#) for the ranked list.
 - **AI Calling Agent**: researched and planned, blocked on compliance review. Do not start implementation without TCPA / state DNC clearance.
-- **PostHog events for refi**: `refi_finder.preset_picked`, `refi_finder.search_fetched`, `refi_finder.contact_unlocked`.
 - **Integration into GMCC main website** — two paths:
   - **A. Embed as iframe / sub-route** — minimal refactor. Mount at e.g. `/tools/property-search`.
   - **B. Migrate matching to TypeScript** — port `matching/matcher.py` + `matching/census.py` to TS, run as Next.js API routes, drop the Python project. Recommended for tighter integration. The engine is pure rule-based logic with no external state, so the port is mechanical.
