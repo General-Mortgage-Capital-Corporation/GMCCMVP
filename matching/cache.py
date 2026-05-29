@@ -14,11 +14,16 @@ Key structure:
                                          3 days balances freshness (PR updates
                                          daily) against credit savings.
   refi:contacts:{radar_id}             — Person records + unlocked phones/emails
-                                         (14-day TTL). Shared cross-LO since the
-                                         Solo subscription is a single PR account.
-                                         Phones/emails change rarely (public-
+                                         (365-day TTL). Shared cross-LO since
+                                         contacts owned at PR are owned forever
+                                         — once any team member unlocks a
+                                         property's contact, every subsequent
+                                         retrieval is free from PR's side. The
+                                         long TTL keeps the credit savings on
+                                         our side too (we don't re-charge users
+                                         for data we already own). Public-
                                          records aggregator refresh cycle is
-                                         monthly), so longer TTL is safe.
+                                         monthly, so stale data is a non-issue.
   pr:spend:records:{YYYY-MM-DD}        — PropertyRadar daily record spend
                                          (UTC date, 48-hour TTL). Backs the
                                          daily-cap guard in production.
@@ -47,9 +52,13 @@ REFI_SEARCH_TTL = 3 * 24 * 60 * 60     # 3 days — PR refreshes daily, but the
                                        # refi universe for a (zip, preset)
                                        # changes slowly; 3 days balances credit
                                        # savings vs. staleness
-REFI_CONTACTS_TTL = 14 * 24 * 60 * 60  # 14 days — phones/emails change rarely
-                                       # (public-records aggregator refresh
-                                       # cycle is monthly)
+REFI_CONTACTS_TTL = 365 * 24 * 60 * 60  # 365 days — PR ownership is permanent
+                                        # (once we buy a contact, future GETs
+                                        # are free at PR's side), so caching
+                                        # near-permanently keeps the credit
+                                        # savings on the user side too.
+                                        # Public-records refresh is monthly,
+                                        # so staleness is a non-issue.
 PR_SPEND_TTL = 48 * 60 * 60            # 48 hours — covers timezone roll + buffer
 
 
@@ -249,8 +258,10 @@ def get_cached_contact_unlock(radar_id: str) -> dict | None:
 
 
 def set_cached_contact_unlock(radar_id: str, payload: dict) -> None:
-    """Store a contact-unlock payload. 14-day TTL since phone/email data
-    changes rarely (PR refreshes from public records monthly)."""
+    """Store a contact-unlock payload. 365-day TTL: PR ownership is
+    permanent, so once any LO unlocks a contact we don't want to re-charge
+    *any* user (including the original buyer) for the same data later.
+    Public-records refresh is monthly, so stale data is a non-issue."""
     try:
         redis = _get_redis()
         if redis is None:
