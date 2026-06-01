@@ -177,8 +177,8 @@
       "requires_dmmct": false,
       "requires_mmct_or_lmi": true,
       "additional_rules": {
-        "description": "Celebrity Forgivable Loan Program (FLP) \u2014 $15,000 silent subordinate lien at 0% interest, fully forgivable over a 5-year retention period. CRA-based program targeting underserved borrowers.",
-        "loan_amount": "$15,000 silent subordinate lien",
+        "description": "Celebrity Forgivable Loan Program (FLP) \u2014 $10,000 silent subordinate lien at 0% interest, fully forgivable over a 5-year retention period. CRA-based program targeting underserved borrowers.",
+        "loan_amount": "$10,000 silent subordinate lien",
         "interest_rate": "0%",
         "forgiveness": "100% forgiven over 5-year retention period (20% forgiven per year)",
         "max_cltv": "105% unless FCB primary program has a stricter CLTV cap",
@@ -195,7 +195,7 @@
     }
   ],
   "general_notes": [
-    "GMCC Celebrity Forgivable Loan Program provides a $15,000 silent subordinate lien at 0% interest, fully forgivable over 5 years (20%/year).",
+    "GMCC Celebrity Forgivable Loan Program provides a $10,000 silent subordinate lien at 0% interest, fully forgivable over 5 years (20%/year).",
     "CRA-based program available in specific counties in CA, MA, GA, NC, and SC.",
     "Three income paths: (1) LMI borrower \u226480% MFI \u2014 county eligibility only, no tract requirement; (2) \u2264150% MFI \u2014 must be in MMCT or LMIT; (3) First gen homebuyer \u2264200% MFI \u2014 must be in MMCT or LMIT.",
     "Standard matching check uses MMCT or LMI tract requirement (150% MFI path). LMI borrower path (80% MFI) waives tract requirement but requires income verification at underwriting.",
