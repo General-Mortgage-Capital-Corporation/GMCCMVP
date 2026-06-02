@@ -82,6 +82,131 @@ function formatOwnerName(row: RefiRow): string | undefined {
   return fl || undefined;
 }
 
+/** Format a number as compact USD ($50K, $1.2M). */
+function fmtMoney(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+  return `$${n}`;
+}
+
+/**
+ * Summarize a preset's `base_filters` as short human-readable chip labels.
+ * Used by the preset cards (at-a-glance view of what's prefilled) and by the
+ * active-scenario header (so editors always see what the defaults were).
+ *
+ * Keep labels SHORT — these render as compact chips. Skip default-y values
+ * (e.g. is_free_and_clear: false) that don't actually narrow the search.
+ */
+function summarizePreset(f: RefiFilters): string[] {
+  const out: string[] = [];
+
+  if (f.property_types?.length) {
+    const m: Record<string, string> = {
+      SFR: "SFR", CND: "Condo", MFR: "2–4 unit", APT: "5+ unit",
+      LND: "Land", COM: "Commercial", IND: "Industrial", AGR: "Ag", RES: "Res",
+    };
+    out.push(f.property_types.map((t) => m[t] ?? t).join(" · "));
+  }
+
+  if (f.owner_occupied === true) out.push("Owner-occupied");
+  else if (f.owner_occupied === false) out.push("Non-owner-occupied");
+
+  if (f.first_loan_type?.length) {
+    const m: Record<string, string> = {
+      C: "Conforming", F: "FHA", V: "VA", N: "Jumbo",
+      O: "Conv (other)", P: "Private", S: "Seller", B: "SBA",
+    };
+    out.push(`${f.first_loan_type.map((c) => m[c] ?? c).join("/")} loan`);
+  }
+
+  if (f.first_rate_type?.length) {
+    const m: Record<string, string> = { F: "Fixed", A: "ARM" };
+    out.push(f.first_rate_type.map((c) => m[c] ?? c).join("/"));
+  }
+
+  if (f.first_rate_min != null && f.first_rate_max != null) {
+    out.push(`Rate ${f.first_rate_min}–${f.first_rate_max}%`);
+  } else if (f.first_rate_min != null) {
+    out.push(`Rate ≥${f.first_rate_min}%`);
+  } else if (f.first_rate_max != null) {
+    out.push(`Rate ≤${f.first_rate_max}%`);
+  }
+
+  if (f.equity_percent_min != null && f.equity_percent_max != null) {
+    out.push(`Equity ${f.equity_percent_min}–${f.equity_percent_max}%`);
+  } else if (f.equity_percent_min != null) {
+    out.push(`Equity ≥${f.equity_percent_min}%`);
+  } else if (f.equity_percent_max != null) {
+    out.push(`Equity ≤${f.equity_percent_max}%`);
+  }
+
+  if (f.available_equity_min != null) out.push(`Equity ≥${fmtMoney(f.available_equity_min)}`);
+
+  const today = new Date();
+  if (f.first_date_range?.from && f.first_date_range?.to) {
+    const fromY = new Date(f.first_date_range.from).getFullYear();
+    const toY = new Date(f.first_date_range.to).getFullYear();
+    out.push(fromY === toY ? `${fromY} vintage` : `${fromY}–${String(toY).slice(2)} vintage`);
+  } else if (f.first_date_to) {
+    const d = new Date(f.first_date_to);
+    const yrs = today.getFullYear() - d.getFullYear();
+    if (yrs > 0) out.push(`Loan ≥${yrs}yr old`);
+  } else if (f.first_date_from) {
+    const d = new Date(f.first_date_from);
+    out.push(`Originated ≥${d.getFullYear()}`);
+  }
+
+  if (f.first_arm_reset_within_months != null) {
+    out.push(`Resets ≤${f.first_arm_reset_within_months}mo`);
+  }
+
+  if (f.last_transfer_date_from && f.last_transfer_date_to) {
+    const fromD = new Date(f.last_transfer_date_from);
+    const toD = new Date(f.last_transfer_date_to);
+    const monthsAgo = (d: Date) => Math.max(0, Math.round((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    out.push(`Bought ${monthsAgo(toD)}–${monthsAgo(fromD)}mo ago`);
+  }
+
+  if (f.first_purpose?.length) {
+    const m: Record<string, string> = {
+      PMoney: "Purchase", "R&TRefi": "R&T refi", CashOut: "Cash-out",
+      Construction: "Construction", ELOC: "ELOC", Reverse: "Reverse", Wrap: "Wrap",
+    };
+    out.push(f.first_purpose.map((c) => m[c] ?? c).join("/"));
+  }
+
+  if (f.is_free_and_clear === true) out.push("Free-and-clear");
+
+  return out;
+}
+
+/**
+ * Normalize a RefiFilters object to a stable JSON string so two filter sets
+ * can be compared regardless of key order, undefined keys, and array order.
+ */
+function normalizeFilters(f: RefiFilters): string {
+  const norm: Record<string, unknown> = {};
+  for (const k of Object.keys(f).sort()) {
+    const v = (f as Record<string, unknown>)[k];
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      if (v.length === 0) continue;
+      norm[k] = [...v].map((x) => String(x)).sort();
+    } else if (typeof v === "object") {
+      const sub: Record<string, unknown> = {};
+      for (const sk of Object.keys(v as Record<string, unknown>).sort()) {
+        const sv = (v as Record<string, unknown>)[sk];
+        if (sv === undefined || sv === null || sv === "") continue;
+        sub[sk] = sv;
+      }
+      if (Object.keys(sub).length > 0) norm[k] = sub;
+    } else {
+      norm[k] = v;
+    }
+  }
+  return JSON.stringify(norm);
+}
+
 // Stable JSON stringify for criteria-key derivation (object key order matters).
 function stableKey(obj: unknown): string {
   return JSON.stringify(obj, (_k, v) => {
@@ -269,6 +394,24 @@ export default function RefiFinderTab({
     () => presets.find((p) => p.id === activePresetId) ?? null,
     [presets, activePresetId],
   );
+
+  // True when the user has changed filters away from the preset's defaults.
+  // Used to surface the "Modified" badge + enable "Reset to scenario defaults".
+  // Note: presets are never mutated server-side. Edits live only in this React
+  // state + localStorage — they NEVER overwrite the canonical scenario.
+  const filtersChanged = useMemo(() => {
+    if (!activePreset) return false;
+    return normalizeFilters(filters) !== normalizeFilters(activePreset.base_filters);
+  }, [filters, activePreset]);
+
+  const resetToPresetDefaults = useCallback(() => {
+    if (!activePreset) return;
+    setFilters({ ...activePreset.base_filters });
+    invalidateResults();
+    // invalidateResults reads `phase` via closure → safe; setFilters/setPreview
+    // triggered through it. The criteria-key effect will detect the change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePreset]);
 
   const parsedZips: number[] = useMemo(() => {
     return zipsText
@@ -721,7 +864,9 @@ export default function RefiFinderTab({
         <div className="space-y-5">
           <ActivePresetHeader
             preset={activePreset}
+            filtersChanged={filtersChanged}
             onChangePreset={() => { invalidateResults(); setPhase("idle"); }}
+            onResetDefaults={resetToPresetDefaults}
           />
 
           <GeographyInput
@@ -966,41 +1111,108 @@ function PresetGrid({ presets, onPick, onBuildFromScratch }: {
   presets: RefiPreset[]; onPick: (p: RefiPreset) => void; onBuildFromScratch: () => void;
 }) {
   return (
-    <div>
-      <div className="mb-3 text-sm font-medium text-gray-700">Pick a refi scenario to start with</div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {presets.map((p) => (
-          <button key={p.id} type="button" onClick={() => onPick(p)}
-            className="group rounded-2xl border border-gray-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md">
-            <div className="text-base font-semibold text-gray-900 group-hover:text-red-600">{p.name}</div>
-            <div className="mt-1 text-sm text-gray-600">{p.tagline}</div>
-            <div className="mt-3 line-clamp-3 text-xs text-gray-500">{p.why}</div>
+    <div className="space-y-4">
+      <div>
+        <div className="mb-3 text-sm font-medium text-gray-700">Pick a refi scenario to start with</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {presets.map((p) => {
+            const chips = summarizePreset(p.base_filters);
+            return (
+              <button key={p.id} type="button" onClick={() => onPick(p)}
+                className="group flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md">
+                <div>
+                  <div className="text-base font-semibold text-gray-900 group-hover:text-red-600">{p.name}</div>
+                  <div className="mt-1 text-sm text-gray-600">{p.tagline}</div>
+                </div>
+                <div className="line-clamp-3 text-xs text-gray-500">{p.why}</div>
+                {chips.length > 0 && (
+                  <div className="mt-auto flex flex-wrap gap-1 border-t border-gray-100 pt-3">
+                    {chips.slice(0, 4).map((s, i) => (
+                      <span key={i} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">{s}</span>
+                    ))}
+                    {chips.length > 4 && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">+{chips.length - 4} more</span>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h10" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-base font-semibold text-gray-900">Build from scratch</div>
+              <div className="mt-0.5 text-sm text-gray-600">Skip the scenarios — set every filter yourself. Best for niche cases or testing custom criteria.</div>
+            </div>
+          </div>
+          <button type="button" onClick={onBuildFromScratch}
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-gray-700">
+            Start blank
           </button>
-        ))}
-        <button type="button" onClick={onBuildFromScratch}
-          className="group rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 text-left transition-all hover:border-red-300 hover:bg-white">
-          <div className="text-base font-semibold text-gray-700 group-hover:text-red-600">Build from scratch</div>
-          <div className="mt-1 text-sm text-gray-600">No preset — set every filter yourself.</div>
-          <div className="mt-3 text-xs text-gray-500">Recommended for niche scenarios or testing custom criteria.</div>
-        </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function ActivePresetHeader({ preset, onChangePreset }: { preset: RefiPreset | null; onChangePreset: () => void }) {
+function ActivePresetHeader({ preset, filtersChanged, onChangePreset, onResetDefaults }: {
+  preset: RefiPreset | null;
+  filtersChanged: boolean;
+  onChangePreset: () => void;
+  onResetDefaults: () => void;
+}) {
+  const chips = preset ? summarizePreset(preset.base_filters) : [];
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{preset ? "Scenario" : "Custom"}</span>
-          <div className="text-base font-semibold text-gray-900">{preset?.name ?? "Build from scratch"}</div>
+    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{preset ? "Scenario" : "Custom"}</span>
+            <div className="text-base font-semibold text-gray-900">{preset?.name ?? "Build from scratch"}</div>
+            {preset && filtersChanged && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Modified
+              </span>
+            )}
+          </div>
+          {preset && <div className="mt-1.5 text-sm text-gray-600">{preset.why}</div>}
         </div>
-        {preset && <div className="mt-1 text-sm text-gray-600">{preset.why}</div>}
+        <div className="flex shrink-0 items-center gap-2">
+          {preset && filtersChanged && (
+            <button type="button" onClick={onResetDefaults}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Reset to scenario defaults
+            </button>
+          )}
+          <button type="button" onClick={onChangePreset} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Change scenario
+          </button>
+        </div>
       </div>
-      <button type="button" onClick={onChangePreset} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-        Change scenario
-      </button>
+
+      {preset && chips.length > 0 && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Prefilled defaults</div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {chips.map((s, i) => (
+              <span key={i} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{s}</span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Edit any filter below — your changes only affect this session. The scenario defaults stay the same and never overwrite.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1023,7 +1235,20 @@ function FilterForm({ filters, onPatch, onClear, primaryKeys }: {
   filters: RefiFilters; onPatch: (p: Partial<RefiFilters>) => void; onClear: (k: keyof RefiFilters) => void; primaryKeys: string[];
 }) {
   const [showAll, setShowAll] = useState(false);
-  const isPrimary = (k: string) => primaryKeys.length === 0 || primaryKeys.includes(k) || showAll;
+  // A field is shown if (a) the preset declared it primary, (b) "Show all" is
+  // on, OR (c) it has any value currently set — so any prefilled value (even
+  // one not declared primary) is always editable. Prevents the cash-out
+  // scenario from prefilling owner_occupied / is_free_and_clear / first_date_to
+  // without exposing an edit control.
+  const hasValue = (k: keyof RefiFilters): boolean => {
+    const v = filters[k];
+    if (v === undefined || v === null) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.values(v).some((x) => x !== undefined && x !== null && x !== "");
+    return true;
+  };
+  const isPrimary = (k: string) =>
+    primaryKeys.length === 0 || primaryKeys.includes(k) || showAll || hasValue(k as keyof RefiFilters);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -1039,7 +1264,14 @@ function FilterForm({ filters, onPatch, onClear, primaryKeys }: {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {isPrimary("property_types") && <ChipMulti label="Property type" options={PROPERTY_TYPE_OPTIONS as unknown as {value:string;label:string}[]} selected={filters.property_types ?? []} onChange={(v) => onPatch({ property_types: v as RefiFilters["property_types"] })} />}
         {isPrimary("owner_occupied") && <TriToggle label="Owner-occupied" value={filters.owner_occupied} onChange={(v) => onPatch({ owner_occupied: v ?? undefined })} labels={{ true: "Owner-occupied only", false: "Non-owner-occupied only", null: "Either" }} />}
-        {isPrimary("first_date_range") && <DateRangeField label="First mortgage originated" value={filters.first_date_range ?? {}} onChange={(v) => onPatch({ first_date_range: v })} />}
+        {(isPrimary("first_date_range") || hasValue("first_date_from") || hasValue("first_date_to")) && (
+          <DateRangeField label="First mortgage originated"
+            value={{
+              from: filters.first_date_from ?? filters.first_date_range?.from,
+              to: filters.first_date_to ?? filters.first_date_range?.to,
+            }}
+            onChange={(v) => onPatch({ first_date_from: v.from, first_date_to: v.to, first_date_range: undefined })} />
+        )}
         {isPrimary("first_rate_min") && <NumberRangeField label="Est. interest rate" suffix="%" min={filters.first_rate_min} max={filters.first_rate_max} onChange={(min, max) => onPatch({ first_rate_min: min, first_rate_max: max })} />}
         {isPrimary("first_rate_type") && <ChipMulti label="Rate type" options={RATE_TYPE_OPTIONS as unknown as {value:string;label:string}[]} selected={filters.first_rate_type ?? []} onChange={(v) => onPatch({ first_rate_type: v as RefiFilters["first_rate_type"] })} />}
         {isPrimary("first_loan_type") && <ChipMulti label="Loan program" options={LOAN_TYPE_OPTIONS as unknown as {value:string;label:string}[]} selected={filters.first_loan_type ?? []} onChange={(v) => onPatch({ first_loan_type: v as RefiFilters["first_loan_type"] })} />}
