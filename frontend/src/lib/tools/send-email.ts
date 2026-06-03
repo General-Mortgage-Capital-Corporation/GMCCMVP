@@ -3,6 +3,10 @@ import { z } from "zod";
 import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
 import { getArtifact } from "@/lib/tools/flyer-store";
 import { buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import {
+  verifyDeliverability,
+  describeReason,
+} from "@/lib/email-deliverability";
 
 interface AuthContext {
   userEmail: string;
@@ -64,6 +68,38 @@ export function createSendEmailTool(auth: AuthContext) {
             "Your signature must include your name, title, NMLS#, and contact info. " +
             "The company compliance disclaimer is added automatically.",
         };
+      }
+
+      // Send-time deliverability gate. Only `deliverable` allows the send.
+      // The verifier is cached in Firestore (90d) so repeat verifications of
+      // the same address don't double-spend Bouncer credits. Run right before
+      // sendMailAs so we only spend credits on addresses we're actually about
+      // to send to.
+      const toVerify = await verifyDeliverability(input.to, auth.userEmail);
+      if (toVerify.status !== "deliverable") {
+        return {
+          error:
+            `Refusing to send: recipient ${input.to} is not verified deliverable — ` +
+            `${describeReason(toVerify.status, toVerify.reason)}` +
+            (toVerify.didYouMean
+              ? ` Did you mean ${toVerify.didYouMean}?`
+              : "") +
+            ` Fix the address or skip this send to protect sender reputation.`,
+        };
+      }
+      if (input.cc) {
+        const ccVerify = await verifyDeliverability(input.cc, auth.userEmail);
+        if (ccVerify.status !== "deliverable") {
+          return {
+            error:
+              `Refusing to send: CC ${input.cc} is not verified deliverable — ` +
+              `${describeReason(ccVerify.status, ccVerify.reason)}` +
+              (ccVerify.didYouMean
+                ? ` Did you mean ${ccVerify.didYouMean}?`
+                : "") +
+              ` Remove the CC, fix the address, or skip this send.`,
+          };
+        }
       }
 
       // Build HTML email body with user signature + company disclaimer

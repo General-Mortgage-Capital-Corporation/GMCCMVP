@@ -3,6 +3,7 @@ import { getDb } from "@/lib/firestore-admin";
 import { sendMailAs, checkForReply, isAutoSendAvailable, getOriginalMessageIds } from "@/lib/graph-client";
 import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
+import { readCachedDeliverability, blocksSend } from "@/lib/email-deliverability";
 
 export const runtime = "nodejs";
 // Vercel cron functions can run up to 300s on Hobby (and longer on Pro).
@@ -239,6 +240,24 @@ Use \\n for line breaks in the body. Do not include a signature.`;
       };
 
       if (followUp.mode === "auto-send" && data.userEmail) {
+        // Skip if a prior interactive check already classified this recipient
+        // as anything other than `deliverable`. Auto-sends are batched and
+        // unsupervised, so blasting known-bad addresses is the worst-case
+        // path for sender reputation. We deliberately don't fall through to
+        // a live Bouncer call here — cron volume would burn credits and the
+        // interactive paths populate the cache anyway.
+        const cached = await readCachedDeliverability(data.recipientEmail);
+        if (cached && blocksSend(cached.status)) {
+          console.log(
+            `[cron] Skipping auto-send to ${data.recipientEmail} — cached as ${cached.status}/${cached.reason ?? "?"}`,
+          );
+          updates["followUp.status"] = "skipped_undeliverable";
+          updates["followUp.skippedReason"] = `${cached.status}/${cached.reason ?? "unknown"}`;
+          await doc.ref.update(updates);
+          processed++;
+          continue;
+        }
+
         // Try to find the original message for same-thread reply
         const threadIds = await getOriginalMessageIds(
           data.userEmail, data.subject, data.recipientEmail,

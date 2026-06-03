@@ -22,11 +22,12 @@ This document is the take-over guide. Read it end-to-end before touching anythin
 12. [Data files](#data-files)
 13. [API routes](#api-routes)
 14. [Caching (Upstash Redis)](#caching-upstash-redis)
-15. [Cron jobs](#cron-jobs)
-16. [Analytics (PostHog)](#analytics-posthog)
-17. [Testing](#testing)
-18. [Operational runbook & gotchas](#operational-runbook--gotchas)
-19. [Roadmap / planned work](#roadmap--planned-work)
+15. [Email deliverability (Bouncer)](#email-deliverability-bouncer)
+16. [Cron jobs](#cron-jobs)
+17. [Analytics (PostHog)](#analytics-posthog)
+18. [Testing](#testing)
+19. [Operational runbook & gotchas](#operational-runbook--gotchas)
+20. [Roadmap / planned work](#roadmap--planned-work)
 
 ---
 
@@ -302,6 +303,7 @@ vercel env pull .env
 | `POSTHOG_PERSONAL_API_KEY` | (Dev-only, not deployed) Dashboard API access |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Cache + ratelimit |
 | `REFI_FINDER_PAYMENTS_DISABLED` | Set to `true` to hide Subscribe + Recharge CTAs (coming-soon mode). Mirrors the MLO portal's flag of the same name. Active subscribers and buffer users are unaffected. |
+| `BOUNCER_API_KEY` | Bouncer email-deliverability API. Sends are hard-blocked unless the recipient is verified `deliverable`. Pre-paid non-expiring credits; results cached 90 days in Firestore. Leave unset locally and the system fails open (returns `unknown`, send still blocked client-side). |
 
 > **Retired:** `REFI_FINDER_GROUP_ID` / `REFI_FINDER_GROUP_MAIL` / `REFI_FINDER_ALLOWED_EMAILS` / `REFI_FINDER_ALLOWED_DOMAINS` were retired in May 2026 (Phase 4 of the credit-system migration). The new access gate is subscription state + `meta/refiFinder.bufferAllowlist` in Firestore. Delete these env vars from Vercel.
 
@@ -341,6 +343,7 @@ vercel env pull .env
 | **PostHog** | Product analytics | `NEXT_PUBLIC_POSTHOG_KEY` + `POSTHOG_PERSONAL_API_KEY` |
 | **MLO Pricing engine** | Live rate quotes for pricing tab | `MLO_PRICING_API_*` |
 | **SharePoint** | Source of truth for rate sheets | Microsoft Graph creds |
+| **Bouncer** (usebouncer.com) | Email deliverability verification — gate every outbound LO email | `BOUNCER_API_KEY` |
 
 When you take over, **rotate any shared secrets** (Firebase service account, Azure client secret, RentCast key, PropertyRadar token, AI Gateway key) before doing anything else.
 
@@ -737,13 +740,70 @@ The Python-side wrapper is [matching/cache.py](matching/cache.py). The Next.js w
 
 ---
 
+## Email deliverability (Bouncer)
+
+Every outbound LO email is gated by a real-time Bouncer call. We added this in June 2026 after IT flagged that bounces from RentCast-sourced agent emails were hurting the company's M365 sender reputation. Policy is deliberately strict: only Bouncer's `deliverable` status allows a send — `undeliverable`, `risky`, and `unknown` all block at the UI layer with no override.
+
+### Surfaces guarded
+
+| Surface | File | Behavior on non-deliverable |
+|---|---|---|
+| Single-program email modal | [EmailModal.tsx](frontend/src/components/flier/EmailModal.tsx) | Inline red banner under the field, input border turns red, modal auto-scrolls so the warning is centered. "Did you mean ...?" suggestion is a one-click swap. |
+| Multi-program email modal | [MultiEmailModal.tsx](frontend/src/components/flier/MultiEmailModal.tsx) | Same as single. |
+| Follow-up dashboard manual send | [FollowUpDashboard.tsx](frontend/src/components/FollowUpDashboard.tsx) | Existing red error banner reports the Bouncer reason. |
+| AI agent `sendEmail` tool | [send-email.ts](frontend/src/lib/tools/send-email.ts) | Tool returns a structured `error` with the reason + suggestion. The model reports it back in chat. |
+| Cron auto-send follow-ups | [cron/follow-ups/route.ts](frontend/src/app/api/cron/follow-ups/route.ts) | Reads cache only — **never spends Bouncer credits in cron**. If a prior interactive check classified the recipient as non-deliverable, the follow-up is marked `skipped_undeliverable` and never retries. |
+
+### Verification timing — only at Send
+
+Bouncer credits cost money even though pre-paid, so the system deliberately does **not** verify on typing / blur / form-mount. Verification fires only at the moment of a real Send click (or the agent's `sendEmail` tool execute, which runs after `askForConfirmation`). This means:
+
+- The agent can plan + draft against an address it never ends up sending to without burning a credit.
+- A user opening the modal but cancelling spends nothing.
+- Repeat sends to the same address within 90 days are served from cache → zero new credits.
+
+### Architecture
+
+- **Server lib**: [lib/email-deliverability.ts](frontend/src/lib/email-deliverability.ts) — `verifyDeliverability(email, checkedBy)` (Bouncer call + Firestore write) and `readCachedDeliverability(email)` (cache-only, used by cron). Marked `import "server-only"` so it can't accidentally bundle into the browser.
+- **Pure helpers**: [lib/email-deliverability-types.ts](frontend/src/lib/email-deliverability-types.ts) — types + `describeReason()` + `blocksSend()`. Safe for client components (no firebase-admin transitive imports).
+- **Client API**: [lib/use-email-validation.ts](frontend/src/lib/use-email-validation.ts) — `verifyEmailForSend(email)` + `isSendAllowed(result)`.
+- **Route**: [/api/email/validate](frontend/src/app/api/email/validate/route.ts) — auth-gated POST that wraps `verifyDeliverability`.
+- **Inline notice**: [components/EmailValidationIndicator.tsx](frontend/src/components/EmailValidationIndicator.tsx) — `SendBlockedNotice` rendered after a blocked send.
+
+### Firestore cache
+
+- Collection: `emailValidations`
+- Doc id: `base64url(lowercased email)` — round-trips losslessly, safe for any Firestore path
+- TTL: 90 days (`CACHE_TTL_MS` in `email-deliverability.ts`). After expiry the next send re-verifies.
+- Shared across LOs: same address checked by any LO costs one credit total, not N.
+- Stored: `{ email, status, reason, didYouMean, checkedAt, checkedBy }`. `checkedBy` is audit-only.
+
+### Bouncer status → UI mapping
+
+| Bouncer status | Examples of `reason` | UI |
+|---|---|---|
+| `deliverable` | `accepted_email` | ✅ Send proceeds. |
+| `undeliverable` | `rejected_email`, `no_mx`, `invalid_domain`, `email_disabled`, `inactive_mailbox` | ❌ Hard block. Reason copy from `describeReason()`. |
+| `risky` | `accept_all` (catch-all), `role_based`, `disposable`, `low_quality`, `low_deliverability`, `toxic` | ❌ Hard block. Catch-all domains are blocked under this strict policy — if LOs complain about legitimate corporate catch-alls being rejected, soften `blocksSend()` in `email-deliverability-types.ts`. |
+| `unknown` | `unverifiable`, `transient_failure` | ❌ Hard block with "try again" copy. |
+
+### Fail-open posture
+
+If `BOUNCER_API_KEY` is unset or Bouncer is unreachable, the server returns `unknown`. The client UI still blocks (since `unknown` ≠ `deliverable`), so an outage never silently lets bad sends through — it just makes every send fail until Bouncer is reachable again or the key is configured.
+
+### Self-sends skip verification
+
+"Send to Myself" tabs in both flyer modals skip the check entirely (`tab === "myself"`) — the LO's own address is presumed valid and we don't want to spend credits on it.
+
+---
+
 ## Cron jobs
 
 Two Vercel Cron jobs declared in [frontend/vercel.json](frontend/vercel.json):
 
 | Schedule (UTC) | Path | Purpose |
 |---|---|---|
-| `0 * * * *` (hourly) | `/api/cron/follow-ups` | Scan Firestore `sentEmails`, send follow-up nudges where rules match. |
+| `0 * * * *` (hourly) | `/api/cron/follow-ups` | Scan Firestore `sentEmails`, send follow-up nudges where rules match. Auto-send branch reads the Bouncer cache (`emailValidations`) and skips recipients previously flagged non-deliverable — never spends Bouncer credits in cron. Skipped items are marked `followUp.status = "skipped_undeliverable"`. |
 | `0 17 * * *` (daily 17:00 UTC) | `/api/cron/sync-rate-sheets` | Pull latest rate sheet from SharePoint into Upstash cache. |
 
 Both validate `Authorization: Bearer ${CRON_SECRET}`. To test locally:
@@ -890,6 +950,10 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 - ✅ `REFI_FINDER_PAYMENTS_DISABLED` flag for coordinated soft-launch with MLO portal
 - ✅ Zombie-cookie cleanup in AuthContext
 - ✅ "Use current location" button on radius search
+
+**Shipped June 2026:**
+- ✅ Refi Finder preset UX: filter-value chips on cards + active scenario header, "Modified" badge, "Reset to scenario defaults" button, prominent "Build from scratch" card, every prefilled filter auto-exposed for editing
+- ✅ Bouncer email deliverability gate on all 4 outbound LO email surfaces (single + multi flyer modals, follow-up dashboard, AI agent send tool). Hard block on anything ≠ `deliverable`, 90-day Firestore cache, cron uses cache-only reads
 
 **In flight / queued:**
 - **PR `purchase=0` ownership check**: theoretically lets us serve owned contacts forever at no cost (currently 365-day Redis TTL covers ~99% of cases). 10-min API poke to verify; ~30 min to wire if confirmed. See ["PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-tier).

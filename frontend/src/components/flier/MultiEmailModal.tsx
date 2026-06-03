@@ -11,6 +11,9 @@ import { trackEvent } from "@/lib/posthog";
 import FollowUpToggle from "@/components/FollowUpToggle";
 import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
+import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
+import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
+import type { DeliverabilityResult } from "@/lib/email-deliverability";
 
 type RecipientTab = "realtor" | "borrower" | "myself";
 
@@ -129,6 +132,21 @@ export default function MultiEmailModal({
 
   const loName = user?.displayName || user?.email || "Loan Officer";
   const programsWithFlyer = programs.filter((p) => p.product_id);
+
+  // Send-time deliverability blockers — verify only at click time (see EmailModal).
+  const skipValidation = tab === "myself";
+  const [verifying, setVerifying] = useState(false);
+  const [toBlocked, setToBlocked] = useState<DeliverabilityResult | null>(null);
+  const [ccBlocked, setCcBlocked] = useState<DeliverabilityResult | null>(null);
+  const toFieldRef = useRef<HTMLDivElement | null>(null);
+  const ccFieldRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to the blocked field — the Send button is at the bottom of
+  // the modal so the inline warning could otherwise end up off-screen.
+  useEffect(() => {
+    const target = toBlocked ? toFieldRef.current : ccBlocked ? ccFieldRef.current : null;
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [toBlocked, ccBlocked]);
 
   const realtorEmail = realtorInfo.email;
   const realtorName = realtorInfo.name;
@@ -251,6 +269,29 @@ export default function MultiEmailModal({
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
+
+    // Send-time deliverability gate. Only `deliverable` allows the send — no override.
+    if (!skipValidation) {
+      setVerifying(true);
+      try {
+        const [toResult, ccResult] = await Promise.all([
+          verifyEmailForSend(toEmail.trim()),
+          ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
+        ]);
+        let blocked = false;
+        if (!isSendAllowed(toResult) && toResult) {
+          setToBlocked(toResult);
+          blocked = true;
+        }
+        if (ccEmail.trim() && !isSendAllowed(ccResult) && ccResult) {
+          setCcBlocked(ccResult);
+          blocked = true;
+        }
+        if (blocked) return;
+      } finally {
+        setVerifying(false);
+      }
+    }
 
     setError(null);
     setSending(true);
@@ -477,33 +518,47 @@ export default function MultiEmailModal({
                       />
                     </div>
                   )}
-                  <div>
+                  <div ref={toFieldRef}>
                     <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
                       To Email
                     </label>
                     <input
                       type="email"
                       value={toEmail}
-                      onChange={(e) => setToEmail(e.target.value)}
+                      onChange={(e) => { setToEmail(e.target.value); if (toBlocked) setToBlocked(null); }}
                       readOnly={tab === "myself"}
                       placeholder="recipient@example.com"
-                      className={`w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
+                      className={`w-full rounded-md border ${toBlocked ? "border-red-300" : "border-gray-200"} px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
                         tab === "myself" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
+                    {toBlocked && (
+                      <SendBlockedNotice
+                        result={toBlocked}
+                        onApplySuggestion={(s) => { setToEmail(s); setToBlocked(null); }}
+                        onDismiss={() => setToBlocked(null)}
+                      />
+                    )}
                   </div>
                   {tab !== "myself" && (
-                    <div>
+                    <div ref={ccFieldRef}>
                       <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
                         CC <span className="normal-case font-normal text-gray-400">(optional)</span>
                       </label>
                       <input
                         type="email"
                         value={ccEmail}
-                        onChange={(e) => setCcEmail(e.target.value)}
+                        onChange={(e) => { setCcEmail(e.target.value); if (ccBlocked) setCcBlocked(null); }}
                         placeholder="cc@example.com"
-                        className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className={`w-full rounded-md border ${ccBlocked ? "border-red-300" : "border-gray-200"} px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400`}
                       />
+                      {ccBlocked && (
+                        <SendBlockedNotice
+                          result={ccBlocked}
+                          onApplySuggestion={(s) => { setCcEmail(s); setCcBlocked(null); }}
+                          onDismiss={() => setCcBlocked(null)}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -700,11 +755,11 @@ export default function MultiEmailModal({
                     </button>
                     <button
                       onClick={handleSend}
-                      disabled={sending}
+                      disabled={sending || verifying}
                       className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
-                      {sending && <LoadingSpinner size="sm" />}
-                      {sending ? sendProgress || "Sending..." : "Send Email"}
+                      {(sending || verifying) && <LoadingSpinner size="sm" />}
+                      {verifying ? "Verifying…" : sending ? sendProgress || "Sending..." : "Send Email"}
                     </button>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { authedFetch } from "@/lib/authed-fetch";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -11,6 +11,9 @@ import { trackEvent } from "@/lib/posthog";
 import FollowUpToggle from "@/components/FollowUpToggle";
 import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
+import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
+import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
+import type { DeliverabilityResult } from "@/lib/email-deliverability";
 
 type RecipientTab = "myself" | "realtor" | "borrower";
 
@@ -90,6 +93,27 @@ export default function EmailModal({
   const [sigOk, setSigOk] = useState(() => hasSignature());
 
   const loName = user?.displayName || user?.email || "Loan Officer";
+
+  // Send-time deliverability blockers (Bouncer w/ Firestore cache). We never
+  // verify on input change — only when the user actually clicks Send — to
+  // keep credit consumption minimal. State below holds the most recent
+  // failed result so the inline notice persists until the user edits the
+  // address (which clears the corresponding state).
+  const skipValidation = tab === "myself";
+  const [verifying, setVerifying] = useState(false);
+  const [toBlocked, setToBlocked] = useState<DeliverabilityResult | null>(null);
+  const [ccBlocked, setCcBlocked] = useState<DeliverabilityResult | null>(null);
+  const toFieldRef = useRef<HTMLDivElement | null>(null);
+  const ccFieldRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to the blocked field so the user sees the inline warning —
+  // the Send button lives at the bottom of the modal, so without this the
+  // warning could end up off-screen. `to` wins over `cc` since fixing the
+  // primary recipient often resolves both.
+  useEffect(() => {
+    const target = toBlocked ? toFieldRef.current : ccBlocked ? ccFieldRef.current : null;
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [toBlocked, ccBlocked]);
 
   // Populate fields when tab, user, or realtor info changes
   // Using primitive fields from realtorInfo to avoid object-reference instability
@@ -178,6 +202,32 @@ export default function EmailModal({
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
+
+    // Send-time deliverability gate. Only `deliverable` lets the send proceed;
+    // anything else (undeliverable, risky, unknown) blocks. No override —
+    // bouncing here hurts the company's M365 sender reputation. Self-sends
+    // skip the check since the LO's own address is presumed valid.
+    if (!skipValidation) {
+      setVerifying(true);
+      try {
+        const [toResult, ccResult] = await Promise.all([
+          verifyEmailForSend(toEmail.trim()),
+          ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
+        ]);
+        let blocked = false;
+        if (!isSendAllowed(toResult) && toResult) {
+          setToBlocked(toResult);
+          blocked = true;
+        }
+        if (ccEmail.trim() && !isSendAllowed(ccResult) && ccResult) {
+          setCcBlocked(ccResult);
+          blocked = true;
+        }
+        if (blocked) return;
+      } finally {
+        setVerifying(false);
+      }
+    }
 
     setError(null);
     setSending(true);
@@ -359,33 +409,47 @@ export default function EmailModal({
                       />
                     </div>
                   )}
-                  <div>
+                  <div ref={toFieldRef}>
                     <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                       To Email
                     </label>
                     <input
                       type="email"
                       value={toEmail}
-                      onChange={(e) => setToEmail(e.target.value)}
+                      onChange={(e) => { setToEmail(e.target.value); if (toBlocked) setToBlocked(null); }}
                       readOnly={tab === "myself"}
                       placeholder="recipient@example.com"
-                      className={`w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
+                      className={`w-full rounded-md border ${toBlocked ? "border-red-300" : "border-gray-200"} px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 ${
                         tab === "myself" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
+                    {toBlocked && (
+                      <SendBlockedNotice
+                        result={toBlocked}
+                        onApplySuggestion={(s) => { setToEmail(s); setToBlocked(null); }}
+                        onDismiss={() => setToBlocked(null)}
+                      />
+                    )}
                   </div>
                   {tab !== "myself" && (
-                    <div>
+                    <div ref={ccFieldRef}>
                       <label className="mb-0.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                         CC <span className="normal-case font-normal text-gray-400">(optional)</span>
                       </label>
                       <input
                         type="email"
                         value={ccEmail}
-                        onChange={(e) => setCcEmail(e.target.value)}
+                        onChange={(e) => { setCcEmail(e.target.value); if (ccBlocked) setCcBlocked(null); }}
                         placeholder="cc@example.com"
-                        className="w-full rounded-md border border-gray-200 px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className={`w-full rounded-md border ${ccBlocked ? "border-red-300" : "border-gray-200"} px-3.5 py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400`}
                       />
+                      {ccBlocked && (
+                        <SendBlockedNotice
+                          result={ccBlocked}
+                          onApplySuggestion={(s) => { setCcEmail(s); setCcBlocked(null); }}
+                          onDismiss={() => setCcBlocked(null)}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -533,11 +597,11 @@ export default function EmailModal({
                     </button>
                     <button
                       onClick={handleSend}
-                      disabled={sending}
+                      disabled={sending || verifying}
                       className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
-                      {sending && <LoadingSpinner size="sm" />}
-                      {sending ? "Sending…" : "Send Email"}
+                      {(sending || verifying) && <LoadingSpinner size="sm" />}
+                      {verifying ? "Verifying…" : sending ? "Sending…" : "Send Email"}
                     </button>
                   </div>
                 </div>

@@ -7,6 +7,8 @@ import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/li
 import LoadingSpinner from "@/components/LoadingSpinner";
 import type { FollowUpListItem } from "@/types/follow-up";
 import { trackEvent } from "@/lib/posthog";
+import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
+import { describeReason } from "@/lib/email-deliverability-types";
 
 type ViewTab = "follow-ups" | "sent" | "replied";
 
@@ -128,6 +130,18 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
     setSending(true);
     setSendError(null);
     try {
+      // Send-time deliverability gate. Hard-block (no override) when the
+      // address is anything other than `deliverable`. Cached on the server
+      // (90d), so the original send already populated the result in most cases.
+      const v = await verifyEmailForSend(item.recipientEmail);
+      if (v && !isSendAllowed(v)) {
+        setSendError(
+          `Can't send to ${item.recipientEmail} — ${describeReason(v.status, v.reason)}`,
+        );
+        setSending(false);
+        return;
+      }
+
       const msalToken = await getMsalAccessToken(emailRequest.scopes);
       if (!msalToken) { setSendError("Could not get email permission."); return; }
 
