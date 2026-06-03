@@ -527,7 +527,7 @@ export default function RefiFinderTab({
     try {
       const limit = limitOverride ?? PAGE_SIZE;
       const serverPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
-      const endpoint = creditMode ? "/api/refi/unlock-search" : "/api/refi/search";
+      const endpoint = "/api/refi/unlock-search";
       const reqBody: Record<string, unknown> = {
         preset_id: activePresetId,
         geography: geoForRequest,
@@ -627,23 +627,19 @@ export default function RefiFinderTab({
       return;
     }
     try {
-      const endpoint = creditMode
-        ? "/api/refi/unlock-contact-paid"
-        : "/api/refi/unlock-contact";
-      const reqBody: Record<string, unknown> = creditMode
-        ? {
-            // creditMode endpoint takes structured rows with per-channel flags.
-            // The bulk action always requests both email+text — single-channel
-            // reveals come in through runRevealChannel (per-row buttons).
-            rows: selectedRows.map((r) => ({
-              radar_id: r.RadarID,
-              address: formatFullAddress(r),
-              owner_name: formatOwnerName(r),
-              email: true,
-              text: true,
-            })),
-          }
-        : { radar_ids: radarIds, phone: true, email: true };
+      const endpoint = "/api/refi/unlock-contact-paid";
+      // Endpoint takes structured rows with per-channel flags.
+      // The bulk action always requests both email+text — single-channel
+      // reveals come in through runRevealChannel (per-row buttons).
+      const reqBody: Record<string, unknown> = {
+        rows: selectedRows.map((r) => ({
+          radar_id: r.RadarID,
+          address: formatFullAddress(r),
+          owner_name: formatOwnerName(r),
+          email: true,
+          text: true,
+        })),
+      };
       const res = await authedFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

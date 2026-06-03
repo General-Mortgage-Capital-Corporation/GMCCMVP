@@ -96,6 +96,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Per-row request summary. We index by radar_id for the post-PR walk.
+  // Duplicate radar_ids are rejected: PR returns one entry per id, so the
+  // refund-walk would only credit back one occurrence — every extra
+  // duplicate row silently burns 1-2 contact credits for the user.
   const requested: Record<
     string,
     { address: string; ownerName?: string; wantEmail: boolean; wantText: boolean }
@@ -104,6 +107,12 @@ export async function POST(req: NextRequest) {
   for (const row of body.rows) {
     if (!row.radar_id) {
       return NextResponse.json({ error: "row_missing_radar_id" }, { status: 400 });
+    }
+    if (requested[row.radar_id]) {
+      return NextResponse.json(
+        { error: "duplicate_radar_id", radar_id: row.radar_id },
+        { status: 400 },
+      );
     }
     const wantEmail = !!row.email;
     const wantText = !!row.text;

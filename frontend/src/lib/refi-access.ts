@@ -7,10 +7,12 @@
  * lib/refi-credits/subscription.ts). This file only does auth: it verifies
  * the Firebase ID token and returns the caller's email.
  *
- * Kept the `requireRefiAccess` + `withRefiAccess` API so the legacy routes
- * under /api/refi/{search,unlock-contact,preview,presets,quota} keep
- * compiling. Those routes never charge credits — they're the old free-tier
- * path. The credit-deducting routes (/api/refi/unlock-search,
+ * Kept the `requireRefiAccess` + `withRefiAccess` API for the read-only
+ * routes under /api/refi/{preview,presets,quota,unlock-preview} which
+ * return non-billable metadata (no PR contact reveals). The legacy
+ * /api/refi/search + /api/refi/unlock-contact routes were deleted —
+ * they wrapped paid PropertyRadar calls without charging credits, which
+ * was a paywall bypass. Credit-deducting routes (/api/refi/unlock-search,
  * /unlock-contact-paid) call resolveSubscription directly and don't go
  * through this file.
  */
