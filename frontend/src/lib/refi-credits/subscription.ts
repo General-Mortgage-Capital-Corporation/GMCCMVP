@@ -79,6 +79,19 @@ export async function resolveSubscription(
 
   const isInCycle = cycleEndsAt.getTime() > Date.now();
   if (!isInCycle) {
+    // P1-7: if auto-renew is on and we're only just past cycleEndsAt, the
+    // Bill.com webhook is probably still in flight (we've seen 10+ min
+    // delays). Render "Renewal processing" instead of "Resubscribe" so the
+    // user doesn't double-pay. After the window, fall through to expired
+    // — the renewal genuinely failed at that point.
+    const cycleEndedMsAgo = Date.now() - cycleEndsAt.getTime();
+    if (!sub.autoRenewCanceled && cycleEndedMsAgo < RENEWAL_WINDOW_MS) {
+      return {
+        state: "renewing",
+        email: normalized,
+        lastCycleEndedAt: cycleEndsAt,
+      };
+    }
     return { state: "expired", email: normalized, cycleEndsAt };
   }
 
@@ -94,7 +107,13 @@ export async function resolveSubscription(
   };
 }
 
-/** True if the user is allowed to take a paid unlock action right now. */
+/** Grace window after cycleEndsAt during which we trust auto-renew to land
+ *  and render "Renewal processing" instead of the Resubscribe CTA. */
+const RENEWAL_WINDOW_MS = 30 * 60 * 1000;
+
+/** True if the user is allowed to take a paid unlock action right now.
+ *  `renewing` users intentionally cannot unlock — the pack is past expiry
+ *  and the deduct transaction would fail anyway. */
 export function canUnlock(status: SubscriptionStatus): boolean {
   return status.state === "active" || status.state === "buffer";
 }

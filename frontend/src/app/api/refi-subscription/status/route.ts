@@ -49,6 +49,9 @@ function serializeStatus(
   if (s.state === "active") {
     return { ...s, cycleEndsAt: s.cycleEndsAt.toISOString() };
   }
+  if (s.state === "renewing") {
+    return { ...s, lastCycleEndedAt: s.lastCycleEndedAt.toISOString() };
+  }
   if (s.state === "expired") {
     return { ...s, cycleEndsAt: s.cycleEndsAt?.toISOString() ?? null };
   }

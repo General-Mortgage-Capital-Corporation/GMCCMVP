@@ -35,6 +35,16 @@ export interface RefiSubscription {
   autoRenewCanceled?: boolean;
   billcomRecurringInvoiceId?: string;
   nextBillingDate?: Timestamp;
+  paymentStatus?: string;
+  /** Set by /api/refi-subscription/subscribe after the cloud function
+   *  returns an invoice URL — lets a subsequent subscribe call return the
+   *  SAME open invoice instead of creating a second one. Cleared by the
+   *  Bill.com webhook on successful payment. */
+  pendingSubscribe?: {
+    paymentUrl: string;
+    invoiceId: string;
+    createdAt: Timestamp;
+  };
 }
 
 /** creditPacks/company_buffer — drains for users on bufferAllowlist. */
@@ -127,6 +137,17 @@ export type SubscriptionStatus =
       /** Lowercased email. */
       email: string;
       balance: { contact: number; property: number };
+    }
+  /** Transient window after `cycleEndsAt` passed but BEFORE the Bill.com
+   *  renewal webhook has reset the pack. Auto-renew users only. UI shows
+   *  "Renewal processing" instead of the Resubscribe CTA so the user
+   *  doesn't double-pay if the webhook takes longer than usual. After the
+   *  RENEWAL_WINDOW expires we fall back to "expired" — at that point the
+   *  renewal genuinely failed. */
+  | {
+      state: "renewing";
+      email: string;
+      lastCycleEndedAt: Date;
     }
   | {
       state: "expired";

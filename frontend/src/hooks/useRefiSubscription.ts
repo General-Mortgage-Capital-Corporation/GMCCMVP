@@ -35,6 +35,13 @@ type SubscriptionStatusBase =
       balance: { contact: number; property: number };
     }
   | {
+      /** Grace window: cycle just ended but auto-renew is pending. UI
+       *  shows "Renewal processing" so the user doesn't double-pay. */
+      state: "renewing";
+      email: string;
+      lastCycleEndedAt: string; // ISO
+    }
+  | {
       state: "expired";
       email: string;
       cycleEndsAt: string | null;

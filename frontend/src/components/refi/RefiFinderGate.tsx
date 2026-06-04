@@ -93,6 +93,37 @@ export default function RefiFinderGate({
   // and buffer users are unaffected (caught by the active/buffer branch above).
   const paymentsEnabled = status.paymentsEnabled !== false;
 
+  if (status.state === "renewing") {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden
+            className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center"
+          >
+            <span className="inline-block h-3 w-3 rounded-full bg-amber-500 animate-pulse" />
+          </span>
+          <div className="space-y-2">
+            <h2 className="text-base font-semibold text-amber-900">
+              Renewal processing
+            </h2>
+            <p className="text-sm text-amber-900/80 leading-relaxed">
+              Your last cycle ended on{" "}
+              {new Date(status.lastCycleEndedAt).toLocaleDateString()} and your
+              auto-renewal is in flight. Bill.com usually confirms within a few
+              minutes — your credits will refresh automatically and you don&apos;t
+              need to do anything.
+            </p>
+            <p className="text-xs text-amber-800/70">
+              If this is still showing after ~30 minutes the renewal may have
+              failed — refresh the page and we&apos;ll show a Resubscribe button if so.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (status.state === "expired") {
     return (
       <PitchPanel
