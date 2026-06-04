@@ -142,7 +142,10 @@ export async function POST(req: NextRequest) {
   const pool = await resolvePool(verified.email);
 
   // 1. Atomic deduction up front (estimated max — refunds below if PR didn't deliver).
+  // cycleId pins the cycle this deduction landed on so refunds below can
+  // target the original cycle's usage counter even if PR straddles midnight.
   let balanceAfterDeduct: { contact: number; property: number };
+  let cycleId: string;
   try {
     const ded = await deductCredits({
       email: verified.email,
@@ -150,6 +153,7 @@ export async function POST(req: NextRequest) {
       amount: { contact: contactNeeded, property: 0 },
     });
     balanceAfterDeduct = ded.balanceAfter;
+    cycleId = ded.cycleId;
   } catch (e) {
     if (e instanceof InsufficientCreditsError) {
       return NextResponse.json(
@@ -205,6 +209,7 @@ export async function POST(req: NextRequest) {
       email: verified.email,
       pool,
       amount: { contact: contactNeeded, property: 0 },
+      cycleId,
     }).catch((rerr) =>
       console.error("[unlock-contact-paid] refund failed:", rerr),
     );
@@ -367,6 +372,7 @@ export async function POST(req: NextRequest) {
         email: verified.email,
         pool,
         amount: { contact: refundContact, property: 0 },
+        cycleId,
       });
       finalBalance = ref.balanceAfter;
     } catch (rerr) {

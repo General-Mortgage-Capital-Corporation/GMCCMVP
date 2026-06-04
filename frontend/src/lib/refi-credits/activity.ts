@@ -54,7 +54,11 @@ export async function logActivity(input: LogActivityInput): Promise<string> {
     drewFromBuffer: input.drewFromBuffer,
     balanceAfter: input.balanceAfter,
   };
-  if (input.action === "unlock_failed" && input.failureReason) {
+  if (
+    (input.action === "unlock_failed" ||
+      input.action === "refund_skipped_rollover") &&
+    input.failureReason
+  ) {
     payload.failureReason = input.failureReason;
   }
   if (input.revealedValue) {

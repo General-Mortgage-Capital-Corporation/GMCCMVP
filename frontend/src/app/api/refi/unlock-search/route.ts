@@ -107,7 +107,10 @@ export async function POST(req: NextRequest) {
   delete pyBody.confirmedLimit;
 
   // 1. Atomic deduction. property credits = N rows; no contact credits here.
+  // cycleId pins the cycle this deduction landed on so any refund below can
+  // target the original cycle's usage counter even if PR straddles midnight.
   let balanceAfter: { contact: number; property: number };
+  let cycleId: string;
   try {
     const ded = await deductCredits({
       email: verified.email,
@@ -115,6 +118,7 @@ export async function POST(req: NextRequest) {
       amount: { contact: 0, property: limit },
     });
     balanceAfter = ded.balanceAfter;
+    cycleId = ded.cycleId;
   } catch (e) {
     if (e instanceof InsufficientCreditsError) {
       return NextResponse.json(
@@ -135,6 +139,7 @@ export async function POST(req: NextRequest) {
       email: verified.email,
       pool,
       amount: { contact: 0, property: limit },
+      cycleId,
     }).catch((rerr) =>
       console.error("[unlock-search] refund failed:", rerr),
     );
@@ -174,6 +179,7 @@ export async function POST(req: NextRequest) {
         email: verified.email,
         pool,
         amount: { contact: 0, property: propertyRefund },
+        cycleId,
       });
       finalBalance = ref.balanceAfter;
     } catch (rerr) {

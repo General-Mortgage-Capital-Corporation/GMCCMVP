@@ -132,22 +132,74 @@ export async function deductCredits(
  * Atomic inverse of deductCredits — call when PropertyRadar fails after a
  * successful deduction so the user doesn't lose credits on our errors.
  *
- * Re-increments the pool, decrements the usage counter. Activity-log entry
- * with action: "unlock_failed" is the caller's responsibility — see
- * logActivity().
+ * Requires the `cycleId` returned by the original `deductCredits` call. If
+ * the cycle has rolled over since the deduction (PR call straddled
+ * midnight on the plan anniversary), the refund:
+ *   - DECREMENTS the ORIGINAL cycle's usage counter (so company-usage
+ *     accounting stays internally consistent — the original +N is paired
+ *     with this -N on the same cycle doc).
+ *   - SKIPS the pack write — the Bill.com webhook will already have
+ *     hard-reset the user's pack to a fresh 200/5000 on renewal; writing
+ *     `have + amount` here would over-credit (e.g. 205/5005).
+ *   - Returns `skippedPackWrite: true` so the caller can log a sentinel
+ *     activity entry (action: "refund_skipped_rollover").
+ *
+ * Otherwise behaves as before: re-increments the pool AND decrements the
+ * (same) cycle's usage counter atomically. Activity-log entry with action
+ * "unlock_failed" remains the caller's responsibility.
  */
 export async function refundCredits(
-  ctx: DeductionContext,
-): Promise<{ balanceAfter: { contact: number; property: number } }> {
+  ctx: DeductionContext & { cycleId: string },
+): Promise<{
+  balanceAfter: { contact: number; property: number };
+  skippedPackWrite: boolean;
+  cycleRolled: boolean;
+}> {
   const db = getDb();
   if (!db) throw new Error("[refi-credits/deduct] Firestore not initialized");
 
   validateAmount(ctx.amount);
   const meta = await getRefiMeta();
+  const cycleRolled = meta.currentCycleId !== ctx.cycleId;
+
+  // Always target the ORIGINAL cycle's usage doc so accounting stays paired
+  // with the deduction. If the cycle hasn't rolled, this is also the current
+  // cycle — no behavior change for the common case.
+  const usageDocRef = db.doc(`creditPacks/company_usage_${ctx.cycleId}`);
   const poolDocRef = db.doc(ctx.pool.poolRef);
-  const usageDocRef = db.doc(`creditPacks/company_usage_${meta.currentCycleId}`);
 
   return db.runTransaction(async (tx) => {
+    // Always decrement the original cycle's usage counter — accounting must
+    // stay symmetric with the deduction regardless of rollover.
+    tx.set(
+      usageDocRef,
+      {
+        contactCreditsUsed: FieldValue.increment(-ctx.amount.contact),
+        propertyCreditsUsed: FieldValue.increment(-ctx.amount.property),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    if (cycleRolled) {
+      // Webhook (per-user pack) or lazy reset (buffer) will have already
+      // restored credits at cycle boundary. Don't double-credit.
+      const poolSnap = await tx.get(poolDocRef);
+      const poolData = (poolSnap.data() ?? {}) as {
+        contactCredits?: number;
+        propertyCredits?: number;
+      };
+      return {
+        balanceAfter: {
+          contact: poolData.contactCredits ?? 0,
+          property: poolData.propertyCredits ?? 0,
+        },
+        skippedPackWrite: true,
+        cycleRolled: true,
+      };
+    }
+
+    // Same-cycle refund — original behavior.
     const poolSnap = await tx.get(poolDocRef);
     const poolData = (poolSnap.data() ?? {}) as {
       contactCredits?: number;
@@ -168,17 +220,7 @@ export async function refundCredits(
       { merge: true },
     );
 
-    tx.set(
-      usageDocRef,
-      {
-        contactCreditsUsed: FieldValue.increment(-ctx.amount.contact),
-        propertyCreditsUsed: FieldValue.increment(-ctx.amount.property),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    return { balanceAfter };
+    return { balanceAfter, skippedPackWrite: false, cycleRolled: false };
   });
 }
 

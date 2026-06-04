@@ -36,6 +36,7 @@ const ACTION_LABEL: Record<ActivityAction, string> = {
   unlock_email: "Revealed email",
   unlock_text: "Revealed text",
   unlock_failed: "Failed (refunded)",
+  refund_skipped_rollover: "Failed (cycle rolled — see details)",
 };
 
 export default function ActivityLogTable() {

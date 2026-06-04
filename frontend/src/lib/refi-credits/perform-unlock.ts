@@ -55,7 +55,10 @@ export async function performUnlock(
   validateConsistency(input);
 
   // 1. Atomic deduction. Throws InsufficientCreditsError on short balance.
-  const { balanceAfter } = await deductCredits({
+  //    cycleId pins the cycle the original deduction landed on, so a
+  //    refund that fires after midnight on plan-anniversary day can target
+  //    the correct usage doc + skip the pack write (webhook already reset).
+  const { balanceAfter, cycleId } = await deductCredits({
     email: input.email,
     pool: input.pool,
     amount: input.amount,
@@ -66,7 +69,7 @@ export async function performUnlock(
   try {
     prResult = await input.call(balanceAfter);
   } catch (err) {
-    await safeRefundAndLogFailure(input, err);
+    await safeRefundAndLogFailure(input, cycleId, err);
     throw err;
   }
 
@@ -91,14 +94,18 @@ export async function performUnlock(
 
 async function safeRefundAndLogFailure(
   input: UnlockRunInput,
+  cycleId: string,
   err: unknown,
 ): Promise<void> {
+  let cycleRolled = false;
   try {
-    await refundCredits({
+    const refundResult = await refundCredits({
       email: input.email,
       pool: input.pool,
       amount: input.amount,
+      cycleId,
     });
+    cycleRolled = refundResult.cycleRolled;
   } catch (refundErr) {
     // Refund failure is bad — surface in logs but don't mask the original PR
     // error (the caller's catch block needs to see what actually failed).
@@ -106,7 +113,7 @@ async function safeRefundAndLogFailure(
   }
 
   try {
-    // Log a single unlock_failed entry summarizing the whole batch.
+    // Standard unlock_failed entry summarizing the batch.
     await logActivity({
       email: input.email,
       action: "unlock_failed",
@@ -118,6 +125,24 @@ async function safeRefundAndLogFailure(
       balanceAfter: { contact: 0, property: 0 },
       failureReason: String(err),
     });
+
+    // Sentinel entry when the cycle rolled mid-flow — pack was NOT credited
+    // back (webhook already reset it), but the original cycle's usage
+    // counter WAS decremented. Surfaces in user history + audit for
+    // reconciliation visibility.
+    if (cycleRolled) {
+      await logActivity({
+        email: input.email,
+        action: "refund_skipped_rollover",
+        propertyId: input.rowActions[0]?.propertyId ?? "unknown",
+        propertyAddress: input.rowActions[0]?.propertyAddress ?? "unknown",
+        creditsUsed: input.amount,
+        propertyRadarRef: "n/a",
+        drewFromBuffer: input.pool.drewFromBuffer,
+        balanceAfter: { contact: 0, property: 0 },
+        failureReason: `cycle rolled mid-flow (original cycle=${cycleId}); pack already reset by webhook so refund skipped`,
+      });
+    }
   } catch (logErr) {
     console.error("[refi-credits] failed to log unlock_failed entry:", logErr);
   }

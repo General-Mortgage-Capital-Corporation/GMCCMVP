@@ -39,12 +39,19 @@ export function computeCycleStart(
   now: Date = new Date(),
 ): Date {
   const day = now.getUTCDate();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
   if (day >= planAnniversary) {
-    return new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), planAnniversary),
-    );
+    // Clamp to current month's last day so anniversary 31 in a short month
+    // (e.g. Feb 28 / Apr 30) doesn't roll forward into the next month.
+    const lastDayThis = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const clamped = Math.min(planAnniversary, lastDayThis);
+    return new Date(Date.UTC(y, m, clamped));
   }
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, planAnniversary),
-  );
+  // Same clamp for the PREVIOUS month — fixes the silent overflow where
+  // Date.UTC(2026, 1 /*Feb*/, 31) resolves to March 3 today, triggering
+  // an early buffer reset for any planAnniversary ∈ [29..31].
+  const lastDayPrev = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const clamped = Math.min(planAnniversary, lastDayPrev);
+  return new Date(Date.UTC(y, m - 1, clamped));
 }

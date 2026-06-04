@@ -88,7 +88,7 @@ async function main() {
     expect(ded.balanceAfter.property === before.property - 1, "property decremented");
     ok("deduct(1,1) decrements buffer + bumps usage counter");
 
-    const ref = await refundCredits(ctx);
+    const ref = await refundCredits({ ...ctx, cycleId: ded.cycleId });
     console.log("  refund(1,1) → balanceAfter:", ref.balanceAfter);
     expect(ref.balanceAfter.contact === before.contact, "contact restored");
     expect(ref.balanceAfter.property === before.property, "property restored");

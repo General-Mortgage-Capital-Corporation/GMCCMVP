@@ -65,7 +65,13 @@ export type ActivityAction =
   | "unlock_property"
   | "unlock_email"
   | "unlock_text"
-  | "unlock_failed";
+  | "unlock_failed"
+  /** Refund attempted after the per-user cycle had already rolled over —
+   *  the Bill.com webhook hard-resets the pack on renewal, so writing the
+   *  refund onto the new pack would over-credit (200 + N instead of 200).
+   *  We skip the pack write but still decrement the ORIGINAL cycle's
+   *  usage counter, and log this entry so accounting + audit are visible. */
+  | "refund_skipped_rollover";
 
 /** users/{email}/refiFinderActivity/{auto-id} — one entry per discrete user action. */
 export interface ActivityEntry {
