@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { signInErrorMessage } from "@/lib/msal-config";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function SignInButton() {
@@ -12,8 +13,8 @@ export default function SignInButton() {
     setError(null);
     try {
       await signIn();
-    } catch {
-      setError("Sign-in failed. Make sure pop-ups are allowed.");
+    } catch (err) {
+      setError(signInErrorMessage(err));
     }
   }
 

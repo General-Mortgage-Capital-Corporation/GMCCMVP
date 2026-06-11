@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { exchangeMsalForFirebase, type FirebaseUser } from "@/lib/firebase-auth";
-import { msalConfig, loginRequest } from "@/lib/msal-config";
+import { msalConfig, loginRequest, msalErrorCode } from "@/lib/msal-config";
 import { trackEvent } from "@/lib/posthog";
 import { registerAuthTokenGetter } from "@/lib/auth-token";
 
@@ -18,9 +18,11 @@ interface AuthContextValue {
   loading: boolean;
   signIn: () => Promise<FirebaseUser>;
   /**
-   * Try to sign in WITHOUT a popup using Microsoft's session cookie via
-   * MSAL ssoSilent. Used by /login on first mount so users coming from the
-   * MLO portal (same Azure tenant) don't have to click "Sign in" again.
+   * Try to sign in WITHOUT a popup. Tries the cached MSAL account first
+   * (acquireTokenSilent), then — when a loginHint is provided — Microsoft's
+   * session cookie via ssoSilent. Used by /login on first mount so users
+   * coming from the MLO portal (same Azure tenant) and returning users with
+   * a local MSAL cache don't have to click "Sign in" again.
    * Returns null if interaction is required (no MS session, blocked iframe,
    * etc.) — caller should fall back to the regular sign-in button.
    */
@@ -71,6 +73,53 @@ async function getMsal() {
   return _msalInstance;
 }
 
+/**
+ * Pick the cached MSAL account matching the given email, falling back to the
+ * first cached account. Users signed in to several Microsoft accounts can
+ * have multiple entries cached — blindly using accounts[0] silently renews
+ * tokens for the wrong one.
+ */
+function pickAccount(
+  accounts: import("@azure/msal-browser").AccountInfo[],
+  email?: string | null,
+): import("@azure/msal-browser").AccountInfo {
+  if (email) {
+    const match = accounts.find(
+      (a) => a.username?.toLowerCase() === email.toLowerCase(),
+    );
+    if (match) return match;
+  }
+  return accounts[0];
+}
+
+// Single-flight guard for the MSAL-refresh → Firebase-exchange chain. When a
+// page loads with an expired token, every on-mount API call hits getIdToken
+// at once; without this they each ran their own refresh — a dozen parallel
+// exchangeMsalToken calls for one user. The Cloud Function then races
+// setCustomUserClaims against itself and Firebase's per-account write limit
+// (~1/sec) rejects the losers with auth/quota-exceeded ("Operation too
+// fast"), randomly failing sign-ins. Concurrent callers now share one
+// in-flight refresh.
+let _refreshInFlight: Promise<FirebaseUser> | null = null;
+
+function refreshFirebaseUser(email?: string | null): Promise<FirebaseUser> {
+  if (!_refreshInFlight) {
+    _refreshInFlight = (async () => {
+      const msal = await getMsal();
+      const accounts = msal.getAllAccounts();
+      if (accounts.length === 0) throw new Error("No cached MSAL account");
+      const tokenResponse = await msal.acquireTokenSilent({
+        ...loginRequest,
+        account: pickAccount(accounts, email),
+      });
+      return await exchangeMsalForFirebase(tokenResponse.accessToken);
+    })().finally(() => {
+      _refreshInFlight = null;
+    });
+  }
+  return _refreshInFlight;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(false);
@@ -101,11 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return;
             }
             try {
-              const tokenResponse = await msal.acquireTokenSilent({
-                ...loginRequest,
-                account: accounts[0],
-              });
-              const refreshed = await exchangeMsalForFirebase(tokenResponse.accessToken);
+              const refreshed = await refreshFirebaseUser(parsed.email);
               setUser(refreshed);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
             } catch {
@@ -135,17 +180,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const msal = await getMsal();
-      const accounts = msal.getAllAccounts();
-
-      let tokenResponse;
-      if (accounts.length > 0) {
-        // Try silent first
-        tokenResponse = await msal
-          .acquireTokenSilent({ ...loginRequest, account: accounts[0] })
-          .catch(() => msal.loginPopup(loginRequest));
-      } else {
-        tokenResponse = await msal.loginPopup(loginRequest);
-      }
+      // Go STRAIGHT to the popup — no acquireTokenSilent here. A silent
+      // attempt between the click and window.open can take seconds (token
+      // redemption, hidden-iframe renewal), which consumes the browser's
+      // transient user activation (~5s in Chrome, stricter in Safari); the
+      // fallback popup then gets blocked even when pop-ups are allowed.
+      // Silent restoration happens on /login mount via signInSilent instead,
+      // so by the time anyone clicks this, silent has already been tried.
+      const tokenResponse = await msal.loginPopup(loginRequest);
 
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
@@ -161,6 +203,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return firebaseUser;
     } catch (err) {
       console.error("Sign-in failed:", err);
+      // Surface real failure causes in PostHog — before this, every failure
+      // (popup blocked, Firebase exchange 4xx/5xx, network) looked identical
+      // from the outside and got blamed on pop-up blockers.
+      trackEvent("sign_in_failed", {
+        code: msalErrorCode(err),
+        message: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     } finally {
       setLoading(false);
@@ -170,24 +219,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInSilent = useCallback(async (loginHint?: string): Promise<FirebaseUser | null> => {
     try {
       const msal = await getMsal();
-      // ssoSilent uses an iframe to the Microsoft authorize endpoint — works
-      // when the browser has a valid login.microsoftonline.com session cookie
-      // (which it will if the user is signed in to any other app on the
-      // same Azure tenant, e.g. the MLO portal). Fails fast with
-      // InteractionRequiredAuthError if not — caller falls back to popup.
-      //
-      // redirectUri: /blank.html — MSAL's iframe loads the redirect URI to
-      // read the auth response from its URL hash. If we use the site root,
-      // our middleware 302s the iframe to /login and MSAL times out with
-      // monitor_window_timeout. /blank.html is a static file (excluded from
-      // middleware) so the iframe loads instantly. This URL must also be
-      // registered as an SPA redirect URI in the Azure AD app registration.
-      const tokenResponse = await msal.ssoSilent({
-        ...loginRequest,
-        ...(loginHint ? { loginHint } : {}),
-        redirectUri: `${window.location.origin}/blank.html`,
-      });
-      const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
+
+      // 1) Cached MSAL account (returning user on this browser): renew via
+      //    acquireTokenSilent + exchange (single-flighted). Cheap when the
+      //    cache is warm; falls back to a hidden iframe against /blank.html
+      //    when the SPA refresh token has expired (Azure caps those at 24h).
+      let firebaseUser: FirebaseUser | null = null;
+      const accounts = msal.getAllAccounts();
+      if (accounts.length > 0) {
+        firebaseUser = await refreshFirebaseUser(loginHint).catch(() => null);
+      }
+
+      // 2) MLO-portal handoff: ssoSilent uses an iframe to the Microsoft
+      //    authorize endpoint — works when the browser has a valid
+      //    login.microsoftonline.com session cookie (which it will if the
+      //    user is signed in to any other app on the same Azure tenant,
+      //    e.g. the MLO portal). Fails fast with
+      //    InteractionRequiredAuthError if not — caller falls back to popup.
+      //    Only attempted with a loginHint so direct visits stay fast.
+      //    (The /blank.html redirect URI now comes from msalConfig — the
+      //    site root is middleware-gated + X-Frame-Options: DENY, which
+      //    would stall MSAL's iframe until monitor_window_timeout.)
+      if (!firebaseUser && loginHint) {
+        const tokenResponse = await msal.ssoSilent({ ...loginRequest, loginHint });
+        firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
+      }
+      if (!firebaseUser) return null;
       setUser(firebaseUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
       await fetch("/api/auth/session", {
@@ -248,16 +305,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return null;
     if (user.expiresAt > Date.now() + EXPIRY_BUFFER_MS) return user.idToken;
 
-    // Token near/past expiry — refresh silently via MSAL
+    // Token near/past expiry — refresh silently via MSAL. Single-flighted:
+    // concurrent getIdToken callers (every API call on a page load) await
+    // the same refresh instead of each running their own.
     try {
-      const msal = await getMsal();
-      const accounts = msal.getAllAccounts();
-      if (accounts.length === 0) { setUser(null); return null; }
-      const tokenResponse = await msal.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
-      const refreshed = await exchangeMsalForFirebase(tokenResponse.accessToken);
+      const refreshed = await refreshFirebaseUser(user.email);
       setUser(refreshed);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
       return refreshed.idToken;

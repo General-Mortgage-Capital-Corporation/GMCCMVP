@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { signInErrorMessage } from "@/lib/msal-config";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Only allow `next` paths that point back into our own app — prevents
@@ -53,11 +54,12 @@ function LoginInner() {
   );
   const ssoToken = searchParams.get("sso_token");
   const ssoHint = useMemo(() => extractSsoHint(searchParams), [searchParams]);
-  // Only auto-attempt Microsoft silent SSO when the request looks like it
-  // came from the MLO portal (sso_hint present). Direct visits show the
-  // sign-in button immediately — no misleading "Signing you in…" flash.
-  const shouldAttemptSso = !!ssoHint;
-  const [silentAttempting, setSilentAttempting] = useState(shouldAttemptSso);
+  // Silent sign-in is always attempted on mount: cached-MSAL-account renewal
+  // for returning users, plus Microsoft session SSO when the MLO portal sent
+  // an sso_hint. With no cached account and no hint, signInSilent returns
+  // null almost immediately, so direct fresh visits only see a brief spinner
+  // before the button appears.
+  const [silentAttempting, setSilentAttempting] = useState(true);
   const [silentFailed, setSilentFailed] = useState(false);
 
   // MLO portal handoff: if we arrive with ?sso_token=..., try to exchange it
@@ -114,14 +116,17 @@ function LoginInner() {
     return () => { cancelled = true; };
   }, [user, getIdToken, next, router]);
 
-  // MLO portal handoff via shared Azure AD tenant: when we arrive with a
-  // ?sso_hint=, ask MSAL to silently grab a token using the user's existing
-  // login.microsoftonline.com session. If they're signed in to the portal,
-  // this returns a token without a popup and the user-effect above redirects
-  // them through. If MSAL needs interaction (no MS session, 3rd-party cookies
-  // blocked, etc.) signInSilent returns null and we surface the button.
+  // Silent sign-in on mount. Two paths inside signInSilent: renew a cached
+  // MSAL account (returning user on this browser), or — when the MLO portal
+  // sent ?sso_hint= — use the existing login.microsoftonline.com session via
+  // ssoSilent. Either way, success sets `user` and the user-effect above
+  // redirects through; if MSAL needs interaction (no MS session, 3rd-party
+  // cookies blocked, etc.) signInSilent returns null and we surface the
+  // button. Doing silent work HERE (not inside the button click) keeps the
+  // click → loginPopup path synchronous enough that the browser's
+  // user-activation window hasn't expired — i.e. the popup isn't blocked.
   useEffect(() => {
-    if (!shouldAttemptSso || ssoToken || user) {
+    if (ssoToken || user) {
       setSilentAttempting(false);
       return;
     }
@@ -129,7 +134,9 @@ function LoginInner() {
     (async () => {
       const result = await signInSilent(ssoHint);
       if (cancelled) return;
-      if (!result) setSilentFailed(true);
+      // Only flag the failure when the portal promised us a session — a
+      // direct visit with no cached account is not a failure worth a banner.
+      if (!result && ssoHint) setSilentFailed(true);
       setSilentAttempting(false);
     })();
     return () => { cancelled = true; };
@@ -145,8 +152,10 @@ function LoginInner() {
       await signIn();
       // The user-effect above will set the session cookie and redirect once
       // `user` state propagates from AuthContext.
-    } catch {
-      setError("Sign-in failed. Make sure pop-ups are allowed for this site, then try again.");
+    } catch (err) {
+      // Show the real cause — only genuine popup-window failures mention
+      // pop-up blockers (signInErrorMessage branches on the MSAL error code).
+      setError(signInErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
