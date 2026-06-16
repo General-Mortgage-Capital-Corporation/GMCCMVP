@@ -128,6 +128,23 @@ export async function POST(req: Request) {
   return createAgentUIStreamResponse({
     agent,
     uiMessages: messages,
+    // Capture agent/tool/model failures. Before this there was NO server-side
+    // error record — failures vanished into the stream and the client only
+    // saw the SDK default ("An error occurred."), so the chat's auto-resume
+    // would silently dead-end with nothing to diagnose. We log full detail to
+    // the Vercel function logs and return the real message to the client so
+    // the UI can surface the actual cause.
+    onError: (error) => {
+      console.error("[api/chat] agent stream error:", {
+        user: userEmail || "(unknown)",
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : undefined,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      const message = error instanceof Error ? error.message : String(error);
+      const clean = message.replace(/\s+/g, " ").trim().slice(0, 300);
+      return clean || "The assistant hit an error. Please try again.";
+    },
   });
 }
 

@@ -440,42 +440,69 @@ export default function ChatTab() {
   // ── Auto-recovery ─────────────────────────────────────────────────────────
 
   const retryCount = useRef(0);
+  // True only while an auto-retry is actually scheduled/in-flight. Drives the
+  // "automatically resuming…" banner. Previously the banner keyed off
+  // retryCount, which stayed at 1 after the single retry FAILED — so the UI
+  // showed "resuming…" forever while nothing was happening. This flag is set
+  // only when we schedule a retry and cleared the moment we give up, so a
+  // dead-ended retry now surfaces the real error instead of a frozen spinner.
+  const [resuming, setResuming] = useState(false);
+  // Dedupe the agent_error telemetry so we report each error episode once,
+  // not on every re-render while status sits at "error".
+  const errorReported = useRef(false);
   const lastPartsSnapshot = useRef("");
   const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentSnapshot = messages.map((m) => `${m.id}:${m.parts.length}`).join("|");
 
-  // Auto-retry on error — only once, and only if not already a retry message
+  // Auto-retry on error — at most once, and only when a retry can actually help.
   useEffect(() => {
-    if (status === "error" && messages.length > 0 && retryCount.current < 1) {
-      const lastMsg = messages[messages.length - 1];
-      const lastText = lastMsg?.parts?.[0];
-      if (
-        lastMsg?.role === "user" &&
-        lastText &&
-        "text" in lastText &&
-        lastText.text === "Continue from where you left off."
-      ) {
-        return;
-      }
-      // Don't auto-retry if there are pending tool calls without results —
-      // retrying would just cause AI_MissingToolResultsError again
-      const hasPendingToolCalls = messages.some(
-        (m) => m.role === "assistant" && m.parts.some(
-          (p) => isToolUIPart(p) && p.state !== "output-available" && p.state !== "output-error",
-        ),
-      );
-      if (hasPendingToolCalls) return;
+    // Any non-error state ends the current error episode.
+    if (status !== "error") {
+      if (status === "ready") retryCount.current = 0;
+      if (status === "submitted" || status === "streaming") errorReported.current = false;
+      setResuming(false);
+      return;
+    }
+    if (messages.length === 0) return;
 
+    const lastMsg = messages[messages.length - 1];
+    const lastText = lastMsg?.parts?.[0];
+    const alreadyResumeMsg =
+      lastMsg?.role === "user" &&
+      !!lastText &&
+      "text" in lastText &&
+      lastText.text === "Continue from where you left off.";
+    // Don't auto-retry if there are pending tool calls without results —
+    // retrying would just cause AI_MissingToolResultsError again.
+    const hasPendingToolCalls = messages.some(
+      (m) => m.role === "assistant" && m.parts.some(
+        (p) => isToolUIPart(p) && p.state !== "output-available" && p.state !== "output-error",
+      ),
+    );
+    const willRetry = retryCount.current < 1 && !alreadyResumeMsg && !hasPendingToolCalls;
+
+    if (willRetry) {
+      setResuming(true);
       const timer = setTimeout(() => {
         retryCount.current += 1;
         sendMessage({ text: "Continue from where you left off." });
       }, 2000);
       return () => clearTimeout(timer);
     }
-    if (status === "ready") {
-      retryCount.current = 0;
+
+    // Giving up: stop pretending to resume and surface the real error. Report
+    // it once so agent failures are visible in PostHog (server-side detail
+    // lands in the Vercel /api/chat logs).
+    setResuming(false);
+    if (!errorReported.current) {
+      errorReported.current = true;
+      trackEvent("agent_error", {
+        message: error?.message ?? "unknown",
+        retried: retryCount.current > 0,
+        hadPendingToolCalls: hasPendingToolCalls,
+      });
     }
-  }, [status, messages, sendMessage]);
+  }, [status, messages, sendMessage, error]);
 
   // Stall detection — stop the stream but do NOT auto-send a retry.
   // The user will see the "Continue" button instead.
@@ -661,7 +688,7 @@ export default function ChatTab() {
 
           {error && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              {retryCount.current > 0 && retryCount.current < 2 ? (
+              {resuming ? (
                 <span className="flex items-center gap-2">
                   <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
                   Hit a snag — automatically resuming…
