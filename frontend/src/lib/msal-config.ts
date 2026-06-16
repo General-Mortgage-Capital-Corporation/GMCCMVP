@@ -58,7 +58,10 @@ export function signInErrorMessage(err: unknown): string {
     case "user_cancelled":
       return "The sign-in window was closed before finishing. Please try again.";
     case "interaction_in_progress":
-      return "Another sign-in attempt is still in progress. Close other tabs of this site or reload the page, then try again.";
+      // The app auto-clears the stuck interaction flag on the next init/click,
+      // so the actionable advice is simply to retry — NOT "reload/close tabs"
+      // (the flag lives in localStorage and survives both).
+      return "A previous sign-in didn't finish cleanly. Please click Sign in again.";
     default: {
       const message = err instanceof Error ? err.message : "";
       const detail = message.length > 160 ? `${message.slice(0, 157)}…` : message;

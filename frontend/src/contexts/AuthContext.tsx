@@ -64,11 +64,39 @@ function clearSessionAndBounce(): void {
 // Lazily created MSAL instance (browser-only)
 let _msalInstance: import("@azure/msal-browser").PublicClientApplication | null = null;
 
+/**
+ * Clear a stuck MSAL "interaction in progress" flag.
+ *
+ * MSAL sets this flag in our cache (localStorage — see msalConfig) the moment
+ * an interactive flow (loginPopup / ssoSilent) starts, and clears it when the
+ * flow finishes. If a flow is interrupted before it can clear — popup closed
+ * abruptly, page reloaded/navigated mid-flow, an exception thrown between the
+ * set and the clear — the flag is orphaned. Because it lives in localStorage
+ * it survives reloads AND is shared across tabs, so MSAL then throws
+ * `interaction_in_progress` on every later attempt and neither reloading nor
+ * closing tabs helps (which is exactly the dead end users hit). MSAL exposes
+ * no public API to reset it, so remove the key directly.
+ */
+function clearStuckInteraction(): void {
+  if (typeof window === "undefined") return;
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.includes("interaction.status")) localStorage.removeItem(key);
+    }
+  } catch { /* storage blocked — nothing we can do */ }
+}
+
 async function getMsal() {
   if (!_msalInstance) {
     const { PublicClientApplication } = await import("@azure/msal-browser");
     _msalInstance = new PublicClientApplication(msalConfig);
     await _msalInstance.initialize();
+    // Any interaction flag still set at cold init is necessarily stale: a
+    // real interactive flow belongs to a page lifetime that has since ended
+    // (we only use popup/iframe flows, never redirect, so nothing legitimately
+    // resumes across a load). Clearing it here means a simple reload now
+    // recovers a wedged user instead of leaving them permanently stuck.
+    clearStuckInteraction();
   }
   return _msalInstance;
 }
@@ -187,7 +215,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // fallback popup then gets blocked even when pop-ups are allowed.
       // Silent restoration happens on /login mount via signInSilent instead,
       // so by the time anyone clicks this, silent has already been tried.
-      const tokenResponse = await msal.loginPopup(loginRequest);
+      let tokenResponse;
+      try {
+        tokenResponse = await msal.loginPopup(loginRequest);
+      } catch (err) {
+        // A stuck interaction flag from an earlier interrupted flow blocks
+        // every attempt and survives reloads (it's in localStorage). Clear
+        // it and retry once so the click still succeeds.
+        if (msalErrorCode(err) === "interaction_in_progress") {
+          clearStuckInteraction();
+          tokenResponse = await msal.loginPopup(loginRequest);
+        } else {
+          throw err;
+        }
+      }
 
       const firebaseUser = await exchangeMsalForFirebase(tokenResponse.accessToken);
       setUser(firebaseUser);
