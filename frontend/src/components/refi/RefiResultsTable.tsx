@@ -16,7 +16,8 @@ type Props = {
   rowsLoaded: number;             // how many rows are loaded in memory total
   rowsAvailable: number;          // matching universe per PR
   viewPage: number;               // 0-indexed
-  viewPageSize: number;
+  viewPageSize: number;           // rows shown per table page (display only)
+  fetchBatchSize: number;         // rows pulled per "Fetch more" click
   viewTotalPages: number;
   cacheHit: boolean;
   moreAvailable: boolean;
@@ -130,7 +131,7 @@ function exportCsv(rows: RefiRow[], selected: Set<string>, unlocked: UnlockResul
 }
 
 export default function RefiResultsTable({
-  rows, rowsLoaded, rowsAvailable, viewPage, viewPageSize, viewTotalPages,
+  rows, rowsLoaded, rowsAvailable, viewPage, viewPageSize, fetchBatchSize, viewTotalPages,
   cacheHit, moreAvailable, fetchingMore, unlocked,
   onPageChange, onFetchMore, onSelectRow, onUnlockRequest,
   onRevealChannel, revealingByRow,
@@ -315,7 +316,7 @@ export default function RefiResultsTable({
           </div>
           <button type="button" disabled={fetchingMore} onClick={onFetchMore}
             className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40">
-            {fetchingMore ? "Fetching…" : `Fetch ${Math.min(viewPageSize, rowsAvailable - rowsLoaded)} more (charges ${Math.min(viewPageSize, rowsAvailable - rowsLoaded)} records)`}
+            {fetchingMore ? "Fetching…" : `Fetch ${Math.min(fetchBatchSize, rowsAvailable - rowsLoaded)} more (charges ${Math.min(fetchBatchSize, rowsAvailable - rowsLoaded)} records)`}
           </button>
         </div>
       )}

@@ -614,15 +614,29 @@ def preview(*, preset_id: str | None, geography: dict, filters: dict | None) -> 
 
 def search(*, preset_id: str | None, geography: dict, filters: dict | None,
            page: int = 0, limit: int = DEFAULT_PAGE_LIMIT,
+           start: int | None = None,
            enrich_tract: bool = True, use_cache: bool = True) -> dict:
-    """Paid search: returns a page of rows enriched with tract data."""
+    """Paid search: returns a page of rows enriched with tract data.
+
+    Pagination accepts either an explicit row offset (`start`) or a page
+    number (`page`). `start` wins when provided — it keeps offsets correct
+    even when the client varies `limit` between fetches (page-number math
+    assumes a fixed page size). `page` remains for backward compatibility.
+    """
     if limit <= 0 or limit > MAX_PAGE_LIMIT:
         raise RefiSearchError(f"limit must be 1..{MAX_PAGE_LIMIT}")
-    if page < 0:
-        raise RefiSearchError("page must be >= 0")
+    if start is not None:
+        if start < 0:
+            raise RefiSearchError("start must be >= 0")
+    else:
+        if page < 0:
+            raise RefiSearchError("page must be >= 0")
+        start = page * limit
 
     criteria = build_pr_criteria(preset_id=preset_id, geography=geography, filters=filters)
-    cache_key = _criteria_hash(criteria, page=page, limit=limit)
+    # Cache by absolute offset + limit so each distinct row window is its own
+    # entry (equivalent to the old page+limit key for fixed-size pages).
+    cache_key = _criteria_hash(criteria, page=start, limit=limit)
 
     if use_cache:
         cached = _read_cache(cache_key)
@@ -630,7 +644,6 @@ def search(*, preset_id: str | None, geography: dict, filters: dict | None,
             cached["cache_hit"] = True
             return cached
 
-    start = page * limit
     data = propertyradar.fetch_search(criteria, limit=limit, start=start,
                                       criteria_hash=cache_key)
     rows = data.get("results", []) or []

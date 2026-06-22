@@ -454,6 +454,7 @@ def refi_search_endpoint():
             geography=body.get("geography") or {},
             filters=body.get("filters"),
             page=int(body.get("page", 0)),
+            start=(int(body["start"]) if body.get("start") is not None else None),
             limit=int(body.get("limit", refi_search.DEFAULT_PAGE_LIMIT)),
             enrich_tract=bool(body.get("enrich_tract", True)),
             use_cache=bool(body.get("use_cache", True)),

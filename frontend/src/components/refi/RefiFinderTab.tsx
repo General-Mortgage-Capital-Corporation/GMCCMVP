@@ -25,7 +25,18 @@ type AccessResp = {
 
 type Phase = "idle" | "filtering" | "previewed" | "results";
 
+// View-pagination size for the already-fetched rows table. Independent of how
+// many rows we PULL per fetch (that's the user-adjustable batchSize below).
 const PAGE_SIZE = 25;
+// Default + bounds for the per-fetch batch size. The server (unlock-search
+// route + Python refi_search) enforces the same 1..100 ceiling.
+const DEFAULT_BATCH_SIZE = 25;
+const MAX_BATCH_SIZE = 100;
+
+function clampBatchSize(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_BATCH_SIZE;
+  return Math.min(MAX_BATCH_SIZE, Math.max(1, Math.floor(n)));
+}
 
 // localStorage key — schemaVersion bumped when shape changes to invalidate stale state.
 const LS_KEY = "refi-finder/v1/state";
@@ -284,6 +295,9 @@ export default function RefiFinderTab({
   const [fetchingMore, setFetchingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capError, setCapError] = useState<string | null>(null);
+  // How many records to pull per "Fetch" / "Fetch more" click. Defaults to 25;
+  // the user can raise it (up to 100) when more than a page of matches exist.
+  const [batchSize, setBatchSize] = useState(DEFAULT_BATCH_SIZE);
 
   // Accumulator: rows grow as user clicks "Fetch more". Pagination operates
   // on this in-memory list for free.
@@ -525,14 +539,21 @@ export default function RefiFinderTab({
     setCapError(null);
     appendMode ? setFetchingMore(true) : setLoading(true);
     try {
-      const limit = limitOverride ?? PAGE_SIZE;
-      const serverPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
+      const limit = limitOverride ?? batchSize;
+      // Offset-based pagination: `start` is the absolute row offset to resume
+      // from, which stays correct even when the batch size changes between
+      // fetches (page-number math breaks once limit varies). `page` is sent
+      // too as a legacy fallback for the brief window where the Python backend
+      // deploy might lag the frontend; the backend prefers `start` when present.
+      const start = appendMode ? rows.length : 0;
+      const legacyPage = appendMode ? Math.ceil(rows.length / PAGE_SIZE) : 0;
       const endpoint = "/api/refi/unlock-search";
       const reqBody: Record<string, unknown> = {
         preset_id: activePresetId,
         geography: geoForRequest,
         filters,
-        page: serverPage,
+        page: legacyPage,
+        start,
         limit,
       };
       if (creditMode) reqBody.confirmedLimit = limit;
@@ -578,7 +599,7 @@ export default function RefiFinderTab({
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey, authedFetch, creditMode, onCreditChange]);
+  }, [activePresetId, geoForRequest, filters, rows, currentCriteriaKey, authedFetch, creditMode, onCreditChange, batchSize]);
 
   // Wrapper: in creditMode, show the confirmation modal before runFetch; in
   // legacy mode, call runFetch directly. Bound to the Fetch + Fetch-more buttons.
@@ -590,15 +611,15 @@ export default function RefiFinderTab({
   const requestFetch = useCallback((appendMode: boolean) => {
     const available = appendMode
       ? Math.max(0, rowsAvailable - rows.length)
-      : preview?.totalResultCount ?? PAGE_SIZE;
-    const effectiveLimit = Math.min(PAGE_SIZE, available);
+      : preview?.totalResultCount ?? batchSize;
+    const effectiveLimit = Math.min(batchSize, available);
     if (effectiveLimit <= 0) return;
     if (creditMode) {
       setConfirmFetch({ appendMode, effectiveLimit });
     } else {
       void runFetch(appendMode, effectiveLimit);
     }
-  }, [creditMode, runFetch, preview?.totalResultCount, rowsAvailable, rows.length]);
+  }, [creditMode, runFetch, preview?.totalResultCount, rowsAvailable, rows.length, batchSize]);
 
   function resetAll() {
     setActivePresetId(null);
@@ -890,6 +911,8 @@ export default function RefiFinderTab({
             onPreview={runPreview}
             onFetch={() => requestFetch(false)}
             onReset={resetAll}
+            batchSize={batchSize}
+            onBatchSizeChange={(n) => setBatchSize(clampBatchSize(n))}
           />
 
           {phase === "results" && rows.length > 0 && (
@@ -905,6 +928,7 @@ export default function RefiFinderTab({
                 rowsAvailable={rowsAvailable}
                 viewPage={viewPage}
                 viewPageSize={PAGE_SIZE}
+                fetchBatchSize={batchSize}
                 viewTotalPages={viewTotalPages}
                 cacheHit={cacheHit}
                 moreAvailable={moreAvailable}
@@ -1381,11 +1405,14 @@ function DateRangeField({ label, value, onChange }: { label: string; value: { fr
   );
 }
 
-function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFetch, onReset }: { phase: Phase; preview: PreviewResp | null; loading: boolean; canPreview: boolean; onPreview: () => void; onFetch: () => void; onReset: () => void }) {
-  // Cap the displayed cost at the actual match count — fewer than PAGE_SIZE
-  // matches means fewer credits charged.
+function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFetch, onReset, batchSize, onBatchSizeChange }: { phase: Phase; preview: PreviewResp | null; loading: boolean; canPreview: boolean; onPreview: () => void; onFetch: () => void; onReset: () => void; batchSize: number; onBatchSizeChange: (n: number) => void }) {
+  // Cap the displayed cost at the actual match count — fewer than the batch
+  // size means fewer credits charged.
   const totalMatches = preview?.totalResultCount ?? 0;
-  const willCharge = Math.min(25, totalMatches);
+  const willCharge = Math.min(batchSize, totalMatches);
+  // Only offer the batch-size control once a preview shows more than a default
+  // page of matches — otherwise the default 25 already covers everything.
+  const showBatchInput = totalMatches > DEFAULT_BATCH_SIZE;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex-1">
@@ -1410,12 +1437,28 @@ function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFe
         )}
       </div>
       <div className="flex items-center gap-2">
+        {showBatchInput && (
+          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+            <span className="hidden sm:inline">Fetch</span>
+            <input
+              type="number"
+              min={1}
+              max={MAX_BATCH_SIZE}
+              value={batchSize}
+              onChange={(e) => onBatchSizeChange(Number(e.target.value))}
+              disabled={loading}
+              className="w-16 rounded-lg border border-gray-300 px-2 py-1.5 text-sm tabular-nums text-gray-900 focus:border-red-400 focus:outline-none disabled:opacity-40"
+              aria-label="Records to fetch per request (max 100)"
+            />
+            <span className="hidden sm:inline">at a time</span>
+          </label>
+        )}
         <button type="button" onClick={onReset} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Reset</button>
         <button type="button" onClick={onPreview} disabled={!canPreview || loading} className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40">
           {loading && phase !== "results" ? "Previewing…" : "Preview (free)"}
         </button>
         <button type="button" onClick={onFetch} disabled={!preview || loading || (preview.totalResultCount ?? 0) === 0} className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40">
-          {loading && phase === "previewed" ? "Fetching…" : "Fetch results"}
+          {loading && phase === "previewed" ? "Fetching…" : `Fetch ${willCharge} result${willCharge === 1 ? "" : "s"}`}
         </button>
       </div>
     </div>
