@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 interface DraftRequest {
   originalSubject: string;
@@ -75,7 +75,7 @@ Use \\n for line breaks in the body. Do not include a signature — one will be 
     }
 
     const data = await res.json();
-    // Gemini 2.5 may return thinking + text parts — concatenate all text parts
+    // Gemini may return thinking + text parts — concatenate all text parts
     const parts = data.candidates?.[0]?.content?.parts ?? [];
     const rawText: string = parts
       .filter((p: Record<string, unknown>) => typeof p.text === "string")

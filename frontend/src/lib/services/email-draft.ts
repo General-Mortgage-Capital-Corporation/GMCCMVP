@@ -3,7 +3,7 @@
  * Calls Gemini directly (no HTTP round-trip).
  */
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 /**
  * Strip trailing sign-offs that the LLM adds despite being told not to.

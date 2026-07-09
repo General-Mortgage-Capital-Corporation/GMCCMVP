@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 export function createWebSearchTool() {
   return tool({

@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 const ESCALATION_DAYS = [3, 7, 14]; // follow-up #1 after 3d, #2 after 7d, #3 after 14d
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://gmccmvp-two.vercel.app";

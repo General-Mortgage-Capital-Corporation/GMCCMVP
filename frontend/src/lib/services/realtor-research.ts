@@ -9,7 +9,7 @@ import {
   type AgentResearch,
 } from "@/lib/redis-cache";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 export interface RealtorResearchInput {
   name?: string;
