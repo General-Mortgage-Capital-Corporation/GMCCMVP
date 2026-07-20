@@ -91,7 +91,7 @@ export default function ChatTab() {
           if (sig) headers["X-Email-Signature"] = btoa(unescape(encodeURIComponent(sig)));
           // Pass LO profile info so the agent knows the user's name/title/NMLS
           const lo = getLOInfo();
-          if (lo.name) headers["X-LO-Info"] = btoa(unescape(encodeURIComponent(JSON.stringify(lo))));
+          if (lo.name || lo.title) headers["X-LO-Info"] = btoa(unescape(encodeURIComponent(JSON.stringify(lo))));
           return headers;
         },
       }),

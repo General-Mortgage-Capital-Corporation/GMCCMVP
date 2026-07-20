@@ -87,6 +87,39 @@ function HeadshotUpload() {
   );
 }
 
+function LoTitleField() {
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    setTitle(getLOInfo().title);
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setTitle(v);
+    const info = getLOInfo();
+    setLOInfo({ ...info, title: v });
+  }
+
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+        Your Title
+      </div>
+      <p className="mb-3 text-xs text-gray-500">
+        Shown under your name on generated flyers (e.g. &ldquo;Senior Loan Officer&rdquo;, &ldquo;Mortgage Advisor&rdquo;). Leave blank to use &ldquo;Loan Officer&rdquo;.
+      </p>
+      <input
+        type="text"
+        value={title}
+        onChange={handleChange}
+        placeholder="Mortgage Loan Officer"
+        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:border-red-300 focus:outline-none focus:ring-1 focus:ring-red-300"
+      />
+    </div>
+  );
+}
+
 function AiLiteUrlField() {
   const [url, setUrl] = useState("");
 
@@ -146,6 +179,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {/* Content */}
         <div className="max-h-[75vh] space-y-6 overflow-y-auto p-5">
           <HeadshotUpload />
+          <div className="border-t border-gray-200 pt-4">
+            <LoTitleField />
+          </div>
           <div className="border-t border-gray-200 pt-4">
             <AiLiteUrlField />
           </div>

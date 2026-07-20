@@ -12,6 +12,7 @@ import {
 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { authedFetch } from "@/lib/authed-fetch";
+import { getLOInfo } from "@/lib/lo-info-store";
 import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
 import MultiSummaryModal from "@/components/flier/MultiSummaryModal";
 import MultiEmailModal from "@/components/flier/MultiEmailModal";
@@ -98,6 +99,12 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
   const [zillowPhotos, setZillowPhotos] = useState<string[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState<string | undefined>(undefined);
+  // Price override for flyers/emails — some listings have bad price data, so
+  // the user can correct it. Null means "use the listing's real price."
+  // effectivePrice is the single source of truth passed to every flyer/email.
+  const [priceOverride, setPriceOverride] = useState<number | null>(null);
+  const [editingPrice, setEditingPrice] = useState(false);
+  const effectivePrice = priceOverride ?? listing?.price ?? 0;
 
   // Reset state whenever a new listing is opened
   useEffect(() => {
@@ -208,8 +215,9 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           body: JSON.stringify({
             productId,
             userId: email,
+            ...(getLOInfo().title ? { title: getLOInfo().title } : {}),
             ...(listing?.formattedAddress ? { address: listing.formattedAddress } : {}),
-            ...(listing?.price ? { listingPrice: String(listing.price) } : {}),
+            ...(effectivePrice ? { listingPrice: String(effectivePrice) } : {}),
             ...(realtorInfo.name ? { realtorName: realtorInfo.name } : {}),
             ...(realtorInfo.phone ? { realtorPhone: realtorInfo.phone } : {}),
             ...(realtorInfo.email ? { realtorEmail: realtorInfo.email } : {}),
@@ -340,12 +348,69 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
             {/* ── Header ── */}
             <div className="flex items-start justify-between gap-3 pr-8">
               <div className="min-w-0 flex-1">
-                <div className="text-3xl font-bold tracking-tight text-gray-900">
-                  {formatPrice(listing.price)}
-                </div>
+                {editingPrice ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center rounded-lg border border-red-300 bg-white px-2 focus-within:ring-1 focus-within:ring-red-300">
+                      <span className="text-2xl font-bold text-gray-400">$</span>
+                      <input
+                        type="number"
+                        autoFocus
+                        defaultValue={effectivePrice || ""}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const v = Number((e.target as HTMLInputElement).value);
+                            setPriceOverride(Number.isFinite(v) && v > 0 ? v : null);
+                            setEditingPrice(false);
+                          } else if (e.key === "Escape") {
+                            setEditingPrice(false);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          setPriceOverride(Number.isFinite(v) && v > 0 ? v : null);
+                          setEditingPrice(false);
+                        }}
+                        className="w-40 bg-transparent py-1 text-2xl font-bold tracking-tight text-gray-900 focus:outline-none"
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400">Enter to save</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-3xl font-bold tracking-tight text-gray-900">
+                      {formatPrice(effectivePrice)}
+                    </span>
+                    {priceOverride != null && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Edited</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingPrice(true)}
+                      title="Edit the price used on flyers & emails"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 shadow-sm transition-colors hover:bg-red-100 hover:border-red-400"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M11.5 2.5a1.414 1.414 0 012 2L6 12l-3 1 1-3 7.5-7.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                      Edit price
+                    </button>
+                  </div>
+                )}
                 <div className="mt-1 text-base text-gray-600">
                   {listing.formattedAddress ?? "Address unavailable"}
                 </div>
+                {!editingPrice && (
+                  <div className="mt-1 text-xs text-gray-400">
+                    {priceOverride != null ? (
+                      <>
+                        Actual listing price {formatPrice(listing.price)} · this edited price is used on flyers &amp; emails
+                        <button type="button" onClick={() => setPriceOverride(null)} className="ml-1.5 font-medium text-red-500 hover:underline">reset</button>
+                      </>
+                    ) : (
+                      "This price appears on generated flyers & emails — edit it if the listing data is wrong."
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowComparePricing(true)}
@@ -499,7 +564,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                     <ProgramCard
                       key={prog.program_name}
                       program={prog}
-                      listing={listing}
+                      listing={{ ...listing, price: effectivePrice }}
                       realtorInfo={realtorInfo}
                       propertyImage={propertyImage}
                       selected={selectedPrograms.has(prog.program_name)}
@@ -534,7 +599,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                           <ProgramCard
                             key={prog.program_name}
                             program={prog}
-                            listing={listing}
+                            listing={{ ...listing, price: effectivePrice }}
                             realtorInfo={realtorInfo}
                             propertyImage={propertyImage}
                             selected={selectedPrograms.has(prog.program_name)}
@@ -682,7 +747,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           programs={selectedEntries}
           summary={multiSummary}
           propertyAddress={listing.formattedAddress}
-          listingPrice={listing.price}
+          listingPrice={effectivePrice}
+          onPriceChange={setPriceOverride}
           realtorInfo={realtorInfo}
           preResearch={preResearch}
           onClose={() => setShowMultiEmailModal(false)}

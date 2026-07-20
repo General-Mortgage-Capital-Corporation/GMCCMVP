@@ -45,6 +45,8 @@ function resolveProductId(programName: string): string | null {
 interface AuthContext {
   firebaseToken: string;
   userEmail: string;
+  /** LO's flyer title from their profile (Settings). Falls back server-side. */
+  loTitle?: string;
 }
 
 export function createGenerateFlyerTool(auth: AuthContext) {
@@ -91,7 +93,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
       const payload = {
         productId,
         data: {
-          loanOfficer: { userId: auth.userEmail },
+          loanOfficer: { userId: auth.userEmail, ...(auth.loTitle ? { title: auth.loTitle } : {}) },
           ...(input.address || input.listingPrice || input.propertyImage
             ? {
                 property: {

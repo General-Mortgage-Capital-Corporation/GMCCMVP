@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     ? `${SYSTEM_PROMPT}\n\n## Current User (Loan Officer)\n${userContext}\n\nAlways use this information when drafting emails, referencing the loan officer, or personalizing content. Never use placeholders like "[Your Name]" — use the real name above.`
     : SYSTEM_PROMPT;
 
-  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml };
+  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "" };
 
   // Construct agent per-request with auth-bound tools
   const agent = new ToolLoopAgent({

@@ -27,6 +27,9 @@ interface MultiEmailModalProps {
   summary: string;
   propertyAddress?: string;
   listingPrice?: number;
+  /** Called when the user corrects the price at the email step (kept in sync
+   *  with the property modal's override). Omit to hide the price editor. */
+  onPriceChange?: (price: number | null) => void;
   realtorInfo: RealtorInfo;
   /** Pre-fetched research text from the summary modal */
   preResearch?: string | null;
@@ -99,6 +102,7 @@ export default function MultiEmailModal({
   summary,
   propertyAddress,
   listingPrice,
+  onPriceChange,
   realtorInfo,
   preResearch,
   onClose,
@@ -593,6 +597,27 @@ export default function MultiEmailModal({
                       className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
                     />
                   </div>
+                  {onPriceChange && (
+                    <div>
+                      <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
+                        Property price (on flyers)
+                      </label>
+                      <div className="flex items-center rounded-md border border-gray-200 px-2.5 focus-within:ring-2 focus-within:ring-red-400">
+                        <span className="text-sm text-gray-400">$</span>
+                        <input
+                          type="number"
+                          value={listingPrice || ""}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            onPriceChange(Number.isFinite(v) && v > 0 ? v : null);
+                          }}
+                          placeholder="Listing price"
+                          className="w-full bg-transparent px-1 py-1.5 text-sm tabular-nums text-gray-800 placeholder-gray-400 focus:outline-none"
+                        />
+                      </div>
+                      <p className="mt-0.5 text-[0.7rem] text-gray-400">Correct this if the listing price is wrong — it updates the flyers and the email.</p>
+                    </div>
+                  )}
                   <div>
                     <label className="mb-0.5 block text-[0.7rem] font-medium uppercase tracking-wide text-gray-500">
                       Body

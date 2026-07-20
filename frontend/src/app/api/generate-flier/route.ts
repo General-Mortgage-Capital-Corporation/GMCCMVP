@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     realtorCompany,
     branch,
     slogan,
+    title,
   } = body as Record<string, string | undefined>;
 
   const payload = {
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     data: {
       loanOfficer: {
         userId,
+        ...(title ? { title } : {}),
         ...(branch ? { branch } : {}),
         ...(slogan ? { slogan } : {}),
       },
