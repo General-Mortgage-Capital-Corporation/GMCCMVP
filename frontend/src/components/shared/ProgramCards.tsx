@@ -75,6 +75,7 @@ export function ProgramCard({
   listing,
   realtorInfo,
   propertyImage,
+  photoStatus,
   selected,
   onToggleSelect,
 }: {
@@ -82,6 +83,7 @@ export function ProgramCard({
   listing: RentCastListing;
   realtorInfo: RealtorInfo;
   propertyImage?: string;
+  photoStatus?: "loading" | "ready" | "none";
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
@@ -144,6 +146,7 @@ export function ProgramCard({
           listingPrice={listing.price}
           realtorInfo={realtorInfo}
           propertyImage={propertyImage}
+          photoStatus={photoStatus}
         />
 
         {/* Expand chevron */}

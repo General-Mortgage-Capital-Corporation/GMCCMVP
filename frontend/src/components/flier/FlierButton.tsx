@@ -86,6 +86,10 @@ interface FlierButtonProps {
   listingPrice?: number;
   realtorInfo: RealtorInfo;
   propertyImage?: string;
+  /** Status of the listing photo used as the flyer hero image. While
+   *  "loading" the flyer would generate without a photo, so Preview/Download
+   *  are disabled until it resolves. */
+  photoStatus?: "loading" | "ready" | "none";
 }
 
 /** Resolve rate sheet URL — handles both plain string and state-keyed object. */
@@ -108,11 +112,16 @@ export default function FlierButton({
   listingPrice,
   realtorInfo,
   propertyImage,
+  photoStatus,
 }: FlierButtonProps) {
   const { user, signIn, getIdToken } = useAuth();
   const { resolveUrl: resolveLiveRatesheet } = useRateSheets();
   const [loadingAction, setLoadingAction] = useState<"preview" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Block flyer generation while the listing photo is still being fetched so
+  // the flyer isn't produced without its hero image.
+  const photoLoading = photoStatus === "loading";
+  const busy = !!loadingAction || photoLoading;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
 
@@ -236,9 +245,9 @@ export default function FlierButton({
           <>
             <button
               onClick={handlePreview}
-              disabled={!!loadingAction}
+              disabled={busy}
               className={`${btnBase} bg-red-50 text-red-700 hover:bg-red-100`}
-              title="Preview flyer"
+              title={photoLoading ? "Loading the listing photo…" : "Preview flyer"}
             >
               {loadingAction === "preview" ? (
                 <LoadingSpinner size="sm" />
@@ -257,9 +266,9 @@ export default function FlierButton({
 
             <button
               onClick={handleDownload}
-              disabled={!!loadingAction}
+              disabled={busy}
               className={`${btnBase} bg-violet-50 text-violet-700 hover:bg-violet-100`}
-              title="Download flyer"
+              title={photoLoading ? "Loading the listing photo…" : "Download flyer"}
             >
               {loadingAction === "download" ? (
                 <LoadingSpinner size="sm" />

@@ -105,6 +105,15 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
   const [priceOverride, setPriceOverride] = useState<number | null>(null);
   const [editingPrice, setEditingPrice] = useState(false);
   const effectivePrice = priceOverride ?? listing?.price ?? 0;
+  // Flyer hero image: the user's custom pick, else the first Zillow photo.
+  // Status drives the flyer buttons — block them while the photo is still
+  // loading so a flyer isn't generated without its image.
+  const flyerImage = propertyImage ?? zillowPhotos[0];
+  const flyerPhotoStatus: "loading" | "ready" | "none" = flyerImage
+    ? "ready"
+    : photosLoading
+      ? "loading"
+      : "none";
 
   // Reset state whenever a new listing is opened
   useEffect(() => {
@@ -560,13 +569,25 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       {eligible.length}
                     </span>
                   </div>
+                  {flyerPhotoStatus === "loading" && (
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-500" />
+                      Loading the listing photo — flyer Preview &amp; Download unlock in a moment…
+                    </div>
+                  )}
+                  {flyerPhotoStatus === "none" && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      Couldn&apos;t find a listing photo — flyers will use the program&apos;s default image. You can upload your own above.
+                    </div>
+                  )}
                   {eligible.map((prog) => (
                     <ProgramCard
                       key={prog.program_name}
                       program={prog}
                       listing={{ ...listing, price: effectivePrice }}
                       realtorInfo={realtorInfo}
-                      propertyImage={propertyImage}
+                      propertyImage={propertyImage ?? zillowPhotos[0]}
+                      photoStatus={flyerPhotoStatus}
                       selected={selectedPrograms.has(prog.program_name)}
                       onToggleSelect={() => toggleProgramSelect(prog.program_name)}
                     />
@@ -601,7 +622,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                             program={prog}
                             listing={{ ...listing, price: effectivePrice }}
                             realtorInfo={realtorInfo}
-                            propertyImage={propertyImage}
+                            propertyImage={propertyImage ?? zillowPhotos[0]}
+                            photoStatus={flyerPhotoStatus}
                             selected={selectedPrograms.has(prog.program_name)}
                             onToggleSelect={() => toggleProgramSelect(prog.program_name)}
                           />
