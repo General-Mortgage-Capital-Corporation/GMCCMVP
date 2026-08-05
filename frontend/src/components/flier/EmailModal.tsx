@@ -13,6 +13,7 @@ import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
+import { isOverridable } from "@/lib/email-deliverability-types";
 import type { DeliverabilityResult } from "@/lib/email-deliverability";
 
 type RecipientTab = "myself" | "realtor" | "borrower";
@@ -196,17 +197,19 @@ export default function EmailModal({
   // Single-program email: no auto-generate, user prompts themselves
   // Research is still available and passed to AI when user does prompt
 
-  async function handleSend() {
+  async function handleSend(force = false) {
     if (sending) return; // guard against double-submission
     if (!hasSignature()) { setSigFixOpen(true); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
-    // Send-time deliverability gate. Only `deliverable` lets the send proceed;
-    // anything else (undeliverable, risky, unknown) blocks. No override —
-    // bouncing here hurts the company's M365 sender reputation. Self-sends
-    // skip the check since the LO's own address is presumed valid.
+    // Send-time deliverability gate. `deliverable` always sends; `undeliverable`
+    // (confirmed bad — bouncing hurts the company's M365 sender reputation)
+    // ALWAYS hard-blocks. `risky`/`unknown` are flagged but not confirmed bad —
+    // they show a "Send anyway" button that calls handleSend(true) to override.
+    // A hard block is never overridable, even with force. Self-sends skip the
+    // check since the LO's own address is presumed valid.
     if (!skipValidation) {
       setVerifying(true);
       try {
@@ -214,16 +217,22 @@ export default function EmailModal({
           verifyEmailForSend(toEmail.trim()),
           ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
         ]);
-        let blocked = false;
-        if (!isSendAllowed(toResult) && toResult) {
+        let hardBlocked = false;
+        let softBlocked = false;
+        if (toResult && !isSendAllowed(toResult)) {
           setToBlocked(toResult);
-          blocked = true;
+          if (isOverridable(toResult.status)) softBlocked = true; else hardBlocked = true;
+        } else {
+          setToBlocked(null);
         }
-        if (ccEmail.trim() && !isSendAllowed(ccResult) && ccResult) {
+        if (ccEmail.trim() && ccResult && !isSendAllowed(ccResult)) {
           setCcBlocked(ccResult);
-          blocked = true;
+          if (isOverridable(ccResult.status)) softBlocked = true; else hardBlocked = true;
+        } else {
+          setCcBlocked(null);
         }
-        if (blocked) return;
+        if (hardBlocked) return;             // undeliverable — never sends
+        if (softBlocked && !force) return;   // risky/unknown — wait for "Send anyway"
       } finally {
         setVerifying(false);
       }
@@ -427,6 +436,7 @@ export default function EmailModal({
                       <SendBlockedNotice
                         result={toBlocked}
                         onApplySuggestion={(s) => { setToEmail(s); setToBlocked(null); }}
+                        onOverride={() => handleSend(true)}
                         onDismiss={() => setToBlocked(null)}
                       />
                     )}
@@ -447,6 +457,7 @@ export default function EmailModal({
                         <SendBlockedNotice
                           result={ccBlocked}
                           onApplySuggestion={(s) => { setCcEmail(s); setCcBlocked(null); }}
+                          onOverride={() => handleSend(true)}
                           onDismiss={() => setCcBlocked(null)}
                         />
                       )}
@@ -496,7 +507,7 @@ export default function EmailModal({
                       AI Assist — Gemini
                     </p>
                     <p className="text-sm text-violet-600">
-                      Describe how you'd like the email written (tone, focus, length, etc.)
+                      Describe how you&apos;d like the email written (tone, focus, length, etc.)
                     </p>
                     <div className="flex gap-2">
                       <textarea
@@ -596,7 +607,7 @@ export default function EmailModal({
                       Cancel
                     </button>
                     <button
-                      onClick={handleSend}
+                      onClick={() => handleSend()}
                       disabled={sending || verifying}
                       className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >

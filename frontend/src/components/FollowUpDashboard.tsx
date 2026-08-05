@@ -8,7 +8,9 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import type { FollowUpListItem } from "@/types/follow-up";
 import { trackEvent } from "@/lib/posthog";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
-import { describeReason } from "@/lib/email-deliverability-types";
+import { describeReason, isOverridable } from "@/lib/email-deliverability-types";
+import type { DeliverabilityResult } from "@/lib/email-deliverability-types";
+import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
 
 type ViewTab = "follow-ups" | "sent" | "replied";
 
@@ -33,6 +35,9 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
   const [composeBody, setComposeBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  // Set when a send is blocked by an OVERRIDABLE status (risky/unknown) — drives
+  // the amber "Send anyway" notice. Hard blocks use the plain sendError string.
+  const [sendBlocked, setSendBlocked] = useState<DeliverabilityResult | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
@@ -121,7 +126,7 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
     setSendSuccess(null);
   }
 
-  async function handleSendFollowUp(item: FollowUpListItem) {
+  async function handleSendFollowUp(item: FollowUpListItem, force = false) {
     if (sending) return;
     if (!composeSubject.trim() || !composeBody.trim()) {
       setSendError("Subject and body are required.");
@@ -129,17 +134,27 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
     }
     setSending(true);
     setSendError(null);
+    setSendBlocked(null);
     try {
-      // Send-time deliverability gate. Hard-block (no override) when the
-      // address is anything other than `deliverable`. Cached on the server
-      // (90d), so the original send already populated the result in most cases.
+      // Send-time deliverability gate. `deliverable` sends; `undeliverable`
+      // (confirmed bad) hard-blocks. `risky`/`unknown` are flagged but not
+      // confirmed bad — they surface an amber "Send anyway" notice that calls
+      // handleSendFollowUp(item, true) to override. Cached on the server (90d),
+      // so the original send already populated the result in most cases.
       const v = await verifyEmailForSend(item.recipientEmail);
       if (v && !isSendAllowed(v)) {
-        setSendError(
-          `Can't send to ${item.recipientEmail} — ${describeReason(v.status, v.reason)}`,
-        );
-        setSending(false);
-        return;
+        if (isOverridable(v.status) && !force) {
+          setSendBlocked(v);
+          setSending(false);
+          return;
+        }
+        if (!isOverridable(v.status)) {
+          setSendError(
+            `Can't send to ${item.recipientEmail} — ${describeReason(v.status, v.reason)}`,
+          );
+          setSending(false);
+          return;
+        }
       }
 
       const msalToken = await getMsalAccessToken(emailRequest.scopes);
@@ -323,6 +338,13 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
                 </div>
                 {hasSignature() && <p className="text-[0.6rem] text-gray-400">Your email signature will be appended.</p>}
                 {sendError && <p className="text-xs text-red-600">{sendError}</p>}
+                {sendBlocked && (
+                  <SendBlockedNotice
+                    result={sendBlocked}
+                    onOverride={() => handleSendFollowUp(item, true)}
+                    onDismiss={() => setSendBlocked(null)}
+                  />
+                )}
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleSendFollowUp(item)} disabled={sending}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">

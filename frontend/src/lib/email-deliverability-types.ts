@@ -26,6 +26,18 @@ export function blocksSend(status: DeliverabilityStatus): boolean {
   return status !== "deliverable";
 }
 
+/**
+ * True for a blocked status the user may knowingly override ("Send anyway").
+ * `risky` (catch-all / role / low-deliverability — we can't confirm the mailbox
+ * exists) and `unknown` (the provider gave no definitive answer) are flagged
+ * but NOT confirmed bad, so a human can choose to send regardless.
+ * `undeliverable` (confirmed bad — mailbox doesn't exist / dead domain / bad
+ * syntax) is NEVER overridable — it would just bounce.
+ */
+export function isOverridable(status: DeliverabilityStatus): boolean {
+  return status === "risky" || status === "unknown";
+}
+
 /** Friendly reason copy for UI display. */
 export function describeReason(
   status: DeliverabilityStatus,
