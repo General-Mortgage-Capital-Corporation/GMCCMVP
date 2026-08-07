@@ -76,7 +76,7 @@
       "transaction_types": ["Purchase"],
       "property_types": ["SFR"],
       "occupancy_types": ["Primary Residence"],
-      "eligible_states": ["CA"],
+      "eligible_states": ["CA", "WA"],
       "min_loan_amount": 806501,
       "max_loan_amount": 1500000,
       "max_ltv": 90.0,
