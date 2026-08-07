@@ -16,6 +16,7 @@ import { createDraftEmailTool } from "@/lib/tools/draft-email";
 import { createGenerateFlyerTool } from "@/lib/tools/generate-flyer";
 import { createSendEmailTool } from "@/lib/tools/send-email";
 import { createRecordFollowUpTool } from "@/lib/tools/record-follow-up";
+import { createSendLedger } from "@/lib/tools/send-ledger";
 import { createWebSearchTool } from "@/lib/tools/web-search";
 import { searchByProgramTool } from "@/lib/tools/search-by-program";
 import { createGenerateCsvTool } from "@/lib/tools/generate-csv";
@@ -93,6 +94,11 @@ export async function POST(req: Request) {
 
   const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "" };
 
+  // Per-request ledger so recordFollowUp always uses the address sendEmail
+  // actually sent to (scoped here so it never bleeds across users on a warm
+  // instance).
+  const sendLedger = createSendLedger();
+
   // Construct agent per-request with auth-bound tools
   const agent = new ToolLoopAgent({
     model: "google/gemini-3-flash",
@@ -111,8 +117,8 @@ export async function POST(req: Request) {
       researchRealtor: createResearchRealtorTool(),
       draftEmail: createDraftEmailTool({ signatureHtml }),
       generateFlyer: createGenerateFlyerTool(authContext),
-      sendEmail: createSendEmailTool(authContext),
-      recordFollowUp: createRecordFollowUpTool(authContext),
+      sendEmail: createSendEmailTool(authContext, sendLedger),
+      recordFollowUp: createRecordFollowUpTool(authContext, sendLedger),
       webSearch: createWebSearchTool(),
       searchByProgram: searchByProgramTool,
       generateCsv: createGenerateCsvTool(),

@@ -7,6 +7,7 @@ import {
   verifyDeliverability,
   describeReason,
 } from "@/lib/email-deliverability";
+import type { SendLedger } from "@/lib/tools/send-ledger";
 
 interface AuthContext {
   userEmail: string;
@@ -17,7 +18,7 @@ function dedupKey(to: string, subject: string): string {
   return `${to.toLowerCase()}::${subject.toLowerCase()}`;
 }
 
-export function createSendEmailTool(auth: AuthContext) {
+export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
   // Track sent emails per request (per tool instance) to prevent duplicate
   // sends from auto-recovery retries. Scoped to the closure here — NOT a
   // module-level Set — so a warm Fluid Compute instance handling requests
@@ -153,6 +154,11 @@ export function createSendEmailTool(auth: AuthContext) {
 
       // Mark as sent to prevent duplicates from auto-recovery
       sentEmails.add(key);
+
+      // Record the ACTUAL recipient (keyed by subject) so a later
+      // recordFollowUp call reconciles against the real send — even if the
+      // model proposed a different address after the gate rejected its first.
+      ledger?.record(input.subject, input.to);
 
       return {
         success: true,
