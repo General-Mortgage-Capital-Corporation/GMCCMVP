@@ -8,7 +8,6 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import type { FollowUpListItem } from "@/types/follow-up";
 import { trackEvent } from "@/lib/posthog";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
-import { describeReason, isOverridable } from "@/lib/email-deliverability-types";
 import type { DeliverabilityResult } from "@/lib/email-deliverability-types";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
 
@@ -126,7 +125,7 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
     setSendSuccess(null);
   }
 
-  async function handleSendFollowUp(item: FollowUpListItem, force = false) {
+  async function handleSendFollowUp(item: FollowUpListItem) {
     if (sending) return;
     if (!composeSubject.trim() || !composeBody.trim()) {
       setSendError("Subject and body are required.");
@@ -136,25 +135,15 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
     setSendError(null);
     setSendBlocked(null);
     try {
-      // Send-time deliverability gate. `deliverable` sends; `undeliverable`
-      // (confirmed bad) hard-blocks. `risky`/`unknown` are flagged but not
-      // confirmed bad — they surface an amber "Send anyway" notice that calls
-      // handleSendFollowUp(item, true) to override. Cached on the server (90d),
-      // so the original send already populated the result in most cases.
+      // Send-time deliverability gate. Only `deliverable` sends; anything else
+      // surfaces the blocked notice (which tells the LO to request admin
+      // approval for a flagged address). LOs can't self-override. Cached on the
+      // server (90d), so the original send already populated the result.
       const v = await verifyEmailForSend(item.recipientEmail);
       if (v && !isSendAllowed(v)) {
-        if (isOverridable(v.status) && !force) {
-          setSendBlocked(v);
-          setSending(false);
-          return;
-        }
-        if (!isOverridable(v.status)) {
-          setSendError(
-            `Can't send to ${item.recipientEmail} — ${describeReason(v.status, v.reason)}`,
-          );
-          setSending(false);
-          return;
-        }
+        setSendBlocked(v);
+        setSending(false);
+        return;
       }
 
       const msalToken = await getMsalAccessToken(emailRequest.scopes);
@@ -341,7 +330,6 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
                 {sendBlocked && (
                   <SendBlockedNotice
                     result={sendBlocked}
-                    onOverride={() => handleSendFollowUp(item, true)}
                     onDismiss={() => setSendBlocked(null)}
                   />
                 )}

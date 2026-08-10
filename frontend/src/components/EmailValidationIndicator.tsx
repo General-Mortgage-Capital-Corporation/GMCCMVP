@@ -5,39 +5,40 @@
  *   (or the check itself errored). Never debounced / never on input change.
  * - Surfaces the human-readable reason + an optional "Did you mean ...?"
  *   suggestion when Bouncer returns a typo correction.
- * - For an OVERRIDABLE status (risky / unknown — flagged but not confirmed
- *   bad) it renders an amber warning with a "Send anyway" button so the LO can
- *   knowingly push it through. For a hard block (undeliverable / bad syntax)
- *   it stays red with no override.
+ * - LOs can NO LONGER self-override. For an APPROVABLE status (risky / unknown —
+ *   flagged but not confirmed bad) it renders an amber notice telling the LO to
+ *   email an admin (APPROVAL_REQUEST_CONTACT) to have the address allowlisted;
+ *   once approved it sends for everyone. For a hard block (undeliverable / bad
+ *   syntax) it stays red and just asks them to fix the address.
  * - Renders nothing for `deliverable` (handler proceeds with the send).
  */
 
 "use client";
 
 import {
+  APPROVAL_REQUEST_CONTACT,
   describeReason,
-  isOverridable,
+  isApprovable,
   type DeliverabilityResult,
 } from "@/lib/email-deliverability-types";
 
 export function SendBlockedNotice({
   result,
   onApplySuggestion,
-  onOverride,
   onDismiss,
 }: {
   result: DeliverabilityResult;
   onApplySuggestion?: (suggested: string) => void;
-  /** When provided AND the status is overridable, shows a "Send anyway" button. */
-  onOverride?: () => void;
   onDismiss?: () => void;
 }) {
   if (result.status === "deliverable") return null;
   const message = describeReason(result.status, result.reason);
-  const overridable = isOverridable(result.status) && !!onOverride;
+  // Flagged-but-not-confirmed-bad → an admin can approve it. Confirmed bad
+  // (undeliverable / bad syntax) → the LO must fix the address.
+  const approvable = isApprovable(result.status);
 
-  // Amber for a flagged-but-overridable address; red for a confirmed hard block.
-  const tone = overridable
+  // Amber for a flagged (approvable) address; red for a confirmed hard block.
+  const tone = approvable
     ? {
         wrap: "border-amber-200 bg-amber-50 text-amber-800",
         icon: "text-amber-600",
@@ -70,10 +71,21 @@ export function SendBlockedNotice({
       </svg>
       <div className="flex-1 space-y-1">
         <p>
-          {overridable ? (
+          {approvable ? (
             <>
-              <span className="font-medium">Flagged — {message}</span> It may
-              not be deliverable.
+              <span className="font-medium">Flagged — {message}</span> To send
+              to this address, email{" "}
+              <a
+                href={`mailto:${APPROVAL_REQUEST_CONTACT}?subject=${encodeURIComponent(
+                  "Email approval request",
+                )}&body=${encodeURIComponent(
+                  `Please approve this address for sending: ${result.email}`,
+                )}`}
+                className={`font-medium underline ${tone.link}`}
+              >
+                {APPROVAL_REQUEST_CONTACT}
+              </a>{" "}
+              to request approval. Once approved it sends for everyone.
             </>
           ) : (
             <>
@@ -91,17 +103,6 @@ export function SendBlockedNotice({
             Did you mean{" "}
             <span className="font-mono">{result.didYouMean}</span>?
           </button>
-        )}
-        {overridable && (
-          <div>
-            <button
-              type="button"
-              onClick={onOverride}
-              className="mt-0.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-medium text-amber-800 hover:bg-amber-100"
-            >
-              Send anyway
-            </button>
-          </div>
         )}
       </div>
       {onDismiss && (

@@ -13,7 +13,6 @@ import AgentIntelCard from "./AgentIntelCard";
 import type { RealtorInfo } from "./FlierButton";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
-import { isOverridable } from "@/lib/email-deliverability-types";
 import type { DeliverabilityResult } from "@/lib/email-deliverability";
 
 type RecipientTab = "realtor" | "borrower" | "myself";
@@ -268,17 +267,16 @@ export default function MultiEmailModal({
     }
   }, [preResearch, tab, subject, body, generateEmail]);
 
-  async function handleSend(force = false) {
+  async function handleSend() {
     if (sending) return;
     if (!hasSignature()) { setSigFixOpen(true); return; }
     if (!toEmail.trim()) { setError("Recipient email is required."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
     if (!subject.trim()) { setError("Subject is required."); return; }
 
-    // Send-time deliverability gate. `deliverable` always sends; `undeliverable`
-    // (confirmed bad) always hard-blocks. `risky`/`unknown` are flagged but not
-    // confirmed bad — they show a "Send anyway" button that calls handleSend(true)
-    // to override. A hard block is never overridable, even with force.
+    // Send-time deliverability gate. Only `deliverable` sends; anything else
+    // blocks and surfaces a notice. LOs can't self-override — an admin
+    // allowlists a flagged address (after which it verifies as deliverable).
     if (!skipValidation) {
       setVerifying(true);
       try {
@@ -286,22 +284,10 @@ export default function MultiEmailModal({
           verifyEmailForSend(toEmail.trim()),
           ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
         ]);
-        let hardBlocked = false;
-        let softBlocked = false;
-        if (toResult && !isSendAllowed(toResult)) {
-          setToBlocked(toResult);
-          if (isOverridable(toResult.status)) softBlocked = true; else hardBlocked = true;
-        } else {
-          setToBlocked(null);
-        }
-        if (ccEmail.trim() && ccResult && !isSendAllowed(ccResult)) {
-          setCcBlocked(ccResult);
-          if (isOverridable(ccResult.status)) softBlocked = true; else hardBlocked = true;
-        } else {
-          setCcBlocked(null);
-        }
-        if (hardBlocked) return;             // undeliverable — never sends
-        if (softBlocked && !force) return;   // risky/unknown — wait for "Send anyway"
+        let blocked = false;
+        if (toResult && !isSendAllowed(toResult)) { setToBlocked(toResult); blocked = true; } else { setToBlocked(null); }
+        if (ccEmail.trim() && ccResult && !isSendAllowed(ccResult)) { setCcBlocked(ccResult); blocked = true; } else { setCcBlocked(null); }
+        if (blocked) return;
       } finally {
         setVerifying(false);
       }
@@ -550,7 +536,6 @@ export default function MultiEmailModal({
                       <SendBlockedNotice
                         result={toBlocked}
                         onApplySuggestion={(s) => { setToEmail(s); setToBlocked(null); }}
-                        onOverride={() => handleSend(true)}
                         onDismiss={() => setToBlocked(null)}
                       />
                     )}
@@ -571,7 +556,6 @@ export default function MultiEmailModal({
                         <SendBlockedNotice
                           result={ccBlocked}
                           onApplySuggestion={(s) => { setCcEmail(s); setCcBlocked(null); }}
-                          onOverride={() => handleSend(true)}
                           onDismiss={() => setCcBlocked(null)}
                         />
                       )}

@@ -18,8 +18,15 @@ export type DeliverabilityResult = {
   status: DeliverabilityStatus;
   reason: string | null;
   didYouMean: string | null;
-  source: "cache" | "bouncer" | "syntax" | "not_configured" | "api_error";
+  source: "cache" | "bouncer" | "syntax" | "not_configured" | "api_error" | "approved";
 };
+
+/**
+ * Where LOs are told to write when a flagged address needs sending. An admin
+ * allowlists the address (admin tool), after which it sends for everyone — see
+ * lib/email-approvals.ts. LOs cannot self-override anymore.
+ */
+export const APPROVAL_REQUEST_CONTACT = "ai@gmccloan.com";
 
 /** True for anything that should block a send. */
 export function blocksSend(status: DeliverabilityStatus): boolean {
@@ -27,14 +34,15 @@ export function blocksSend(status: DeliverabilityStatus): boolean {
 }
 
 /**
- * True for a blocked status the user may knowingly override ("Send anyway").
- * `risky` (catch-all / role / low-deliverability — we can't confirm the mailbox
- * exists) and `unknown` (the provider gave no definitive answer) are flagged
- * but NOT confirmed bad, so a human can choose to send regardless.
+ * True for a flagged-but-not-confirmed-bad status that an ADMIN can approve to
+ * unblock (LOs can no longer self-override). `risky` (catch-all / role /
+ * low-deliverability — we can't confirm the mailbox exists) and `unknown` (the
+ * provider gave no definitive answer) qualify: an admin may allowlist them.
  * `undeliverable` (confirmed bad — mailbox doesn't exist / dead domain / bad
- * syntax) is NEVER overridable — it would just bounce.
+ * syntax) would just bounce, so LOs are told to fix it rather than request
+ * approval (an admin can still allowlist it from the tool if truly needed).
  */
-export function isOverridable(status: DeliverabilityStatus): boolean {
+export function isApprovable(status: DeliverabilityStatus): boolean {
   return status === "risky" || status === "unknown";
 }
 

@@ -8,7 +8,9 @@
  *
  * Policy (per product owner): a verified-deliverable response is the ONLY
  * status that allows a send. Everything else — undeliverable, risky,
- * unknown — surfaces an error and blocks. There's no client override.
+ * unknown — surfaces an error and blocks. LOs cannot self-override; an admin
+ * allowlists a flagged address (lib/email-approvals.ts), after which this
+ * function short-circuits it to `deliverable` for everyone.
  *
  * Caching: results persist in Firestore for 90 days under
  * `emailValidations/{base64key}`. Bouncer's pre-paid credits are
@@ -25,6 +27,7 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import { getDb } from "@/lib/firestore-admin";
+import { isEmailApproved } from "@/lib/email-approvals";
 import type {
   DeliverabilityResult,
   DeliverabilityStatus,
@@ -127,6 +130,18 @@ export async function verifyDeliverability(
       reason: "invalid_syntax",
       didYouMean: null,
       source: "syntax",
+    };
+  }
+
+  // Admin allowlist wins over everything — a flagged address an admin approved
+  // sends for everyone, and we skip Bouncer entirely (no credit spent).
+  if (await isEmailApproved(normalized)) {
+    return {
+      email: normalized,
+      status: "deliverable",
+      reason: "approved",
+      didYouMean: null,
+      source: "approved",
     };
   }
 

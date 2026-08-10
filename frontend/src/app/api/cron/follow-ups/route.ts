@@ -4,6 +4,7 @@ import { sendMailAs, checkForReply, isAutoSendAvailable, getOriginalMessageIds }
 import { COMPANY_DISCLAIMER } from "@/lib/signature-store";
 import { rateLimit, getClientIp } from "@/lib/ratelimit";
 import { readCachedDeliverability, blocksSend } from "@/lib/email-deliverability";
+import { isEmailApproved } from "@/lib/email-approvals";
 
 export const runtime = "nodejs";
 // Vercel cron functions can run up to 300s on Hobby (and longer on Pro).
@@ -247,7 +248,7 @@ Use \\n for line breaks in the body. Do not include a signature.`;
         // a live Bouncer call here — cron volume would burn credits and the
         // interactive paths populate the cache anyway.
         const cached = await readCachedDeliverability(data.recipientEmail);
-        if (cached && blocksSend(cached.status)) {
+        if (cached && blocksSend(cached.status) && !(await isEmailApproved(data.recipientEmail))) {
           console.log(
             `[cron] Skipping auto-send to ${data.recipientEmail} — cached as ${cached.status}/${cached.reason ?? "?"}`,
           );
