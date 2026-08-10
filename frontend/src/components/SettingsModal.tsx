@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import SignatureEditor from "./SignatureEditor";
 import { getHeadshot, setHeadshot, clearHeadshot } from "@/lib/headshot-store";
 import { getLOInfo, setLOInfo } from "@/lib/lo-info-store";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -153,6 +154,43 @@ function AiLiteUrlField() {
   );
 }
 
+/** Admin-only tools. Renders nothing unless the signed-in user is an approval
+ *  admin (checked server-side so the admin list never reaches the browser). */
+function AdminTools() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authedFetch("/api/admin/is-approval-admin");
+        if (!res.ok) return;
+        const data = (await res.json()) as { isAdmin?: boolean };
+        if (!cancelled) setIsAdmin(!!data.isAdmin);
+      } catch {
+        /* hide on error */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!isAdmin) return null;
+  return (
+    <div className="border-t border-gray-200 pt-4">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Admin</p>
+      <a
+        href="/admin/email-approvals"
+        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        <span aria-hidden>✉️</span>
+        Email approvals
+      </a>
+      <p className="mt-1.5 text-xs text-gray-400">
+        Approve flagged email addresses so they send for everyone.
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsModal({ onClose }: SettingsModalProps) {
   return (
     <div
@@ -188,6 +226,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <div className="border-t border-gray-200 pt-4">
             <SignatureEditor />
           </div>
+          <AdminTools />
         </div>
       </div>
     </div>
