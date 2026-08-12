@@ -38,7 +38,7 @@
         "fixed_max_loan": 3000000,
         "arm_max_loan": 8000000,
         "ltv_tiers_fixed": "80% to $1.5M, 75% to $2M, 65% to $3M",
-        "ltv_tiers_arm": "80% to $1.5M, 75% to $2M, 70% to $3M, 65% to $5M, 60% to $5M, 55% to $8M",
+        "ltv_tiers_arm": "80% to $1.5M, 75% to $2M, 65% to $3M, 60% to $5M, 55% to $8M",
         "cash_out_max_ltv": 70.0,
         "reserves_by_loan": "6mo to $1M, 12mo to $1.5M, 18mo to $2.5M, 24mo to $8M",
         "cash_out_reserves": "9mo to $1M, 12mo to $1.5M, 18mo to $2M+"
@@ -76,7 +76,7 @@
       "transaction_types": ["Purchase"],
       "property_types": ["SFR"],
       "occupancy_types": ["Primary Residence"],
-      "eligible_states": ["CA", "WA"],
+      "eligible_states": ["CA"],
       "min_loan_amount": 806501,
       "max_loan_amount": 1500000,
       "max_ltv": 90.0,
