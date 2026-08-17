@@ -23,7 +23,7 @@ const API_KEY = process.env.RENTCAST_API_KEY ?? "";
 export async function GET(req: NextRequest) {
   if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
-  if (!rateLimit(ip, 10)) {
+  if (!(await rateLimit(ip, 10))) {
     return NextResponse.json(
       { success: false, error: "Rate limit exceeded." },
       { status: 429 },

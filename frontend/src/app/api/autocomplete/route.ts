@@ -10,7 +10,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
 export async function GET(req: NextRequest) {
   if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
-  if (!rateLimit(ip, 120)) {
+  if (!(await rateLimit(ip, 120))) {
     return NextResponse.json({ suggestions: [] }, { status: 429 });
   }
 

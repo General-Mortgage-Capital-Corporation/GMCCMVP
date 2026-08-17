@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   return withRefiAccess(req, async () => {
     const ip = getClientIp(req);
-    if (!rateLimit(ip, 60)) {
+    if (!(await rateLimit(ip, 60))) {
       return NextResponse.json({ success: false, error: "Rate limit exceeded." }, { status: 429 });
     }
     const body = await req.json().catch(() => null);

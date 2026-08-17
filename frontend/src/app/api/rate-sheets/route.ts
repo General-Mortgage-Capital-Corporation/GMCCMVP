@@ -19,7 +19,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   if (!(await requireAuth(req))) return unauthorized();
   const ip = getClientIp(req);
-  if (!rateLimit(`rate-sheets:${ip}`, 60)) {
+  if (!(await rateLimit(`rate-sheets:${ip}`, 60))) {
     return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
   }
 

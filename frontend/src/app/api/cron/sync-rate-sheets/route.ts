@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   } else {
     // Open mode — rate-limited (5/min per IP). Set CRON_SECRET to lock down.
     const ip = getClientIp(req);
-    if (!rateLimit(`cron-sync-rate-sheets:${ip}`, 5)) {
+    if (!(await rateLimit(`cron-sync-rate-sheets:${ip}`, 5))) {
       return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
     }
     console.warn(

@@ -36,6 +36,8 @@ import {
   deductCredits,
   refundCredits,
   logActivity,
+  openUnlockJob,
+  settleUnlockJob,
   InsufficientCreditsError,
 } from "@/lib/refi-credits";
 
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIp(req);
-  if (!rateLimit(ip, 20)) {
+  if (!(await rateLimit(ip, 20))) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
@@ -129,6 +131,18 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
+  // 1b. Reconciliation job — if this request dies before the refund/settle
+  // below, /api/cron/refi-reconcile refunds the full deducted amount.
+  const jobId = await openUnlockJob({
+    email: verified.email,
+    deducted: { contact: 0, property: limit },
+    cycleId,
+    poolRef: pool.poolRef,
+    drewFromBuffer: pool.drewFromBuffer,
+    source: "unlock_search",
+    requested: limit,
+  });
+
   // 2. PR call via Python.
   let pyData: SearchResponse;
   try {
@@ -154,6 +168,11 @@ export async function POST(req: NextRequest) {
       balanceAfter,
       failureReason: String(err),
     }).catch(() => {});
+    // Full deduction refunded → settle so the reconciler skips it.
+    await settleUnlockJob(jobId, {
+      refunded: { contact: 0, property: limit },
+      note: "pr_failed",
+    });
 
     const status = err instanceof PythonServiceError ? err.status : 502;
     const msg = err instanceof PythonServiceError ? err.message : "search_failed";
@@ -186,6 +205,11 @@ export async function POST(req: NextRequest) {
       console.error("[unlock-search] post-PR refund failed:", rerr);
     }
   }
+
+  // Inline refund done → settle the reconciliation job.
+  await settleUnlockJob(jobId, {
+    refunded: { contact: 0, property: propertyRefund },
+  });
 
   // 4. Per-row activity log. Every entry stamps the SAME post-refund
   // `finalBalance` — these N rows happened together as one user action,

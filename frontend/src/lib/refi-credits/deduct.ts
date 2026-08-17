@@ -33,6 +33,8 @@ interface DeductionContext {
   email: string;
   pool: ResolvedPool;
   amount: CreditAmount;
+  /** Optional label for the ledger (e.g. "unlock_contact", "unlock_search"). */
+  source?: string;
 }
 
 interface DeductionResult {
@@ -124,8 +126,53 @@ export async function deductCredits(
       { merge: true },
     );
 
+    // Immutable credit-ledger entry — atomic with the balance change, so unlike
+    // the best-effort activity log it can never be lost if the request dies
+    // mid-flight (the gap that made an over-charge un-investigable). One row per
+    // deduct/refund, keyed per acting user for forensic lookups.
+    writeLedger(tx, db, ctx.email, {
+      type: "deduct",
+      contact: ctx.amount.contact,
+      property: ctx.amount.property,
+      balanceAfter,
+      poolRef: ctx.pool.poolRef,
+      cycleId: meta.currentCycleId,
+      source: ctx.source,
+    });
+
     return { balanceAfter, cycleId: meta.currentCycleId };
   });
+}
+
+/** Write an immutable ledger row inside the caller's transaction. */
+function writeLedger(
+  tx: FirebaseFirestore.Transaction,
+  db: FirebaseFirestore.Firestore,
+  email: string,
+  entry: {
+    type: "deduct" | "refund";
+    contact: number;
+    property: number;
+    balanceAfter: { contact: number; property: number };
+    poolRef: string;
+    cycleId: string;
+    source?: string;
+    skippedPackWrite?: boolean;
+  },
+): void {
+  const ref = db.collection(`users/${email.toLowerCase()}/refiCreditLedger`).doc();
+  const payload: Record<string, unknown> = {
+    ts: FieldValue.serverTimestamp(),
+    type: entry.type,
+    contact: entry.contact,
+    property: entry.property,
+    balanceAfter: entry.balanceAfter,
+    poolRef: entry.poolRef,
+    cycleId: entry.cycleId,
+  };
+  if (entry.source) payload.source = entry.source;
+  if (entry.skippedPackWrite) payload.skippedPackWrite = true;
+  tx.set(ref, payload);
 }
 
 /**
@@ -189,14 +236,21 @@ export async function refundCredits(
         contactCredits?: number;
         propertyCredits?: number;
       };
-      return {
-        balanceAfter: {
-          contact: poolData.contactCredits ?? 0,
-          property: poolData.propertyCredits ?? 0,
-        },
-        skippedPackWrite: true,
-        cycleRolled: true,
+      const balanceAfter = {
+        contact: poolData.contactCredits ?? 0,
+        property: poolData.propertyCredits ?? 0,
       };
+      writeLedger(tx, db, ctx.email, {
+        type: "refund",
+        contact: ctx.amount.contact,
+        property: ctx.amount.property,
+        balanceAfter,
+        poolRef: ctx.pool.poolRef,
+        cycleId: ctx.cycleId,
+        source: ctx.source,
+        skippedPackWrite: true,
+      });
+      return { balanceAfter, skippedPackWrite: true, cycleRolled: true };
     }
 
     // Same-cycle refund — original behavior.
@@ -219,6 +273,16 @@ export async function refundCredits(
       },
       { merge: true },
     );
+
+    writeLedger(tx, db, ctx.email, {
+      type: "refund",
+      contact: ctx.amount.contact,
+      property: ctx.amount.property,
+      balanceAfter,
+      poolRef: ctx.pool.poolRef,
+      cycleId: ctx.cycleId,
+      source: ctx.source,
+    });
 
     return { balanceAfter, skippedPackWrite: false, cycleRolled: false };
   });
