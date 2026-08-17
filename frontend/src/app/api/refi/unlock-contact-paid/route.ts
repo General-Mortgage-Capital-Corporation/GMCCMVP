@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIp(req);
-  if (!rateLimit(ip, 10)) {
+  if (!(await rateLimit(ip, 10))) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 

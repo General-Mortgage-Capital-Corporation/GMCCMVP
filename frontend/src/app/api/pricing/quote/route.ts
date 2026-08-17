@@ -37,7 +37,7 @@ function jsonError(error: string, code: NonNullable<Extract<QuoteApiResponse, { 
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  if (!rateLimit(`pricing:${ip}`, 30)) {
+  if (!(await rateLimit(`pricing:${ip}`, 30))) {
     return jsonError("Rate limit exceeded. Try again in a minute.", "rate_limited", 429);
   }
 

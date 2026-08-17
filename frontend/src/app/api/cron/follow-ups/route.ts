@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     }
   } else {
     const ip = getClientIp(req);
-    if (!rateLimit(`cron-follow-ups:${ip}`, 5)) {
+    if (!(await rateLimit(`cron-follow-ups:${ip}`, 5))) {
       return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
     }
     console.warn(

@@ -312,7 +312,7 @@ function summarizeResultsForLLM(
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  if (!rateLimit(`pricing-chat:${ip}`, 30)) {
+  if (!(await rateLimit(`pricing-chat:${ip}`, 30))) {
     return NextResponse.json(
       { error: "Rate limit exceeded." },
       { status: 429 },
