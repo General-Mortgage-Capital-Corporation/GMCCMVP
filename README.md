@@ -181,7 +181,10 @@ GMCCMVP/
 │   │   │   │   ├── meta.ts           meta/refiFinder cached reader
 │   │   │   │   ├── pool-resolver.ts  user → personal pool vs company_buffer
 │   │   │   │   ├── subscription.ts   active / buffer / expired / never_subscribed
-│   │   │   │   ├── deduct.ts         Atomic deduct + refund + lazy buffer reset
+│   │   │   │   ├── deduct.ts         Atomic deduct + refund + lazy buffer reset;
+│   │   │   │   │                     writes immutable refiCreditLedger row in-txn
+│   │   │   │   ├── unlock-jobs.ts    Crash-safe job tracking (open/settle) for
+│   │   │   │   │                     the reconciliation sweep
 │   │   │   │   ├── activity.ts       logActivity + paginated listActivity
 │   │   │   │   ├── perform-unlock.ts Shared deduct→PR→log→refund orchestrator
 │   │   │   │   └── types.ts          Shared TS types
@@ -513,6 +516,9 @@ Next.js routes:
                            per-channel refund when PR returns null
     activity               Paginated user activity log
     {access, presets, preview, search, quota, ...}  Legacy paths still mounted
+  /api/cron/
+    refi-reconcile         Hourly credit-safety sweep — auto-refunds orphaned
+                           unlock charges (see Credit integrity below)
 
 Python (Flask):
   matching/propertyradar.py    Thin PR API client (no daily cap after May 2026)
@@ -534,6 +540,22 @@ users/{email}/refiFinderActivity/{auto-id}   ← we write one per discrete actio
   { ts, action, propertyId, propertyAddress, ownerName?, creditsUsed,
     propertyRadarRef, drewFromBuffer, balanceAfter,
     revealedValue?, failureReason?, fromCache? }
+  action ∈ { unlock_property, unlock_email, unlock_text, unlock_failed,
+             refund_skipped_rollover, refund_reconciled }
+
+users/{email}/refiCreditLedger/{auto-id}  ← IMMUTABLE audit row, written INSIDE the
+                                            same txn as every deduct/refund so it can
+                                            never be lost (unlike best-effort activity)
+  { ts, type: "deduct"|"refund", contact, property, balanceAfter,
+    poolRef, cycleId, source?, skippedPackWrite? }
+
+refiUnlockJobs/{auto-id}                   ← crash-safe job per unlock request. Opened
+                                            (pending) at deduction; flipped to settled
+                                            once the refund lands. The refi-reconcile
+                                            cron refunds any left pending past 15 min.
+  { email, status: "pending"|"settled"|"reconciling"|"reconciled",
+    deducted:{contact,property}, refunded?, cycleId, poolRef, drewFromBuffer,
+    source, requested, createdAt, settledAt?, reconciledAt? }
 
 subscriptions/{email}                     ← legacy path, refi_finder as a field
   { refi_finder: { paymentStatus, billcomRecurringInvoiceId, nextBillingDate,
@@ -560,6 +582,37 @@ meta/refiFinder                           ← central config
 - 1 text reveal = 1 contact credit (refunded if PR returns null)
 - All deductions go through atomic Firestore transactions in [`deduct.ts`](frontend/src/lib/refi-credits/deduct.ts).
 - After-payment latency: ~4-5 min for the Bill.com webhook to fire and the balance to refresh.
+
+#### Credit integrity — ledger + crash-safe reconciliation
+
+The unlock flow deducts credits **up front**, calls PropertyRadar, then refunds
+the channels/rows PR didn't deliver. If a request dies between the deduction and
+the refund (timeout, instance recycle, unhandled throw), the older code left the
+user silently over-charged with **no record**. Three layers now prevent and heal that:
+
+1. **Immutable ledger** — [`deduct.ts`](frontend/src/lib/refi-credits/deduct.ts) writes a
+   `users/{email}/refiCreditLedger` row **inside the same transaction** as every
+   deduct/refund. Unlike the best-effort activity log (written after the response),
+   it cannot be lost mid-flight — so every charge is forensically reconstructable.
+2. **Unlock jobs** — [`unlock-jobs.ts`](frontend/src/lib/refi-credits/unlock-jobs.ts)
+   `openUnlockJob` writes a `pending` `refiUnlockJobs` row at deduction time; the
+   route flips it to `settled` once the refund lands. Both calls are best-effort
+   and can never break an unlock.
+3. **Reconciliation cron** — [`/api/cron/refi-reconcile`](frontend/src/app/api/cron/refi-reconcile/route.ts)
+   (hourly at :15) sweeps jobs still `pending` past a 15-min grace window and
+   refunds the **full** deducted amount via `refundCredits` (which writes the
+   ledger). It claims each job `pending → reconciling` in a transaction so
+   concurrent runs can't double-refund; a job stuck mid-refund is surfaced in
+   logs for human review, never auto-retried. The user sees a
+   `refund_reconciled` entry in their History ("Auto-refunded (interrupted request)").
+
+Coverage spans both credit-spending routes (`unlock-search`, `unlock-contact-paid`)
+and the shared `performUnlock` orchestrator.
+
+> **Historical:** this system was added Aug 2026 after a user was charged 49
+> contact credits but only received 11 reveals, with zero activity records — the
+> request had died after the deduction. The reconciliation net now auto-refunds
+> that exact failure within the hour.
 
 #### Cross-LO caching
 
@@ -721,7 +774,16 @@ A single Upstash database. Namespaced keys, no `KEYS` scans in prod paths.
 | `refi:contacts:v2:<radar_id>` | **365 days** | yes | Person records + unlocked phones/emails (PR ownership is permanent) |
 | `pr:spend:records:<UTC-date>` | 48h | yes | Daily PR record-spend counter (cap retired May 2026; counter kept for ops) |
 | `chat:*` | `CHAT_TTL_DAYS` | per-user | Conversation history |
-| `ratelimit:*` | short | per-IP/user | API rate limits ([ratelimit.ts](frontend/src/lib/ratelimit.ts)) |
+| `rl:*` | 60s | per-IP/user | API rate limits ([ratelimit.ts](frontend/src/lib/ratelimit.ts)) |
+
+> **Rate limiting is Redis-backed as of Aug 2026.** `rateLimit()` is now async and
+> uses a shared Upstash fixed-window counter (`rl:<key>`, 60s TTL) so the limit is
+> enforced consistently across all Vercel instances. Previously it was a per-process
+> in-memory `Map`, which on Vercel meant each serverless instance kept its own
+> counter — the effective limit was silently multiplied by the live instance count.
+> If the Redis env vars are absent (local/CI) or a Redis call throws, it falls back
+> to the old in-memory behavior so requests never hard-fail. All 17 callers `await`
+> it.
 
 Cache keys for refi search are SHA256 of normalized criteria + page + limit (stable JSON sort, so filter key order is irrelevant). `cache_hit: true|false` is returned in every search response; UI shows a "cached · no records charged" pill when true. **The credit-gated routes (`/api/refi/unlock-search`, `/unlock-contact-paid`) refund the user's deducted credits on every cache hit** — the cross-LO cache directly translates to "no charge" for the user.
 
@@ -799,14 +861,17 @@ If `BOUNCER_API_KEY` is unset or Bouncer is unreachable, the server returns `unk
 
 ## Cron jobs
 
-Two Vercel Cron jobs declared in [frontend/vercel.json](frontend/vercel.json):
+Three Vercel Cron jobs declared in [frontend/vercel.json](frontend/vercel.json):
 
 | Schedule (UTC) | Path | Purpose |
 |---|---|---|
 | `0 * * * *` (hourly) | `/api/cron/follow-ups` | Scan Firestore `sentEmails`, send follow-up nudges where rules match. Auto-send branch reads the Bouncer cache (`emailValidations`) and skips recipients previously flagged non-deliverable — never spends Bouncer credits in cron. Skipped items are marked `followUp.status = "skipped_undeliverable"`. |
 | `0 17 * * *` (daily 17:00 UTC) | `/api/cron/sync-rate-sheets` | Pull latest rate sheet from SharePoint into Upstash cache. |
+| `15 * * * *` (hourly at :15) | `/api/cron/refi-reconcile` | Credit-safety sweep. Refunds orphaned Refi Finder charges — unlock jobs that deducted credits but died before refunding (see [Refi Finder](#6-refi-finder-refi--paid-subscription-tier)). Scans `refiUnlockJobs` for rows still `pending` past a 15-min grace window and refunds the full deducted amount. Idempotent (txn-claimed, no double-refund). |
 
-Both validate `Authorization: Bearer ${CRON_SECRET}`. To test locally:
+> **Cron count needs Vercel Pro** — Hobby caps at 2 cron jobs; this project runs 3. GMCC is on Pro.
+
+All three validate `Authorization: Bearer ${CRON_SECRET}` (and fall back to a rate-limited public trigger if `CRON_SECRET` is unset). To test locally:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/follow-ups
@@ -954,6 +1019,13 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 **Shipped June 2026:**
 - ✅ Refi Finder preset UX: filter-value chips on cards + active scenario header, "Modified" badge, "Reset to scenario defaults" button, prominent "Build from scratch" card, every prefilled filter auto-exposed for editing
 - ✅ Bouncer email deliverability gate on all 4 outbound LO email surfaces (single + multi flyer modals, follow-up dashboard, AI agent send tool). Hard block on anything ≠ `deliverable`, 90-day Firestore cache, cron uses cache-only reads
+
+**Shipped August 2026:**
+- ✅ **Credit integrity overhaul** (after a real over-charge incident — see [Credit integrity](#credit-integrity--ledger--crash-safe-reconciliation)):
+  - Immutable `refiCreditLedger` row written in-txn with every deduct/refund
+  - Crash-safe `refiUnlockJobs` tracking + hourly `/api/cron/refi-reconcile` sweep that auto-refunds orphaned charges (request died after deduction, before refund)
+  - Coverage across `unlock-search`, `unlock-contact-paid`, and `performUnlock`
+- ✅ **Redis-backed rate limiter** — `rateLimit()` now async, shared Upstash fixed-window counter across all Vercel instances (was per-process in-memory `Map`); in-memory fallback on missing env / Redis error. All 17 callers migrated to `await`.
 
 **In flight / queued:**
 - **PR `purchase=0` ownership check**: theoretically lets us serve owned contacts forever at no cost (currently 365-day Redis TTL covers ~99% of cases). 10-min API poke to verify; ~30 min to wire if confirmed. See ["PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-tier).

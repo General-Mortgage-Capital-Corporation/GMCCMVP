@@ -142,8 +142,10 @@ Finds homeowners who look like strong refinance candidates using public mortgage
   - **Property credits** (5,000/month) — spent when you **Fetch** records. Fetching N records costs N property credits.
   - **Contact credits** (200 unlocks/month) — spent when you **unlock contact info**. Revealing a borrower's email is one credit and revealing their text/phone is another (so unlocking both for one person is two contact credits).
 - If a channel turns out to have no data, that credit is refunded.
+- **You're never charged for something you didn't get.** If a fetch or unlock is interrupted (a timeout or a hiccup on our side) after credits were taken but before the results came back, the system automatically refunds those credits — usually within the hour. When that happens you'll see an **"Auto-refunded (interrupted request)"** entry in your History, and your balance is made whole.
 - Your **current balance** is shown in a pill at the top of the tab and updates as you use it.
 - If you run low mid-cycle, there's an option to top up; otherwise credits refresh with your monthly renewal.
+- **Access follows your billing cycle** — when your month ends, your credits refresh if your subscription renews. If you cancel auto-renew, you keep the credits you already have until the end of the current cycle, then access stops (you don't keep access indefinitely, and you aren't charged again).
 
 ---
 
@@ -216,6 +218,10 @@ Because it's deterministic, the same property always produces the same result, a
 **How much does Refi Finder cost?** It's a $100/month subscription that includes 5,000 property credits and 200 contact unlocks per month.
 
 **What's the difference between property credits and contact credits?** Property credits are spent fetching records; contact credits are spent revealing a person's email or phone.
+
+**I was charged credits but the results never loaded — did I lose them?** No. If a fetch or unlock is interrupted after credits were deducted, the system automatically refunds them (usually within the hour) and adds an **"Auto-refunded (interrupted request)"** line to your History. If you ever think a charge is wrong and it isn't refunded within a day, contact the AI team with the property/time and we can check your credit ledger.
+
+**If I cancel, do I keep access forever?** No. Canceling stops the next monthly charge but you keep the credits you already have until your current cycle ends; after that, access stops until you subscribe again.
 
 **Can I export results?** Yes — every search tab and Refi Finder can download results as CSV.
 
