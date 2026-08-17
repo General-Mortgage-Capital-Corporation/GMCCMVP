@@ -19,6 +19,7 @@
 import type { ResolvedPool, CreditAmount, ActivityAction } from "./types";
 import { deductCredits, refundCredits } from "./deduct";
 import { logActivity } from "./activity";
+import { openUnlockJob, settleUnlockJob } from "./unlock-jobs";
 import { InsufficientCreditsError } from "./types";
 
 interface UnlockRunInput {
@@ -42,6 +43,8 @@ interface UnlockRunInput {
     contact: number;
     property: number;
   }) => Promise<{ propertyRadarRef: string; result: unknown }>;
+  /** Label for the reconciliation job (e.g. "unlock_search"). */
+  source?: string;
 }
 
 interface UnlockRunResult {
@@ -64,14 +67,32 @@ export async function performUnlock(
     amount: input.amount,
   });
 
+  // 1b. Reconciliation job — if this request dies between the deduction and the
+  // refund/settle below, /api/cron/refi-reconcile refunds the full amount.
+  // Best-effort; never blocks the unlock.
+  const jobId = await openUnlockJob({
+    email: input.email,
+    deducted: input.amount,
+    cycleId,
+    poolRef: input.pool.poolRef,
+    drewFromBuffer: input.pool.drewFromBuffer,
+    source: input.source ?? "unlock",
+    requested: input.rowActions.length,
+  });
+
   // 2. PR call. Failure must trigger a refund.
   let prResult: { propertyRadarRef: string; result: unknown };
   try {
     prResult = await input.call(balanceAfter);
   } catch (err) {
     await safeRefundAndLogFailure(input, cycleId, err);
+    // Full amount refunded on failure → job settled (no reconcile needed).
+    await settleUnlockJob(jobId, { refunded: input.amount, note: "pr_failed" });
     throw err;
   }
+
+  // Success — nothing refunded; settle so the reconciler skips it.
+  await settleUnlockJob(jobId, { refunded: { contact: 0, property: 0 } });
 
   // 3. Success — write one activity entry per row action.
   await Promise.all(
