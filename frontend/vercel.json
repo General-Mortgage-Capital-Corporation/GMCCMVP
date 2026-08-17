@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/sync-rate-sheets",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/refi-reconcile",
+      "schedule": "15 * * * *"
     }
   ],
   "headers": [

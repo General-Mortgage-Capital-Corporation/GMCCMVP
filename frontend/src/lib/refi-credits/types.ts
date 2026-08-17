@@ -81,7 +81,12 @@ export type ActivityAction =
    *  refund onto the new pack would over-credit (200 + N instead of 200).
    *  We skip the pack write but still decrement the ORIGINAL cycle's
    *  usage counter, and log this entry so accounting + audit are visible. */
-  | "refund_skipped_rollover";
+  | "refund_skipped_rollover"
+  /** An unlock request died after the up-front deduction but before it could
+   *  refund the undelivered channels, leaving an orphaned charge. The
+   *  reconciliation cron detected the un-settled job and refunded the full
+   *  deducted amount. */
+  | "refund_reconciled";
 
 /** users/{email}/refiFinderActivity/{auto-id} — one entry per discrete user action. */
 export interface ActivityEntry {

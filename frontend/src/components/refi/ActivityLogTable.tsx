@@ -37,6 +37,7 @@ const ACTION_LABEL: Record<ActivityAction, string> = {
   unlock_text: "Revealed text",
   unlock_failed: "Failed (refunded)",
   refund_skipped_rollover: "Failed (cycle rolled — see details)",
+  refund_reconciled: "Auto-refunded (interrupted request)",
 };
 
 export default function ActivityLogTable() {

@@ -35,6 +35,8 @@ import {
   deductCredits,
   refundCredits,
   logActivity,
+  openUnlockJob,
+  settleUnlockJob,
   InsufficientCreditsError,
 } from "@/lib/refi-credits";
 
@@ -164,6 +166,20 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
+  // 1b. Open a reconciliation job. If this request dies before the refund +
+  // settle below, the /api/cron/refi-reconcile sweep refunds the full deducted
+  // amount so the user is never silently over-charged. Best-effort — a failure
+  // here only forfeits reconciliation coverage for this one request.
+  const jobId = await openUnlockJob({
+    email: verified.email,
+    deducted: { contact: contactNeeded, property: 0 },
+    cycleId,
+    poolRef: pool.poolRef,
+    drewFromBuffer: pool.drewFromBuffer,
+    source: "unlock_contact",
+    requested: contactNeeded,
+  });
+
   // 2. Split rows by which channels they want (up to 3 PR calls). Keep the
   // original request shape so we know what was asked, not just what came back.
   const emailOnly = body.rows.filter((r) => r.email && !r.text);
@@ -213,6 +229,11 @@ export async function POST(req: NextRequest) {
     }).catch((rerr) =>
       console.error("[unlock-contact-paid] refund failed:", rerr),
     );
+    // Full deduction refunded → job is settled (reconciler must not re-refund).
+    await settleUnlockJob(jobId, {
+      refunded: { contact: contactNeeded, property: 0 },
+      note: "all_buckets_failed",
+    });
     const firstErr = settled.find((s) => s.status === "rejected") as
       | PromiseRejectedResult
       | undefined;
@@ -380,6 +401,14 @@ export async function POST(req: NextRequest) {
       // Don't surface — user still got data, log will show the discrepancy.
     }
   }
+
+  // Inline refund is done → settle the reconciliation job so the sweep skips it.
+  // (A crash in the tiny window between the refund above and here leaves the job
+  // pending; the reconciler then refunds the full amount — user-favorable, which
+  // matches this route's "only bill for what PR delivered" guarantee.)
+  await settleUnlockJob(jobId, {
+    refunded: { contact: refundContact, property: 0 },
+  });
 
   await Promise.all(
     pending.map((p) =>
