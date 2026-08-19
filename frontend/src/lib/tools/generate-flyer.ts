@@ -28,7 +28,7 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   "GMCC Thunder": "thunder",
 };
 
-function resolveProductId(programName: string): string | null {
+export function resolveProductId(programName: string): string | null {
   // Direct match
   if (PROGRAM_TO_PRODUCT_ID[programName]) return PROGRAM_TO_PRODUCT_ID[programName];
 
@@ -47,6 +47,53 @@ interface AuthContext {
   userEmail: string;
   /** LO's flyer title from their profile (Settings). Falls back server-side. */
   loTitle?: string;
+}
+
+/**
+ * Generate a program flyer PDF (no property personalization) and return raw
+ * base64. Used by the campaign engine to pre-generate ONE flyer per program at
+ * campaign start — the Cloud Function needs the user's Firebase token, which
+ * only exists during the interactive request, not in the cron.
+ */
+export async function generateProgramFlyerBase64(
+  programName: string,
+  auth: AuthContext,
+): Promise<{ base64: string; productId: string } | { error: string }> {
+  if (!auth.firebaseToken) return { error: "User not signed in." };
+  const productId = resolveProductId(programName);
+  if (!productId) return { error: `No flyer template for "${programName}".` };
+
+  const payload = {
+    productId,
+    data: {
+      loanOfficer: { userId: auth.userEmail, ...(auth.loTitle ? { title: auth.loTitle } : {}) },
+    },
+    previewMode: false,
+  };
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.firebaseToken}`,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        if (attempt < 2) continue;
+        return { error: `Flyer generation failed (${res.status})` };
+      }
+      const pdfBytes = await res.arrayBuffer();
+      return { base64: Buffer.from(pdfBytes).toString("base64"), productId };
+    } catch {
+      if (attempt < 2) continue;
+      return { error: "Flyer generation failed." };
+    }
+  }
+  return { error: "Flyer generation failed." };
 }
 
 export function createGenerateFlyerTool(auth: AuthContext) {
