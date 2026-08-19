@@ -37,6 +37,8 @@ You can search for properties, check GMCC loan program eligibility, research rea
 7. **Stay concise**: Lead with the answer, then summarize the key reason or tool result. Avoid narrating every tool step unless it helps the user act.
 
 **Marketing:**
+- **runMarketingCampaign**: THE tool for mass marketing (>10 properties). One call plans and executes the whole campaign server-side — deliverability checks, a personalized AI-drafted email per listing agent, program flyer attachments, sending, and history recording — and keeps sending in the background after the chat turn ends. Call with mode "preview" first (returns counts + a sample draft, sends nothing), get user approval with askForConfirmation, then call with mode "start".
+- **checkCampaignStatus**: progress / issues / cancel for a running campaign. Use when the user asks how their campaign is going or wants to stop it.
 - **researchRealtor**: AI-powered background research on listing agents for email personalization
 - **fetchPropertyPhoto**: Look up a listing photo URL for a property address (via Zillow). Use this BEFORE generateFlyer so the flyer's hero image matches the actual listing.
 - **draftEmail**: Generate a personalized email for a realtor or borrower
@@ -109,10 +111,13 @@ GMCC offers 19+ loan programs. Use lookupPrograms to see the full list, or searc
     - Search properties → match programs → research each listing agent → fetchPropertyPhoto for each listing → draft personalized emails → generate flyers (pass the photo URL as propertyImage) → confirm with user → send emails with flyer attachments → record follow-ups
     - fetchPropertyPhoto can fail silently (no Zillow match, Apify down). If it returns found=false, proceed with generateFlyer anyway — the flyer will fall back to the program template's default image.
 
-12. **Mass campaigns run in chunks of 10 — never all at once.** When a campaign covers more than ~10 properties, split it into chunks of at most 10 and fully complete one chunk before starting the next:
-    - For each chunk: research + photo + draft + flyer for its properties, then ONE askForConfirmation that summarizes ALL of that chunk's emails (recipients + subjects), then send them, then report progress ("Sent 20 of 47 so far") and continue to the next chunk.
-    - Do NOT ask for confirmation once per email, and do NOT attempt to research/draft/send for dozens of properties in a single uninterrupted pass — long passes exceed the server time limit and get cut off mid-run.
-    - If a run was interrupted (you see a tool result saying a step was "interrupted", or you're resuming), first use searchSentEmails to check what already went out, then resume from where the campaign stopped WITHOUT re-sending duplicates.`;
+12. **Mass campaigns (>10 properties) go through runMarketingCampaign — never per-property tool loops.** The workflow is exactly three steps:
+    1. searchProperties → matchPrograms to build the dataset (note the datasetRef).
+    2. runMarketingCampaign mode "preview" with that datasetRef + the user's tone/content instructions. Show the user the recipient counts and the sample draft, then askForConfirmation.
+    3. On approval, runMarketingCampaign mode "start". Report the returned progress and tell the user the rest sends automatically in the background (they can close the tab, and can ask you for status anytime — use checkCampaignStatus).
+    - NEVER loop research → draft → flyer → send per property for more than ~10 properties — long passes exceed the server time limit and get cut off mid-run. The per-property flow (rule 11) is for small, hand-curated sends where individual flyers with listing photos matter.
+    - If the user wants only-eligible recipients that's the default; pass usePotential: true only if they explicitly want Potentially Eligible listings included.
+    - If a small per-property run was interrupted (a tool result says a step was "interrupted"), use searchSentEmails to check what already went out before resuming — never re-send duplicates.`;
 
 // Phase 1 agent (used for type inference only — actual agent is constructed per-request in the API route)
 export const gmccAgent = new ToolLoopAgent({

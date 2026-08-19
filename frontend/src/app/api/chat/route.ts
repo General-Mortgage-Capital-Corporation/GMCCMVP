@@ -24,6 +24,8 @@ import { checkCRAEligibilityTool } from "@/lib/tools/check-cra-eligibility";
 import { createSearchSentEmailsTool } from "@/lib/tools/search-sent-emails";
 import { fetchPropertyPhotoTool } from "@/lib/tools/fetch-property-photo";
 import { lookupPropertyTool } from "@/lib/tools/lookup-property";
+import { createRunMarketingCampaignTool } from "@/lib/tools/run-marketing-campaign";
+import { createCheckCampaignStatusTool } from "@/lib/tools/check-campaign-status";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
 import { requireAuth, unauthorized } from "@/lib/require-auth";
 import { getStoredSignature, sanitizeSignatureHtml } from "@/lib/signature-server";
@@ -132,6 +134,16 @@ export async function POST(req: Request) {
       searchSentEmails: createSearchSentEmailsTool(authContext),
       fetchPropertyPhoto: fetchPropertyPhotoTool,
       lookupProperty: lookupPropertyTool,
+      // Mass-campaign engine: one tool call executes the whole batch
+      // server-side and continues via cron — replaces per-property tool loops
+      // for >10 properties.
+      runMarketingCampaign: createRunMarketingCampaignTool({
+        firebaseToken,
+        userEmail,
+        loName: loInfo.name,
+        loTitle: loInfo.title,
+      }),
+      checkCampaignStatus: createCheckCampaignStatusTool({ userEmail }),
     },
     // 60 steps: mass-marketing campaigns legitimately need many tool
     // round-trips even when chunked (the system prompt caps chunks at ~10
