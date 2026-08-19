@@ -64,7 +64,33 @@ export function clearSignature(): void {
 
 /** Whether the user has saved any editable signature content. */
 export function hasSignature(): boolean {
-  return getSignatureHtml().trim().length > 0;
+  const html = getSignatureHtml();
+  return !isSignatureContentEmpty(html) && !findSignaturePlaceholder(html);
+}
+
+// ---------------------------------------------------------------------------
+// Signature content validation (pure — safe on both client and server)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the placeholder token found in the signature, or null if clean.
+ * The signature editor prefills a preset that may contain "Your Name" or
+ * "NMLS# _______" when the LO profile is incomplete — those must never go
+ * out in a real email, so saves and sends both reject them.
+ */
+export function findSignaturePlaceholder(html: string): string | null {
+  if (!html) return null;
+  if (html.includes("Your Name")) return "Your Name";
+  const underscores = html.match(/_{3,}/);
+  if (underscores) return underscores[0];
+  return null;
+}
+
+/** True when the HTML has no visible text and no image (e.g. "<div><br></div>"). */
+export function isSignatureContentEmpty(html: string): boolean {
+  if (!html) return true;
+  if (/<img\b/i.test(html)) return false;
+  return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").trim().length === 0;
 }
 
 /**

@@ -2,7 +2,11 @@ import { tool } from "ai";
 import { z } from "zod";
 import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
 import { getArtifact } from "@/lib/tools/flyer-store";
-import { buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import {
+  buildHtmlBodyWithSignature,
+  findSignaturePlaceholder,
+  isSignatureContentEmpty,
+} from "@/lib/signature-store";
 import {
   verifyDeliverability,
   describeReason,
@@ -62,12 +66,21 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
         return { error: "User not signed in. Sign in with Outlook to send emails." };
       }
 
-      if (!auth.signatureHtml) {
+      if (!auth.signatureHtml || isSignatureContentEmpty(auth.signatureHtml)) {
         return {
           error:
             "No email signature found. Please go to Settings (gear icon) and set up your email signature before sending emails. " +
             "Your signature must include your name, title, NMLS#, and contact info. " +
             "The company compliance disclaimer is added automatically.",
+        };
+      }
+      // Backstop: never send a half-filled preset signature in a real email.
+      const placeholder = findSignaturePlaceholder(auth.signatureHtml);
+      if (placeholder) {
+        return {
+          error:
+            `Refusing to send: the saved email signature still contains the placeholder "${placeholder}". ` +
+            "Ask the user to open Settings (gear icon), replace the placeholder with their real information, and save the signature.",
         };
       }
 

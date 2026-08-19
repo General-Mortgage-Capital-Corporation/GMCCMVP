@@ -29,8 +29,10 @@ export function isApprovalAdmin(email: string | null | undefined): boolean {
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
-  const admins = env.length ? env : DEFAULT_ADMINS;
-  return admins.includes(email.trim().toLowerCase());
+  // Env EXTENDS the defaults rather than replacing them — otherwise setting
+  // EMAIL_APPROVAL_ADMINS without the default admin locks them out of the tool.
+  const admins = new Set([...DEFAULT_ADMINS, ...env]);
+  return admins.has(email.trim().toLowerCase());
 }
 
 // Local copies of the deliverability helpers to avoid a circular import

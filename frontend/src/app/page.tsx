@@ -23,6 +23,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/posthog";
 import { useSearch } from "@/hooks/useSearch";
+import { useSignatureSync } from "@/lib/use-signature-sync";
 
 import {
   fetchPrograms,
@@ -46,6 +47,9 @@ function excludeTypes(listing: RentCastListing) {
 
 export default function Home() {
   const { user, signIn, getIdToken } = useAuth();
+  // Keep the localStorage signature cache in sync with the server copy
+  // (source of truth for the AI agent) once per login.
+  useSignatureSync();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   // Announcement banner for the AI Marketing Agent.
   //

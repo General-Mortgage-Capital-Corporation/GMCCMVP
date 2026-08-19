@@ -1,6 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { generateEmailDraft } from "@/lib/services/email-draft";
+import {
+  findSignaturePlaceholder,
+  isSignatureContentEmpty,
+} from "@/lib/signature-store";
 
 interface DraftEmailContext {
   signatureHtml: string;
@@ -31,13 +35,22 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
         .describe("Research summary for personalization (from researchRealtor output)"),
     }),
     execute: async (input) => {
-      const hasSignature = !!(ctx?.signatureHtml);
+      const sig = ctx?.signatureHtml ?? "";
+      const hasSignature = !!sig && !isSignatureContentEmpty(sig);
 
       if (!hasSignature) {
         return {
           error:
             "No email signature found. Please ask the user to go to Settings (gear icon) and set up their email signature before drafting emails. " +
             "The signature should include their name, title, NMLS#, and contact info.",
+        };
+      }
+      const placeholder = findSignaturePlaceholder(sig);
+      if (placeholder) {
+        return {
+          error:
+            `The saved email signature still contains the placeholder "${placeholder}". ` +
+            "Ask the user to open Settings (gear icon), replace the placeholder with their real information, and save the signature before drafting emails.",
         };
       }
 
