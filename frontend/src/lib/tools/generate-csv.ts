@@ -27,10 +27,14 @@ const listingSchema = z.object({
 });
 
 function escCsv(val: string): string {
-  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-    return `"${val.replace(/"/g, '""')}"`;
+  // Neutralize CSV formula injection: Excel executes cells starting with
+  // = + - @ (or tab/CR). Agent names, offices, and addresses come from
+  // external listing data, so prefix a quote to force text.
+  const safe = /^[=+\-@\t\r]/.test(val) ? `'${val}` : val;
+  if (safe.includes(",") || safe.includes('"') || safe.includes("\n")) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return val;
+  return safe;
 }
 
 export function createGenerateCsvTool() {

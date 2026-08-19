@@ -19,8 +19,14 @@ import {
   revokeEmail,
   listApprovedEmails,
 } from "@/lib/email-approvals";
+import {
+  forceReverifyDeliverability,
+  readBouncerHealth,
+} from "@/lib/email-deliverability";
 
 export const runtime = "nodejs";
+
+const EMAIL_SYNTAX_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function requireAdmin(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -50,10 +56,15 @@ export async function GET(req: NextRequest) {
   }[] = [];
   const db = getDb();
   if (db) {
-    const snap = await db.collection("emailValidations").get();
+    // Query only flagged docs — the collection also holds every deliverable
+    // verification ever made, and a full scan grows unboundedly over time.
+    const snap = await db
+      .collection("emailValidations")
+      .where("status", "in", ["risky", "unknown", "undeliverable"])
+      .get();
     flagged = snap.docs
       .map((d) => d.data() as Record<string, unknown>)
-      .filter((x) => typeof x.status === "string" && x.status !== "deliverable" && typeof x.email === "string")
+      .filter((x) => typeof x.status === "string" && typeof x.email === "string")
       .map((x) => {
         const checkedAt = x.checkedAt as { toMillis?: () => number } | undefined;
         const email = String(x.email);
@@ -70,7 +81,11 @@ export async function GET(req: NextRequest) {
       .slice(0, 300);
   }
 
-  return NextResponse.json({ isAdmin: true, approved, flagged });
+  // Bouncer integration health — drives the outage banner on the admin page
+  // (e.g. credits exhausted → HTTP 402 → all uncached sends blocked).
+  const bouncerHealth = await readBouncerHealth();
+
+  return NextResponse.json({ isAdmin: true, approved, flagged, bouncerHealth });
 }
 
 export async function POST(req: NextRequest) {
@@ -82,8 +97,11 @@ export async function POST(req: NextRequest) {
     note?: unknown;
     originalStatus?: unknown;
   };
-  const email = typeof body.email === "string" ? body.email : "";
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
+  if (!EMAIL_SYNTAX_RE.test(email)) {
+    return NextResponse.json({ error: "Not a valid email address." }, { status: 422 });
+  }
 
   const r = await approveEmail(email, gate.auth.email, {
     note: typeof body.note === "string" ? body.note : null,
@@ -103,4 +121,25 @@ export async function DELETE(req: NextRequest) {
 
   const r = await revokeEmail(email);
   return NextResponse.json({ ok: r.ok });
+}
+
+/**
+ * PUT — force a fresh Bouncer re-check for an address (bypasses the 90-day
+ * cache; spends one credit). Lets an admin clear a flagged address whose
+ * mailbox has since been fixed, instead of allowlisting it blind or waiting
+ * out the cache TTL.
+ */
+export async function PUT(req: NextRequest) {
+  const gate = await requireAdmin(req);
+  if (!gate.ok) return gate.res;
+
+  const body = (await req.json().catch(() => ({}))) as { email?: unknown };
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
+  if (!EMAIL_SYNTAX_RE.test(email)) {
+    return NextResponse.json({ error: "Not a valid email address." }, { status: 422 });
+  }
+
+  const result = await forceReverifyDeliverability(email, gate.auth.email);
+  return NextResponse.json({ ok: true, result });
 }

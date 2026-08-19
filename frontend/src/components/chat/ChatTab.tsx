@@ -45,6 +45,56 @@ function generateConvId(): string {
   return `conv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Tools answered by the user in the UI (no server execute). These may
+// legitimately sit in "input-available" awaiting a human response.
+const HITL_TOOLS = new Set(["askUser", "askForConfirmation"]);
+
+/**
+ * Repair orphaned tool calls left behind by an interrupted stream (function
+ * timeout, stall-stop, network drop, closed tab). A non-HITL tool part stuck
+ * without an output poisons the conversation: the next request throws the
+ * SDK's MissingToolResultError ("Tool results are missing for tool calls …")
+ * and every subsequent turn fails. We convert such parts to an explicit
+ * error output so the history is always valid and the agent can resume.
+ * Incomplete inputs (input-streaming) never reached execution — drop them.
+ */
+function repairOrphanedToolParts(
+  msgs: GmccAgentUIMessage[],
+): { msgs: GmccAgentUIMessage[]; changed: boolean } {
+  let changed = false;
+  const out = msgs
+    .map((m) => {
+      if (m.role !== "assistant") return m;
+      let msgChanged = false;
+      const parts = m.parts
+        .filter((p) => {
+          if (isToolUIPart(p) && p.state === "input-streaming") {
+            msgChanged = true;
+            return false;
+          }
+          return true;
+        })
+        .map((p) => {
+          if (!isToolUIPart(p) || p.state !== "input-available") return p;
+          if (HITL_TOOLS.has(getToolName(p))) return p;
+          msgChanged = true;
+          return {
+            ...p,
+            state: "output-error" as const,
+            errorText:
+              "This step was interrupted before it finished (timeout or connection drop). Re-run it if it is still needed.",
+          };
+        });
+      if (!msgChanged) return m;
+      changed = true;
+      return { ...m, parts } as GmccAgentUIMessage;
+    })
+    // An assistant message can end up with zero parts if its only content was
+    // a dropped half-streamed tool call — remove it entirely.
+    .filter((m) => m.parts.length > 0);
+  return { msgs: out, changed };
+}
+
 export default function ChatTab() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -86,9 +136,14 @@ export default function ChatTab() {
           const msalToken = await getMsalAccessTokenRef.current(["Mail.Send"]).catch(() => null);
           if (msalToken) headers["X-MSAL-Token"] = msalToken;
           if (userEmailRef.current) headers["X-User-Email"] = userEmailRef.current;
-          // Pass email signature for server-side email sending
+          // Legacy fallback: pass the email signature as a header ONLY when
+          // small. The server now reads the stored copy (userSettings) first;
+          // large signatures (embedded images) used to overflow Vercel's
+          // request-header cap and kill the whole /api/chat request.
           const sig = getSignatureHtml();
-          if (sig) headers["X-Email-Signature"] = btoa(unescape(encodeURIComponent(sig)));
+          if (sig && sig.length <= 4000) {
+            headers["X-Email-Signature"] = btoa(unescape(encodeURIComponent(sig)));
+          }
           // Pass LO profile info so the agent knows the user's name/title/NMLS
           const lo = getLOInfo();
           if (lo.name || lo.title) headers["X-LO-Info"] = btoa(unescape(encodeURIComponent(JSON.stringify(lo))));
@@ -237,7 +292,11 @@ export default function ChatTab() {
         }
         const data = await r.json();
         if (Array.isArray(data.messages) && data.messages.length > 0) {
-          setMessages(data.messages);
+          // Heal conversations that were saved with orphaned tool calls
+          // (from interrupted streams) — otherwise reloading one dead-ends
+          // every future turn with MissingToolResultError.
+          const { msgs } = repairOrphanedToolParts(data.messages as GmccAgentUIMessage[]);
+          setMessages(msgs);
         } else {
           throw new Error("Could not load this conversation. It may have expired — try again or start a new chat.");
         }
@@ -432,6 +491,10 @@ export default function ChatTab() {
       setInput("");
       return;
     }
+    // Repair any non-HITL tool calls orphaned by an interrupted stream before
+    // sending — otherwise the request fails with MissingToolResultError.
+    const repaired = repairOrphanedToolParts(messagesRef.current);
+    if (repaired.changed) setMessages(repaired.msgs);
     trackEvent("agent_message_sent", { messageLength: trimmed.length });
     sendMessage({ text: trimmed });
     setInput("");
@@ -452,7 +515,22 @@ export default function ChatTab() {
   const errorReported = useRef(false);
   const lastPartsSnapshot = useRef("");
   const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const currentSnapshot = messages.map((m) => `${m.id}:${m.parts.length}`).join("|");
+  // Snapshot must capture tool-part STATE transitions and streaming text, not
+  // just part counts. The old count-only snapshot looked "stalled" while a
+  // batch of slow tool calls was executing (states change, counts don't) and
+  // killed healthy runs mid-execution — orphaning their tool calls.
+  const currentSnapshot = messages
+    .map(
+      (m) =>
+        `${m.id}:${m.parts
+          .map((p) => {
+            if (isToolUIPart(p)) return p.state;
+            if (p.type === "text") return String(p.text?.length ?? 0);
+            return p.type;
+          })
+          .join(".")}`,
+    )
+    .join("|");
 
   // Auto-retry on error — at most once, and only when a retry can actually help.
   useEffect(() => {
@@ -472,19 +550,24 @@ export default function ChatTab() {
       !!lastText &&
       "text" in lastText &&
       lastText.text === "Continue from where you left off.";
-    // Don't auto-retry if there are pending tool calls without results —
-    // retrying would just cause AI_MissingToolResultsError again.
-    const hasPendingToolCalls = messages.some(
+    // Orphaned non-HITL tool calls (from an interrupted stream) are repaired
+    // before retrying — previously they blocked the retry entirely and the
+    // conversation dead-ended. Only a genuinely pending HITL prompt
+    // (askUser / askForConfirmation awaiting the user's answer) suppresses
+    // the auto-retry.
+    const repaired = repairOrphanedToolParts(messages);
+    const hasPendingHitl = repaired.msgs.some(
       (m) => m.role === "assistant" && m.parts.some(
-        (p) => isToolUIPart(p) && p.state !== "output-available" && p.state !== "output-error",
+        (p) => isToolUIPart(p) && p.state === "input-available" && HITL_TOOLS.has(getToolName(p)),
       ),
     );
-    const willRetry = retryCount.current < 1 && !alreadyResumeMsg && !hasPendingToolCalls;
+    const willRetry = retryCount.current < 1 && !alreadyResumeMsg && !hasPendingHitl;
 
     if (willRetry) {
       setResuming(true);
       const timer = setTimeout(() => {
         retryCount.current += 1;
+        if (repaired.changed) setMessages(repaired.msgs);
         sendMessage({ text: "Continue from where you left off." });
       }, 2000);
       return () => clearTimeout(timer);
@@ -499,10 +582,10 @@ export default function ChatTab() {
       trackEvent("agent_error", {
         message: error?.message ?? "unknown",
         retried: retryCount.current > 0,
-        hadPendingToolCalls: hasPendingToolCalls,
+        hadPendingHitl: hasPendingHitl,
       });
     }
-  }, [status, messages, sendMessage, error]);
+  }, [status, messages, sendMessage, setMessages, error]);
 
   // Stall detection — stop the stream but do NOT auto-send a retry.
   // The user will see the "Continue" button instead.
@@ -515,9 +598,9 @@ export default function ChatTab() {
         lastPartsSnapshot.current = currentSnapshot;
       }
       stallTimer.current = setTimeout(() => {
-        console.warn("[chat] Stream stalled for 120s — stopping");
+        console.warn("[chat] Stream stalled for 180s — stopping");
         stop();
-      }, 120_000);
+      }, 180_000);
     }
 
     return () => {

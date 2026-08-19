@@ -26,12 +26,14 @@ import { fetchPropertyPhotoTool } from "@/lib/tools/fetch-property-photo";
 import { lookupPropertyTool } from "@/lib/tools/lookup-property";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
 import { requireAuth, unauthorized } from "@/lib/require-auth";
+import { getStoredSignature, sanitizeSignatureHtml } from "@/lib/signature-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
-  if (!(await requireAuth(req))) return unauthorized();
+  const auth = await requireAuth(req);
+  if (!auth) return unauthorized();
   const body = await req.json().catch(() => null);
   if (!body || !Array.isArray(body.messages)) {
     return new Response(JSON.stringify({ error: "messages array required" }), {
@@ -42,29 +44,33 @@ export async function POST(req: Request) {
   const { messages } = body;
 
   // Guard against abuse: cap conversation size
-  if (messages.length > 200) {
+  if (messages.length > 400) {
     return new Response(JSON.stringify({ error: "Conversation too long" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Extract auth context from headers
+  // Extract auth context from headers. The user's email comes from the
+  // verified Firebase token, not the spoofable X-User-Email header.
   const firebaseToken = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
   const msalToken = req.headers.get("X-MSAL-Token") ?? "";
-  const userEmail = req.headers.get("X-User-Email") ?? "";
+  const userEmail = auth.email || req.headers.get("X-User-Email") || "";
 
-  // Decode email signature (base64 UTF-8 from client)
-  const sigHeader = req.headers.get("X-Email-Signature") ?? "";
-  let signatureHtml = "";
-  if (sigHeader) {
-    try {
-      const raw = decodeURIComponent(escape(atob(sigHeader)));
-      // Strip script tags and event handlers to prevent HTML injection in emails
-      signatureHtml = raw
-        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, "");
-    } catch { /* ignore decode errors */ }
+  // Email signature: the server-stored copy (userSettings) is the source of
+  // truth — it roams across devices and has no size ceiling. The
+  // X-Email-Signature header is only a fallback for clients that saved before
+  // server storage existed (the client omits it entirely for large
+  // signatures, which used to overflow Vercel's request-header cap).
+  let signatureHtml = (await getStoredSignature(auth.email)) ?? "";
+  if (!signatureHtml) {
+    const sigHeader = req.headers.get("X-Email-Signature") ?? "";
+    if (sigHeader) {
+      try {
+        const raw = decodeURIComponent(escape(atob(sigHeader)));
+        signatureHtml = sanitizeSignatureHtml(raw);
+      } catch { /* ignore decode errors */ }
+    }
   }
 
   // Decode LO profile info (name, title, NMLS, phone)
@@ -127,7 +133,10 @@ export async function POST(req: Request) {
       fetchPropertyPhoto: fetchPropertyPhotoTool,
       lookupProperty: lookupPropertyTool,
     },
-    stopWhen: stepCountIs(25),
+    // 60 steps: mass-marketing campaigns legitimately need many tool
+    // round-trips even when chunked (the system prompt caps chunks at ~10
+    // properties per confirmation round).
+    stopWhen: stepCountIs(60),
     temperature: 0.3,
   });
 

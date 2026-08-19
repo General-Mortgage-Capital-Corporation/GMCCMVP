@@ -107,7 +107,12 @@ GMCC offers 19+ loan programs. Use lookupPrograms to see the full list, or searc
 
 11. **Full marketing workflow**: For email campaigns, the ideal flow is:
     - Search properties → match programs → research each listing agent → fetchPropertyPhoto for each listing → draft personalized emails → generate flyers (pass the photo URL as propertyImage) → confirm with user → send emails with flyer attachments → record follow-ups
-    - fetchPropertyPhoto can fail silently (no Zillow match, Apify down). If it returns found=false, proceed with generateFlyer anyway — the flyer will fall back to the program template's default image.`;
+    - fetchPropertyPhoto can fail silently (no Zillow match, Apify down). If it returns found=false, proceed with generateFlyer anyway — the flyer will fall back to the program template's default image.
+
+12. **Mass campaigns run in chunks of 10 — never all at once.** When a campaign covers more than ~10 properties, split it into chunks of at most 10 and fully complete one chunk before starting the next:
+    - For each chunk: research + photo + draft + flyer for its properties, then ONE askForConfirmation that summarizes ALL of that chunk's emails (recipients + subjects), then send them, then report progress ("Sent 20 of 47 so far") and continue to the next chunk.
+    - Do NOT ask for confirmation once per email, and do NOT attempt to research/draft/send for dozens of properties in a single uninterrupted pass — long passes exceed the server time limit and get cut off mid-run.
+    - If a run was interrupted (you see a tool result saying a step was "interrupted", or you're resuming), first use searchSentEmails to check what already went out, then resume from where the campaign stopped WITHOUT re-sending duplicates.`;
 
 // Phase 1 agent (used for type inference only — actual agent is constructed per-request in the API route)
 export const gmccAgent = new ToolLoopAgent({
@@ -121,7 +126,7 @@ export const gmccAgent = new ToolLoopAgent({
     askUser: askUserTool,
     searchKnowledge: searchKnowledgeTool,
   },
-  stopWhen: stepCountIs(25),
+  stopWhen: stepCountIs(60),
   temperature: 0.3,
 });
 
