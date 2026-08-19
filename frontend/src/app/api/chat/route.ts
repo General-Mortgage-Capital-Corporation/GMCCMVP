@@ -27,6 +27,7 @@ import { lookupPropertyTool } from "@/lib/tools/lookup-property";
 import { createRunMarketingCampaignTool } from "@/lib/tools/run-marketing-campaign";
 import { createCheckCampaignStatusTool } from "@/lib/tools/check-campaign-status";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
+import { pruneModelMessages } from "@/lib/agents/prune-history";
 import { requireAuth, unauthorized } from "@/lib/require-auth";
 import { getStoredSignature, sanitizeSignatureHtml } from "@/lib/signature-server";
 
@@ -107,10 +108,17 @@ export async function POST(req: Request) {
   // instance).
   const sendLedger = createSendLedger();
 
-  // Construct agent per-request with auth-bound tools
+  // Construct agent per-request with auth-bound tools.
+  // AGENT_MODEL env lets us switch the orchestrator model (e.g. to a stronger
+  // tier) without a deploy-time code change.
   const agent = new ToolLoopAgent({
-    model: "google/gemini-3-flash",
+    model: process.env.AGENT_MODEL || "google/gemini-3-flash",
     instructions: personalizedPrompt,
+    // Context hygiene: stub out old bulky tool outputs each step so long
+    // campaign conversations don't balloon tokens (see prune-history.ts).
+    prepareStep: ({ messages: stepMessages }) => ({
+      messages: pruneModelMessages(stepMessages),
+    }),
     tools: {
       // Phase 1 tools (no auth needed)
       searchProperties: searchPropertiesTool,
