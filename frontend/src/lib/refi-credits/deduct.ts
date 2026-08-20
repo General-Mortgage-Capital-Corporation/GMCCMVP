@@ -216,6 +216,15 @@ export async function refundCredits(
   const poolDocRef = db.doc(ctx.pool.poolRef);
 
   return db.runTransaction(async (tx) => {
+    // Firestore transactions require ALL reads before ANY writes — the pool
+    // read must happen before the usage-counter write below, or the SDK
+    // rejects the whole transaction and the refund never lands.
+    const poolSnap = await tx.get(poolDocRef);
+    const poolData = (poolSnap.data() ?? {}) as {
+      contactCredits?: number;
+      propertyCredits?: number;
+    };
+
     // Always decrement the original cycle's usage counter — accounting must
     // stay symmetric with the deduction regardless of rollover.
     tx.set(
@@ -231,11 +240,6 @@ export async function refundCredits(
     if (cycleRolled) {
       // Webhook (per-user pack) or lazy reset (buffer) will have already
       // restored credits at cycle boundary. Don't double-credit.
-      const poolSnap = await tx.get(poolDocRef);
-      const poolData = (poolSnap.data() ?? {}) as {
-        contactCredits?: number;
-        propertyCredits?: number;
-      };
       const balanceAfter = {
         contact: poolData.contactCredits ?? 0,
         property: poolData.propertyCredits ?? 0,
@@ -254,11 +258,6 @@ export async function refundCredits(
     }
 
     // Same-cycle refund — original behavior.
-    const poolSnap = await tx.get(poolDocRef);
-    const poolData = (poolSnap.data() ?? {}) as {
-      contactCredits?: number;
-      propertyCredits?: number;
-    };
     const balanceAfter = {
       contact: (poolData.contactCredits ?? 0) + ctx.amount.contact,
       property: (poolData.propertyCredits ?? 0) + ctx.amount.property,

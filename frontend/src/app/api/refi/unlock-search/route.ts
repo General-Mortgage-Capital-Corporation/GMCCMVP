@@ -149,14 +149,18 @@ export async function POST(req: NextRequest) {
     pyData = await pyPost<SearchResponse>("/api/refi/search", pyBody);
   } catch (err) {
     // 3a. Refund + log failure.
-    await refundCredits({
-      email: verified.email,
-      pool,
-      amount: { contact: 0, property: limit },
-      cycleId,
-    }).catch((rerr) =>
-      console.error("[unlock-search] refund failed:", rerr),
-    );
+    let refundLanded = false;
+    try {
+      await refundCredits({
+        email: verified.email,
+        pool,
+        amount: { contact: 0, property: limit },
+        cycleId,
+      });
+      refundLanded = true;
+    } catch (rerr) {
+      console.error("[unlock-search] refund failed:", rerr);
+    }
     await logActivity({
       email: verified.email,
       action: "unlock_failed",
@@ -168,11 +172,14 @@ export async function POST(req: NextRequest) {
       balanceAfter,
       failureReason: String(err),
     }).catch(() => {});
-    // Full deduction refunded → settle so the reconciler skips it.
-    await settleUnlockJob(jobId, {
-      refunded: { contact: 0, property: limit },
-      note: "pr_failed",
-    });
+    // Settle ONLY if the refund actually landed; otherwise leave the job
+    // pending so /api/cron/refi-reconcile refunds the full deduction.
+    if (refundLanded) {
+      await settleUnlockJob(jobId, {
+        refunded: { contact: 0, property: limit },
+        note: "pr_failed",
+      });
+    }
 
     const status = err instanceof PythonServiceError ? err.status : 502;
     const msg = err instanceof PythonServiceError ? err.message : "search_failed";
@@ -192,6 +199,7 @@ export async function POST(req: NextRequest) {
     ? limit
     : Math.max(0, limit - rowsReturned);
   let finalBalance = balanceAfter;
+  let refundLanded = propertyRefund === 0;
   if (propertyRefund > 0) {
     try {
       const ref = await refundCredits({
@@ -201,15 +209,20 @@ export async function POST(req: NextRequest) {
         cycleId,
       });
       finalBalance = ref.balanceAfter;
+      refundLanded = true;
     } catch (rerr) {
       console.error("[unlock-search] post-PR refund failed:", rerr);
     }
   }
 
-  // Inline refund done → settle the reconciliation job.
-  await settleUnlockJob(jobId, {
-    refunded: { contact: 0, property: propertyRefund },
-  });
+  // Settle ONLY once any owed refund actually landed. On refund failure the
+  // job stays pending and the reconciler refunds the FULL deduction — slightly
+  // user-favorable when rows were delivered, but never a silent over-charge.
+  if (refundLanded) {
+    await settleUnlockJob(jobId, {
+      refunded: { contact: 0, property: propertyRefund },
+    });
+  }
 
   // 4. Per-row activity log. Every entry stamps the SAME post-refund
   // `finalBalance` — these N rows happened together as one user action,
