@@ -608,7 +608,13 @@ export default function RefiFinderTab({
   // charged for rows PR can't return:
   //   - First fetch  → min(PAGE_SIZE, preview.totalResultCount)
   //   - Fetch more   → min(PAGE_SIZE, rowsAvailable - rows.length)
-  const requestFetch = useCallback((appendMode: boolean) => {
+  const requestFetch = useCallback((appendRequested: boolean) => {
+    // A "fresh" fetch while the loaded rows already match the current criteria
+    // would just re-buy page 1 (and wipe revealed contacts) — resume from
+    // rows.length instead. Makes the top Fetch button safe to click after
+    // rows are loaded: it always continues where the table left off.
+    const appendMode = appendRequested ||
+      (rows.length > 0 && loadedCriteriaKey === currentCriteriaKey);
     const available = appendMode
       ? Math.max(0, rowsAvailable - rows.length)
       : preview?.totalResultCount ?? batchSize;
@@ -619,7 +625,7 @@ export default function RefiFinderTab({
     } else {
       void runFetch(appendMode, effectiveLimit);
     }
-  }, [creditMode, runFetch, preview?.totalResultCount, rowsAvailable, rows.length, batchSize]);
+  }, [creditMode, runFetch, preview?.totalResultCount, rowsAvailable, rows.length, batchSize, loadedCriteriaKey, currentCriteriaKey]);
 
   function resetAll() {
     setActivePresetId(null);
@@ -906,13 +912,14 @@ export default function RefiFinderTab({
           <PreviewActionBar
             phase={phase}
             preview={preview}
-            loading={loading}
+            loading={loading || fetchingMore}
             canPreview={canPreview}
             onPreview={runPreview}
             onFetch={() => requestFetch(false)}
             onReset={resetAll}
             batchSize={batchSize}
             onBatchSizeChange={(n) => setBatchSize(clampBatchSize(n))}
+            rowsLoadedForCriteria={loadedCriteriaKey === currentCriteriaKey ? rows.length : 0}
           />
 
           {phase === "results" && rows.length > 0 && (
@@ -1405,11 +1412,12 @@ function DateRangeField({ label, value, onChange }: { label: string; value: { fr
   );
 }
 
-function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFetch, onReset, batchSize, onBatchSizeChange }: { phase: Phase; preview: PreviewResp | null; loading: boolean; canPreview: boolean; onPreview: () => void; onFetch: () => void; onReset: () => void; batchSize: number; onBatchSizeChange: (n: number) => void }) {
-  // Cap the displayed cost at the actual match count — fewer than the batch
-  // size means fewer credits charged.
+function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFetch, onReset, batchSize, onBatchSizeChange, rowsLoadedForCriteria }: { phase: Phase; preview: PreviewResp | null; loading: boolean; canPreview: boolean; onPreview: () => void; onFetch: () => void; onReset: () => void; batchSize: number; onBatchSizeChange: (n: number) => void; rowsLoadedForCriteria: number }) {
+  // Cap the displayed cost at what's actually left to fetch — rows already
+  // loaded for these exact criteria are resumed past, never re-bought.
   const totalMatches = preview?.totalResultCount ?? 0;
-  const willCharge = Math.min(batchSize, totalMatches);
+  const remaining = Math.max(0, totalMatches - rowsLoadedForCriteria);
+  const willCharge = Math.min(batchSize, rowsLoadedForCriteria > 0 ? remaining : totalMatches);
   // Only offer the batch-size control once a preview shows more than a default
   // page of matches — otherwise the default 25 already covers everything.
   const showBatchInput = totalMatches > DEFAULT_BATCH_SIZE;
@@ -1421,6 +1429,12 @@ function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFe
             <span className="font-semibold text-gray-900 tabular-nums">{totalMatches.toLocaleString()}</span>
             {totalMatches === 0 ? (
               <span className="text-gray-600"> properties match. Adjust filters to find more.</span>
+            ) : rowsLoadedForCriteria > 0 ? (
+              remaining === 0 ? (
+                <span className="text-gray-600"> properties match — all {rowsLoadedForCriteria} already fetched. No further charges for this search.</span>
+              ) : (
+                <span className="text-gray-600"> properties match · <span className="font-semibold tabular-nums text-gray-900">{rowsLoadedForCriteria}</span> already fetched. Fetching the next {willCharge} will charge <span className="font-semibold tabular-nums text-gray-900">{willCharge}</span> property {willCharge === 1 ? "credit" : "credits"}.</span>
+              )
             ) : willCharge < 25 ? (
               <span className="text-gray-600">
                 {totalMatches === 1 ? " property matches" : " properties match"}.
@@ -1457,8 +1471,12 @@ function PreviewActionBar({ phase, preview, loading, canPreview, onPreview, onFe
         <button type="button" onClick={onPreview} disabled={!canPreview || loading} className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40">
           {loading && phase !== "results" ? "Previewing…" : "Preview (free)"}
         </button>
-        <button type="button" onClick={onFetch} disabled={!preview || loading || (preview.totalResultCount ?? 0) === 0} className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40">
-          {loading && phase === "previewed" ? "Fetching…" : `Fetch ${willCharge} result${willCharge === 1 ? "" : "s"}`}
+        <button type="button" onClick={onFetch} disabled={!preview || loading || willCharge === 0} className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40">
+          {loading && (phase === "previewed" || rowsLoadedForCriteria > 0)
+            ? "Fetching…"
+            : rowsLoadedForCriteria > 0
+              ? (willCharge === 0 ? "All results fetched" : `Fetch next ${willCharge}`)
+              : `Fetch ${willCharge} result${willCharge === 1 ? "" : "s"}`}
         </button>
       </div>
     </div>

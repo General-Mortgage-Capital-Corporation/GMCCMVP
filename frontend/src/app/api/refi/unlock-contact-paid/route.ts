@@ -221,19 +221,27 @@ export async function POST(req: NextRequest) {
   // If ALL buckets failed, behave like the legacy whole-batch failure path
   // so callers still get a single clear error response.
   if (settled.every((s) => s.status === "rejected")) {
-    await refundCredits({
-      email: verified.email,
-      pool,
-      amount: { contact: contactNeeded, property: 0 },
-      cycleId,
-    }).catch((rerr) =>
-      console.error("[unlock-contact-paid] refund failed:", rerr),
-    );
-    // Full deduction refunded → job is settled (reconciler must not re-refund).
-    await settleUnlockJob(jobId, {
-      refunded: { contact: contactNeeded, property: 0 },
-      note: "all_buckets_failed",
-    });
+    let refundLanded = false;
+    try {
+      await refundCredits({
+        email: verified.email,
+        pool,
+        amount: { contact: contactNeeded, property: 0 },
+        cycleId,
+      });
+      refundLanded = true;
+    } catch (rerr) {
+      console.error("[unlock-contact-paid] refund failed:", rerr);
+    }
+    // Settle ONLY when the refund landed (reconciler must not re-refund a
+    // settled job). On refund failure the job stays pending and the
+    // reconciler sweep refunds the full deduction.
+    if (refundLanded) {
+      await settleUnlockJob(jobId, {
+        refunded: { contact: contactNeeded, property: 0 },
+        note: "all_buckets_failed",
+      });
+    }
     const firstErr = settled.find((s) => s.status === "rejected") as
       | PromiseRejectedResult
       | undefined;
@@ -387,6 +395,7 @@ export async function POST(req: NextRequest) {
   // post-batch snapshot for every row in the action — not the worst-case
   // pre-refund balance.
   let finalBalance = balanceAfterDeduct;
+  let refundLanded = refundContact === 0;
   if (refundContact > 0) {
     try {
       const ref = await refundCredits({
@@ -396,19 +405,23 @@ export async function POST(req: NextRequest) {
         cycleId,
       });
       finalBalance = ref.balanceAfter;
+      refundLanded = true;
     } catch (rerr) {
       console.error("[unlock-contact-paid] partial refund failed:", rerr);
-      // Don't surface — user still got data, log will show the discrepancy.
+      // Don't surface — user still got data; the pending job below hands the
+      // discrepancy to the reconciler instead of eating it.
     }
   }
 
-  // Inline refund is done → settle the reconciliation job so the sweep skips it.
-  // (A crash in the tiny window between the refund above and here leaves the job
-  // pending; the reconciler then refunds the full amount — user-favorable, which
-  // matches this route's "only bill for what PR delivered" guarantee.)
-  await settleUnlockJob(jobId, {
-    refunded: { contact: refundContact, property: 0 },
-  });
+  // Settle ONLY once any owed refund actually landed. A failed refund (or a
+  // crash in the tiny window between the refund above and here) leaves the job
+  // pending; the reconciler then refunds the full amount — user-favorable,
+  // which matches this route's "only bill for what PR delivered" guarantee.
+  if (refundLanded) {
+    await settleUnlockJob(jobId, {
+      refunded: { contact: refundContact, property: 0 },
+    });
+  }
 
   await Promise.all(
     pending.map((p) =>
