@@ -127,7 +127,13 @@ function EngineSection({
   }
 
   const eligible = rows.filter((r) => r.status === "eligible");
-  const ineligible = rows.filter((r) => r.status === "ineligible");
+  // "unavailable" rows (program exists but doesn't fit — e.g. "Jubilant loan
+  // amount must be between $300,000 and $1,000,000") used to be silently
+  // dropped, making programs look like they were never checked at all. Show
+  // them alongside ineligible so every evaluated program is accounted for.
+  const ineligible = rows.filter(
+    (r) => r.status === "ineligible" || r.status === "unavailable",
+  );
   const errors = rows.filter((r) => r.status === "error");
 
   return (
@@ -608,7 +614,7 @@ function IneligibleList({ rows }: { rows: PricingResult[] }) {
   return (
     <details className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
       <summary className="cursor-pointer text-xs font-medium text-slate-600">
-        Ineligible ({rows.length})
+        Not eligible for this scenario ({rows.length})
       </summary>
       <ul className="mt-2 space-y-1 text-xs">
         {rows.map((r) => (
