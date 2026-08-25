@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
   // target the original cycle's usage counter even if PR straddles midnight.
   let balanceAfter: { contact: number; property: number };
   let cycleId: string;
+  let packEpoch: number | null;
   try {
     const ded = await deductCredits({
       email: verified.email,
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
     });
     balanceAfter = ded.balanceAfter;
     cycleId = ded.cycleId;
+    packEpoch = ded.packEpoch;
   } catch (e) {
     if (e instanceof InsufficientCreditsError) {
       return NextResponse.json(
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
     email: verified.email,
     deducted: { contact: 0, property: limit },
     cycleId,
+    packEpoch,
     poolRef: pool.poolRef,
     drewFromBuffer: pool.drewFromBuffer,
     source: "unlock_search",
@@ -156,6 +159,7 @@ export async function POST(req: NextRequest) {
         pool,
         amount: { contact: 0, property: limit },
         cycleId,
+        packEpoch,
       });
       refundLanded = true;
     } catch (rerr) {
@@ -207,6 +211,7 @@ export async function POST(req: NextRequest) {
         pool,
         amount: { contact: 0, property: propertyRefund },
         cycleId,
+        packEpoch,
       });
       finalBalance = ref.balanceAfter;
       refundLanded = true;

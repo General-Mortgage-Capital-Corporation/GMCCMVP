@@ -22,6 +22,7 @@ Routes:
 import json
 import logging
 import os
+import hmac
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify
@@ -39,6 +40,30 @@ from rag.config import PROGRAMS_DIR
 load_dotenv()
 
 app = Flask(__name__)
+
+# ---------------------------------------------------------------------------
+# Service-to-service auth.
+#
+# This app is deployed as its own public Vercel project and every credit
+# gate lives in the Next.js layer in front of it. Before this check the
+# paid PropertyRadar endpoints (/api/refi/search, /api/refi/unlock-contact)
+# answered anyone who found the URL, which bypassed the paywall entirely and
+# let a stranger drain the company PR budget. Enforced only once
+# PYTHON_SERVICE_SECRET is set on this project, so the two deploys can land
+# in either order; the Next.js client sends the same value.
+# ---------------------------------------------------------------------------
+_SERVICE_SECRET = os.environ.get("PYTHON_SERVICE_SECRET", "")
+
+
+@app.before_request
+def _require_service_secret():
+    if not _SERVICE_SECRET or request.method == "OPTIONS":
+        return None
+    provided = request.headers.get("X-Service-Secret", "")
+    if not hmac.compare_digest(provided, _SERVICE_SECRET):
+        return jsonify({"success": False, "error": "unauthorized"}), 401
+    return None
+
 CORS(app, origins=[
     r"^https://gmccmvp-two(-.+)?\.vercel\.app$",
     r"^http://localhost:3000$",

@@ -30,7 +30,7 @@ export interface RefiCreditPack {
   updatedAt?: Timestamp;
 }
 
-/** users/{email}/subscriptions/refi_finder. */
+/** users/{email}/subscriptions/current → refi_finder. */
 export interface RefiSubscription {
   autoRenewCanceled?: boolean;
   billcomRecurringInvoiceId?: string;

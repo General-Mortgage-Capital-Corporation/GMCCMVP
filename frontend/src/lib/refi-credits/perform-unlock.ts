@@ -61,7 +61,7 @@ export async function performUnlock(
   //    cycleId pins the cycle the original deduction landed on, so a
   //    refund that fires after midnight on plan-anniversary day can target
   //    the correct usage doc + skip the pack write (webhook already reset).
-  const { balanceAfter, cycleId } = await deductCredits({
+  const { balanceAfter, cycleId, packEpoch } = await deductCredits({
     email: input.email,
     pool: input.pool,
     amount: input.amount,
@@ -74,6 +74,7 @@ export async function performUnlock(
     email: input.email,
     deducted: input.amount,
     cycleId,
+    packEpoch,
     poolRef: input.pool.poolRef,
     drewFromBuffer: input.pool.drewFromBuffer,
     source: input.source ?? "unlock",
@@ -85,7 +86,7 @@ export async function performUnlock(
   try {
     prResult = await input.call(balanceAfter);
   } catch (err) {
-    const refundLanded = await safeRefundAndLogFailure(input, cycleId, err);
+    const refundLanded = await safeRefundAndLogFailure(input, cycleId, packEpoch, err);
     // Settle only when the refund actually landed — otherwise leave the job
     // pending so /api/cron/refi-reconcile refunds the full deduction.
     if (refundLanded) {
@@ -119,6 +120,7 @@ export async function performUnlock(
 async function safeRefundAndLogFailure(
   input: UnlockRunInput,
   cycleId: string,
+  packEpoch: number | null,
   err: unknown,
 ): Promise<boolean> {
   let cycleRolled = false;
@@ -129,6 +131,7 @@ async function safeRefundAndLogFailure(
       pool: input.pool,
       amount: input.amount,
       cycleId,
+      packEpoch,
     });
     cycleRolled = refundResult.cycleRolled;
     refundLanded = true;

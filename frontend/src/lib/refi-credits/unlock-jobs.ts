@@ -34,6 +34,8 @@ export interface OpenJobInput {
   email: string;
   deducted: CreditAmount;
   cycleId: string;
+  /** From deductCredits — lets the reconciler refund without over-crediting a reset pack. */
+  packEpoch?: number | null;
   poolRef: string;
   drewFromBuffer: boolean;
   /** e.g. "unlock_contact" | "unlock_search" */
@@ -57,6 +59,7 @@ export async function openUnlockJob(input: OpenJobInput): Promise<string | null>
       status: "pending",
       deducted: { contact: input.deducted.contact, property: input.deducted.property },
       cycleId: input.cycleId,
+      packEpoch: input.packEpoch ?? null,
       poolRef: input.poolRef,
       drewFromBuffer: input.drewFromBuffer,
       source: input.source,
