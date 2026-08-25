@@ -40,6 +40,21 @@ interface DeductionContext {
 interface DeductionResult {
   balanceAfter: { contact: number; property: number };
   cycleId: string;
+  /**
+   * Identity of the pack generation this deduction landed on: the personal
+   * pack's `cycleEndsAt` in millis (0 if unset), or null for the company
+   * buffer. A refund compares it against the live pack to tell whether the
+   * Bill.com webhook hard-reset the pack in between — the only case where
+   * writing the refund back would over-credit.
+   */
+  packEpoch: number | null;
+}
+
+const BUFFER_POOL = "creditPacks/company_buffer";
+
+function packEpochOf(poolRef: string, data: { cycleEndsAt?: Timestamp }): number | null {
+  if (poolRef === BUFFER_POOL) return null;
+  return data.cycleEndsAt?.toMillis?.() ?? 0;
 }
 
 /**
@@ -63,6 +78,7 @@ export async function deductCredits(
       contactCredits?: number;
       propertyCredits?: number;
       lastResetAt?: Timestamp;
+      cycleEndsAt?: Timestamp;
     };
 
     // Lazy buffer reset: if this is the company buffer and lastResetAt is
@@ -140,7 +156,11 @@ export async function deductCredits(
       source: ctx.source,
     });
 
-    return { balanceAfter, cycleId: meta.currentCycleId };
+    return {
+      balanceAfter,
+      cycleId: meta.currentCycleId,
+      packEpoch: packEpochOf(ctx.pool.poolRef, poolData),
+    };
   });
 }
 
@@ -196,7 +216,7 @@ function writeLedger(
  * "unlock_failed" remains the caller's responsibility.
  */
 export async function refundCredits(
-  ctx: DeductionContext & { cycleId: string },
+  ctx: DeductionContext & { cycleId: string; packEpoch?: number | null },
 ): Promise<{
   balanceAfter: { contact: number; property: number };
   skippedPackWrite: boolean;
@@ -223,7 +243,24 @@ export async function refundCredits(
     const poolData = (poolSnap.data() ?? {}) as {
       contactCredits?: number;
       propertyCredits?: number;
+      cycleEndsAt?: Timestamp;
     };
+
+    // Whether the pool was reset between the deduction and now.
+    //   - company buffer: resets lazily on the company plan anniversary, so
+    //     the company cycle rolling IS the reset.
+    //   - personal pack: resets when the user's own Bill.com payment lands,
+    //     which has nothing to do with the company anniversary. Comparing the
+    //     company cycle here was wrong in both directions — a PR call that
+    //     straddled midnight on the 19th lost the user's refund, and a refund
+    //     right after a renewal stacked on top of the fresh 200. Compare the
+    //     pack's cycleEndsAt captured at deduction time instead.
+    const isBuffer = ctx.pool.poolRef === BUFFER_POOL;
+    const packReset = isBuffer
+      ? cycleRolled
+      : typeof ctx.packEpoch === "number"
+        ? packEpochOf(ctx.pool.poolRef, poolData) !== ctx.packEpoch
+        : false; // legacy caller with no epoch: favour the user, write it back
 
     // Always decrement the original cycle's usage counter — accounting must
     // stay symmetric with the deduction regardless of rollover.
@@ -237,9 +274,9 @@ export async function refundCredits(
       { merge: true },
     );
 
-    if (cycleRolled) {
-      // Webhook (per-user pack) or lazy reset (buffer) will have already
-      // restored credits at cycle boundary. Don't double-credit.
+    if (packReset) {
+      // Webhook (per-user pack) or lazy reset (buffer) has already restored
+      // credits. Don't double-credit.
       const balanceAfter = {
         contact: poolData.contactCredits ?? 0,
         property: poolData.propertyCredits ?? 0,
@@ -254,7 +291,7 @@ export async function refundCredits(
         source: ctx.source,
         skippedPackWrite: true,
       });
-      return { balanceAfter, skippedPackWrite: true, cycleRolled: true };
+      return { balanceAfter, skippedPackWrite: true, cycleRolled };
     }
 
     // Same-cycle refund — original behavior.

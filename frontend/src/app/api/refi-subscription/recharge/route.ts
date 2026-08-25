@@ -23,6 +23,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { verifyIdTokenWithEmail, getDb } from "@/lib/firestore-admin";
 import { refiFinderRecharge, CloudFunctionError } from "@/lib/cloud-functions";
 import type { RefiCreditPack } from "@/lib/refi-credits/types";
+import { resolveSubscription } from "@/lib/refi-credits/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,20 @@ export async function POST(req: NextRequest) {
   }
 
   const email = verified.email.toLowerCase();
+
+  // A top-up outside a live cycle buys nothing: the pack is gated on
+  // cycleEndsAt and the next subscription payment hard-resets it to 200.
+  // The cloud function enforces this too; failing here keeps the user from
+  // opening a Bill.com tab for an invoice that can't help them.
+  try {
+    const status = await resolveSubscription(email);
+    if (status.state !== "active") {
+      return NextResponse.json({ error: "not_active", state: status.state }, { status: 409 });
+    }
+  } catch (e) {
+    console.error("[refi-subscription/recharge] resolve failed:", e);
+  }
+
   const db = getDb();
   const packRef = db ? db.doc(`users/${email}/creditPacks/refi_finder`) : null;
 
