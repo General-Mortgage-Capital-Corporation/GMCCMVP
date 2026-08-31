@@ -134,7 +134,7 @@ GMCCMVP/
 │   ├── programs/              22 program JSONs — eligibility rules per program
 │   ├── knowledge/             RAG knowledge base for the AI agent (markdown)
 │   ├── tract_lookup.json      FFIEC tract data, derived from CensusTractList2026.xlsx
-│   ├── tract_minority.json    ACS 2019-2023 demographics per tract (see scripts/build_tract_minority.py)
+│   ├── tract_minority.json    ACS 2020-2024 demographics per tract (see scripts/build_tract_minority.py)
 │   ├── diamond_tracts.json
 │   ├── county_fips.json
 │   ├── msa_lookup.json

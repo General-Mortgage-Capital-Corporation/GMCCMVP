@@ -69,7 +69,7 @@ def _load_tract_lookup() -> dict:
 # ACS demographics loaded from pre-processed JSON (see
 # scripts/build_tract_minority.py). Keyed by 11-digit tract FIPS; value is
 # [total, white_nh, black_nh, asian_nh, hispanic] population counts from
-# ACS 2019-2023 5-year table B03002.
+# ACS 2020-2024 5-year table B03002.
 _MINORITY_LOOKUP: dict | None = None
 
 

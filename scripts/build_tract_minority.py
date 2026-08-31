@@ -8,8 +8,8 @@ extract removes the runtime dependency entirely.
 Usage:
     1. Download table B03002 (Hispanic or Latino Origin by Race) from the
        ACS 5-year table-based summary file release, e.g.:
-       https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b03002.dat
-    2. python scripts/build_tract_minority.py /path/to/acsdt5y2023-b03002.dat
+       https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b03002.dat
+    2. python scripts/build_tract_minority.py /path/to/acsdt5y2024-b03002.dat
 
 Output: data/tract_minority.json — {11-digit tract FIPS: [total, white_nh,
 black_nh, asian_nh, hispanic]}. Consumed by matching/census.py.

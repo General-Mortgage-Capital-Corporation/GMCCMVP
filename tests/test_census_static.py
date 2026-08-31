@@ -9,14 +9,14 @@ from matching.census import _static_demographics, get_census_data_fast
 
 
 def test_static_demographics_known_tract():
-    # East San Jose tract, verified against ACS 2019-2023 B03002.
+    # East San Jose tract, verified against ACS 2020-2024 B03002.
     demo = _static_demographics("06085503601")
     assert demo is not None
-    assert demo["total_population"] == 3609
-    assert demo["white_nh_population"] == 656
-    assert demo["black_population"] == 66
-    assert demo["asian_population"] == 735
-    assert demo["hispanic_population"] == 2130
+    assert demo["total_population"] == 3524
+    assert demo["white_nh_population"] == 664
+    assert demo["black_population"] == 47
+    assert demo["asian_population"] == 664
+    assert demo["hispanic_population"] == 2107
 
 
 def test_static_demographics_unknown_tract():
@@ -26,10 +26,10 @@ def test_static_demographics_unknown_tract():
 def test_fast_path_populates_mmct_fields():
     result = get_census_data_fast("CA", "Santa Clara", "503601")
     assert result is not None
-    assert result["tract_minority_pct"] == 81.8
+    assert result["tract_minority_pct"] == 81.2
     assert result["majority_aa_hp"] is True
-    assert result["tract_population"] == 3609
-    assert result["minority_population"] == 2953
+    assert result["tract_population"] == 3524
+    assert result["minority_population"] == 2860
     # FFIEC income data still rides along
     assert result["tract_income_level"] == "Low"
 
