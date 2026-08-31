@@ -152,7 +152,26 @@ def _get_tract_counties(tract_file: str) -> set[str]:
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy"})
+    # ?deep=1 probes the external dependencies this lambda actually needs —
+    # added while diagnosing census_data coming back null in production
+    # (geocoder reachability from Vercel egress IPs is the usual suspect).
+    if request.args.get("deep") != "1":
+        return jsonify({"status": "healthy"})
+    import requests as _rq
+    from matching.census import CENSUS_GEOCODER, _load_tract_lookup, _load_minority_lookup
+    probe = {"status": "healthy", "tract_lookup": len(_load_tract_lookup()), "minority_lookup": len(_load_minority_lookup())}
+    try:
+        r = _rq.get(
+            CENSUS_GEOCODER,
+            params={"street": "1694 Story Rd", "city": "San Jose", "state": "CA",
+                    "benchmark": "Public_AR_Current", "vintage": "Current_Current", "format": "json"},
+            timeout=12,
+        )
+        probe["geocoder_status"] = r.status_code
+        probe["geocoder_body_head"] = r.text[:200]
+    except Exception as exc:
+        probe["geocoder_error"] = f"{type(exc).__name__}: {exc}"
+    return jsonify(probe)
 
 
 @app.route("/api/cache-stats", methods=["GET"])
