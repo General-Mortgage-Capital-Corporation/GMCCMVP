@@ -13,17 +13,25 @@
  */
 
 import { NextResponse } from "next/server";
-import { verifyIdTokenWithEmail } from "@/lib/firestore-admin";
+import { verifyIdTokenWithEmail, type VerifiedCaller } from "@/lib/firestore-admin";
 
-export type AuthedCaller = { uid: string; email: string };
+export type AuthedCaller = VerifiedCaller;
 
-/** Returns the authenticated caller, or null if the request is unauthenticated. */
-export async function requireAuth(req: Request): Promise<AuthedCaller | null> {
+/**
+ * Returns the authenticated caller, or null if the request is
+ * unauthenticated. LO-only by default: partner accounts (provisioned by the
+ * MLO portal for realtors/CPAs) are rejected unless the route passes
+ * `{ allowPartner: true }` — the partner surface is a deliberate allowlist.
+ */
+export async function requireAuth(
+  req: Request,
+  opts?: { allowPartner?: boolean },
+): Promise<AuthedCaller | null> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) return null;
   const token = authHeader.slice("Bearer ".length).trim();
   if (!token) return null;
-  return await verifyIdTokenWithEmail(token);
+  return await verifyIdTokenWithEmail(token, opts);
 }
 
 /** Standard 401 response for routes that fail requireAuth. */

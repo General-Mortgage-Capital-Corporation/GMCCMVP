@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** Proxy single-listing match to the Python matching service. */
 export async function POST(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const ip = getClientIp(req);
   if (!(await rateLimit(ip, 60))) {
     return NextResponse.json(

@@ -79,7 +79,9 @@ export function useRefiSubscription(opts: UseRefiSubscriptionOpts = {}): {
   const cancelledRef = useRef(false);
 
   const fetchOnce = useCallback(async () => {
-    if (!user) {
+    // Partners can't hold a Refi Finder subscription and the status API
+    // rejects them — treat the session like signed-out here.
+    if (!user || user.role === "partner") {
       setStatus(null);
       setLoading(false);
       return;

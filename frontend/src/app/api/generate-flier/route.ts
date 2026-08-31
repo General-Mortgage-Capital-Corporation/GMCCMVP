@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/require-auth";
+import { getPartnerContext, mintIdTokenForEmail } from "@/lib/partner-server";
 
 export const runtime = "nodejs";
 
 const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("Authorization") ?? "";
+  let authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
@@ -13,6 +15,32 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.productId || !body?.userId) {
     return NextResponse.json({ error: "productId and userId are required." }, { status: 400 });
+  }
+
+  // Partner sessions can't satisfy fillPdfFlier's userId-must-match-token
+  // check (the flyer carries the OWNING LO's panel, not theirs). Verify the
+  // partner's own token, pin userId to their LO, and swap in a server-minted
+  // LO token for the Cloud Function call. LO callers pass through untouched —
+  // fillPdfFlier remains their authorization boundary.
+  const caller = await requireAuth(req, { allowPartner: true });
+  if (!caller) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (caller.role === "partner") {
+    const ctx = await getPartnerContext(caller.mloEmail!, caller.partnerId);
+    if (!ctx) {
+      return NextResponse.json(
+        { error: "Your partner access is no longer active." },
+        { status: 403 },
+      );
+    }
+    body.userId = ctx.mlo.email;
+    try {
+      authHeader = `Bearer ${await mintIdTokenForEmail(ctx.mlo.email)}`;
+    } catch (err) {
+      console.error("[generate-flier] LO token mint failed for partner call:", err);
+      return NextResponse.json({ error: "Flier generation failed." }, { status: 500 });
+    }
   }
 
   const {

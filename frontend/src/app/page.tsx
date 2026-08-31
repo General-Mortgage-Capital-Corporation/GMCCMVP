@@ -16,6 +16,7 @@ import SettingsModal from "@/components/SettingsModal";
 import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import FollowUpDashboard from "@/components/FollowUpDashboard";
 import ChatTab from "@/components/chat/ChatTab";
+import PartnerFlyersTab from "@/components/flyers/PartnerFlyersTab";
 import dynamic from "next/dynamic";
 const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -39,7 +40,7 @@ import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
-type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat" | "refi";
+type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat" | "refi" | "flyers";
 
 function excludeTypes(listing: RentCastListing) {
   return !EXCLUDED_PROPERTY_TYPES.has(listing.propertyType ?? "");
@@ -47,6 +48,11 @@ function excludeTypes(listing: RentCastListing) {
 
 export default function Home() {
   const { user, signIn, getIdToken } = useAuth();
+  // Provisioned partner (realtor/CPA) session — a deliberately limited
+  // surface: CRA check, radius search, and co-branded flyers. Everything
+  // else (agent, marketing, refi, email) is LO-only and also enforced
+  // server-side, so hiding here is UX, not the security boundary.
+  const isPartner = user?.role === "partner";
   // Keep the localStorage signature cache in sync with the server copy
   // (source of truth for the AI agent) once per login.
   useSignatureSync();
@@ -194,10 +200,14 @@ export default function Home() {
     fetchPrograms()
       .then((r) => setPrograms(r.programs))
       .catch(() => {});
-    fetchProgramLocations()
-      .then((r) => setProgramLocations(r.programs))
-      .catch(() => {});
-  }, []);
+    // Program locations feed the By Program / Massive Marketing tabs — both
+    // LO-only, and the API rejects partners; skip the doomed call.
+    if (!isPartner) {
+      fetchProgramLocations()
+        .then((r) => setProgramLocations(r.programs))
+        .catch(() => {});
+    }
+  }, [isPartner]);
 
   // Load AI agent announcement state from localStorage on mount.
   //
@@ -264,8 +274,8 @@ export default function Home() {
   }, [getIdToken]);
 
   useEffect(() => {
-    if (user) refreshFollowUpCount();
-  }, [user, refreshFollowUpCount]);
+    if (user && !isPartner) refreshFollowUpCount();
+  }, [user, isPartner, refreshFollowUpCount]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const statsListings =
@@ -519,7 +529,7 @@ export default function Home() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {user && (
+            {user && !isPartner && (
               <button
                 onClick={() => setFollowUpOpen(true)}
                 className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
@@ -537,6 +547,7 @@ export default function Home() {
                 )}
               </button>
             )}
+            {!isPartner && (
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors sm:h-8 sm:w-8"
@@ -547,17 +558,20 @@ export default function Home() {
                 <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
               </svg>
             </button>
-            <CreditsHeaderPill
-              status={refiSub.status}
-              onClick={() => setActiveTab("refi")}
-            />
+            )}
+            {!isPartner && (
+              <CreditsHeaderPill
+                status={refiSub.status}
+                onClick={() => setActiveTab("refi")}
+              />
+            )}
             <SignInButton />
           </div>
         </div>
       </header>
 
       {/* AI Marketing Agent announcement banner */}
-      {agentAnnounceVisible && (
+      {agentAnnounceVisible && !isPartner && (
         <div className="border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -641,14 +655,20 @@ export default function Home() {
           <div className="overflow-x-auto border-b border-gray-100">
             <nav className="flex whitespace-nowrap px-2">
               {(
-                [
-                  ["chat", "AI Agent", "AI Marketing Agent"],
-                  ["cra", "CRA Check", "CRA Address Fast Check"],
-                  ["marketing", "Marketing", "Massive Marketing"],
-                  ["find", "GPS Radius", "Marketing/GPS Radius Check"],
-                  ["program", "By Program", "Market by Program Check"],
-                  ["refi", "Refi Finder", "Refi Finder"],
-                ] as [ActiveTab, string, string][]
+                (isPartner
+                  ? [
+                      ["cra", "CRA Check", "CRA Address Fast Check"],
+                      ["find", "GPS Radius", "Marketing/GPS Radius Check"],
+                      ["flyers", "Flyers", "Program Flyers"],
+                    ]
+                  : [
+                      ["chat", "AI Agent", "AI Marketing Agent"],
+                      ["cra", "CRA Check", "CRA Address Fast Check"],
+                      ["marketing", "Marketing", "Massive Marketing"],
+                      ["find", "GPS Radius", "Marketing/GPS Radius Check"],
+                      ["program", "By Program", "Market by Program Check"],
+                      ["refi", "Refi Finder", "Refi Finder"],
+                    ]) as [ActiveTab, string, string][]
               ).map(([tab, shortLabel, fullLabel]) => (
                 <button
                   key={tab}
@@ -692,6 +712,7 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
+            {activeTab === "flyers" && isPartner && <PartnerFlyersTab />}
             {activeTab === "refi" && (
               <RefiFinderGate
                 status={refiSub.status}
@@ -701,9 +722,11 @@ export default function Home() {
               />
             )}
             {/* ChatTab stays mounted but hidden to preserve conversation state */}
-            <div className={activeTab === "chat" ? "" : "hidden"}>
-              <ChatTab />
-            </div>
+            {!isPartner && (
+              <div className={activeTab === "chat" ? "" : "hidden"}>
+                <ChatTab />
+              </div>
+            )}
           </div>
         </div>
 

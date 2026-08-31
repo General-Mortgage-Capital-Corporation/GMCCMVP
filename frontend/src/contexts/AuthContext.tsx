@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { exchangeMsalForFirebase, type FirebaseUser } from "@/lib/firebase-auth";
+import {
+  exchangeMsalForFirebase,
+  refreshPartnerSession,
+  signInPartnerWithPassword,
+  type FirebaseUser,
+} from "@/lib/firebase-auth";
 import { msalConfig, loginRequest, msalErrorCode } from "@/lib/msal-config";
 import { trackEvent } from "@/lib/posthog";
 import { registerAuthTokenGetter } from "@/lib/auth-token";
@@ -27,6 +32,8 @@ interface AuthContextValue {
    * etc.) — caller should fall back to the regular sign-in button.
    */
   signInSilent: (loginHint?: string) => Promise<FirebaseUser | null>;
+  /** Email/password sign-in for provisioned partner accounts (no MSAL). */
+  signInPartner: (email: string, password: string) => Promise<FirebaseUser>;
   signOut: () => void;
   /** Returns a valid (non-expired) Firebase ID token, refreshing silently if needed. */
   getIdToken: () => Promise<string | null>;
@@ -133,6 +140,12 @@ let _refreshInFlight: Promise<FirebaseUser> | null = null;
 function refreshFirebaseUser(email?: string | null): Promise<FirebaseUser> {
   if (!_refreshInFlight) {
     _refreshInFlight = (async () => {
+      // Partner sessions have no MSAL account — they renew from the Firebase
+      // refresh token stored with the session.
+      const stored = readStoredUser();
+      if (stored?.role === "partner") {
+        return await refreshPartnerSession(stored);
+      }
       const msal = await getMsal();
       const accounts = msal.getAllAccounts();
       if (accounts.length === 0) throw new Error("No cached MSAL account");
@@ -146,6 +159,15 @@ function refreshFirebaseUser(email?: string | null): Promise<FirebaseUser> {
     });
   }
   return _refreshInFlight;
+}
+
+function readStoredUser(): FirebaseUser | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as FirebaseUser) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -167,6 +189,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (parsed.expiresAt > Date.now() + EXPIRY_BUFFER_MS) {
           // Token still valid
           setUser(parsed);
+        } else if (parsed.role === "partner") {
+          // Partner session — no MSAL involved; renew from the Firebase
+          // refresh token. Failure means disabled/deleted/expired: bounce.
+          refreshFirebaseUser()
+            .then((refreshed) => {
+              setUser(refreshed);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
+            })
+            .catch(() => {
+              localStorage.removeItem(STORAGE_KEY);
+              clearSessionAndBounce();
+            });
         } else {
           // Token expired — kick off silent refresh in background (don't
           // block render on it; MSAL silent refresh can take 500-2000ms).
@@ -307,6 +341,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signInPartner = useCallback(
+    async (email: string, password: string): Promise<FirebaseUser> => {
+      setLoading(true);
+      try {
+        const firebaseUser = await signInPartnerWithPassword(email.trim(), password);
+        setUser(firebaseUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(firebaseUser));
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${firebaseUser.idToken}` },
+        }).catch(() => { /* non-fatal — login page will retry */ });
+        trackEvent("partner_signed_in", {
+          email: firebaseUser.email,
+          mlo_email: firebaseUser.mloEmail,
+        });
+        return firebaseUser;
+      } catch (err) {
+        trackEvent("sign_in_failed", {
+          code: "partner_password",
+          message: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const signOut = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -374,7 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (!initialized) return null;
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signInSilent, signOut, getIdToken, getMsalAccessToken }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInSilent, signInPartner, signOut, getIdToken, getMsalAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

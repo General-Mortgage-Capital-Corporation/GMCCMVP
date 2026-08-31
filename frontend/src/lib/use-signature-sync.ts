@@ -30,7 +30,8 @@ export function useSignatureSync(): void {
 
   useEffect(() => {
     const email = user?.email;
-    if (!email || syncedFor.current === email) return;
+    // Partners have no signature (the API is LO-only) — skip the doomed call.
+    if (!email || user?.role === "partner" || syncedFor.current === email) return;
     syncedFor.current = email;
 
     (async () => {

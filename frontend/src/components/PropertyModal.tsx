@@ -11,6 +11,7 @@ import {
   formatPhoneInput,
 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePartnerProfile } from "@/hooks/usePartnerProfile";
 import { authedFetch } from "@/lib/authed-fetch";
 import { getLOInfo } from "@/lib/lo-info-store";
 import { type RealtorInfo, programHasFlyer, sortByHighlightOrder, PROGRAM_CONFIG } from "@/components/flier/FlierButton";
@@ -76,6 +77,9 @@ interface PropertyModalProps {
 
 export default function PropertyModal({ listing, onClose }: PropertyModalProps) {
   const { user, signIn, getIdToken } = useAuth();
+  // Partner sessions: programs + criteria + flyers only (LO tools hidden;
+  // their APIs reject partners server-side as well).
+  const isPartner = user?.role === "partner";
   const overlayRef = useRef<HTMLDivElement>(null);
   const uploadImgRef = useRef<HTMLInputElement>(null);
   const [editRealtorOpen, setEditRealtorOpen] = useState(false);
@@ -88,6 +92,23 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
     nmls: "",
     company: "",
   });
+  // Partner sessions: seed the flyer realtor panel with their own record
+  // (never clobbering typed values) — same behavior as the CRA tab.
+  const partnerProfile = usePartnerProfile();
+  useEffect(() => {
+    if (!partnerProfile) return;
+    setRealtorInfo((r) =>
+      r.name || r.phone || r.email || r.nmls
+        ? r
+        : {
+            name: partnerProfile.partner.name,
+            phone: partnerProfile.partner.phone,
+            email: partnerProfile.partner.email,
+            nmls: partnerProfile.partner.license,
+            company: "",
+          },
+    );
+  }, [partnerProfile]);
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showMultiEmailModal, setShowMultiEmailModal] = useState(false);
@@ -421,6 +442,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                   </div>
                 )}
               </div>
+              {!isPartner && (
               <button
                 onClick={() => setShowComparePricing(true)}
                 className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:border-violet-300 hover:shadow-md"
@@ -441,6 +463,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                   New
                 </span>
               </button>
+              )}
             </div>
 
             {/* ── MSA / Census panel ── */}
@@ -589,7 +612,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                       propertyImage={propertyImage ?? zillowPhotos[0]}
                       photoStatus={flyerPhotoStatus}
                       selected={selectedPrograms.has(prog.program_name)}
-                      onToggleSelect={() => toggleProgramSelect(prog.program_name)}
+                      onToggleSelect={isPartner ? undefined : () => toggleProgramSelect(prog.program_name)}
                     />
                   ))}
                 </div>
@@ -625,7 +648,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
                             propertyImage={propertyImage ?? zillowPhotos[0]}
                             photoStatus={flyerPhotoStatus}
                             selected={selectedPrograms.has(prog.program_name)}
-                            onToggleSelect={() => toggleProgramSelect(prog.program_name)}
+                            onToggleSelect={isPartner ? undefined : () => toggleProgramSelect(prog.program_name)}
                           />
                         ))}
                         {secIneligible.length > 0 && (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import DOMPurify from "dompurify";
+import { useAuth } from "@/contexts/AuthContext";
 import type { ProgramResult, RentCastListing } from "@/types";
 import { renderSimpleMarkdown, formatPhoneInput } from "@/lib/utils";
 import { getExplanation } from "@/lib/api";
@@ -88,6 +89,9 @@ export function ProgramCard({
   onToggleSelect?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Partners see programs + criteria + flyers only — talking points call the
+  // LLM explain route, which is LO-only (and rejects partners server-side).
+  const isPartner = useAuth().user?.role === "partner";
 
   const tier =
     program.matching_tiers.find((t) => t.tier_name === program.best_tier) ??
@@ -180,7 +184,7 @@ export function ProgramCard({
             </div>
           )}
           {tier && <CriteriaGrid criteria={tier.criteria} />}
-          <TalkingPoints program={program} listing={listing} />
+          {!isPartner && <TalkingPoints program={program} listing={listing} />}
         </div>
       )}
     </div>

@@ -115,6 +115,10 @@ export default function FlierButton({
   photoStatus,
 }: FlierButtonProps) {
   const { user, signIn, getIdToken } = useAuth();
+  // Partner sessions get flyers only — Email/Guideline/Rates are LO tools
+  // (internal SharePoint links, Graph send-as). Server routes enforce the
+  // same boundary; this just keeps dead buttons out of their UI.
+  const isPartner = user?.role === "partner";
   const { resolveUrl: resolveLiveRatesheet } = useRateSheets();
   const [loadingAction, setLoadingAction] = useState<"preview" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -286,6 +290,7 @@ export default function FlierButton({
               Download
             </button>
 
+            {!isPartner && (
             <button
               onClick={() => setEmailOpen(true)}
               disabled={!!loadingAction}
@@ -298,9 +303,11 @@ export default function FlierButton({
               </svg>
               Email
             </button>
+            )}
           </>
         )}
 
+        {!isPartner && (
         <button
           onClick={() => guidelineUrl && window.open(guidelineUrl, "_blank", "noopener,noreferrer")}
           disabled={!guidelineUrl}
@@ -323,8 +330,9 @@ export default function FlierButton({
           </svg>
           Guideline
         </button>
+        )}
 
-        {ratesheetUrl && (
+        {ratesheetUrl && !isPartner && (
           <button
             onClick={() => window.open(ratesheetUrl, "_blank", "noopener,noreferrer")}
             className={`${btnBase} bg-blue-50 text-blue-700 hover:bg-blue-100`}

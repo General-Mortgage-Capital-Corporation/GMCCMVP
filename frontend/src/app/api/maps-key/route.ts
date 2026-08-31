@@ -5,6 +5,6 @@ export const runtime = "nodejs";
 
 /** Return the Google Maps JS API key for the map widget (server-side only). */
 export async function GET(req: Request) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   return NextResponse.json({ key: process.env.GOOGLE_PLACES_API_KEY ?? "" });
 }

@@ -7,7 +7,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
 
 /** Resolve a Google Places place_id to lat/lng coordinates. */
 export async function GET(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const placeId = req.nextUrl.searchParams.get("place_id")?.trim() ?? "";
   if (!placeId || !PLACES_KEY) {
     return NextResponse.json({ lat: null, lng: null });
