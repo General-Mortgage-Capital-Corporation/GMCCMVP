@@ -39,33 +39,15 @@ function displayTitle(name: string): string {
   return name.replace(/^GMCC\s+(CRA:\s*)?/i, "").trim() || name;
 }
 
-/** Two-letter monogram from the meaningful words of the program name. */
-function monogram(name: string): string {
-  const words = displayTitle(name)
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-/** Deterministic tasteful gradient per program so tiles are telling-apart-able
- *  without being loud. Same name → same color, always. */
-const TILE_GRADIENTS = [
-  "from-red-500 to-rose-600",
-  "from-indigo-500 to-blue-600",
-  "from-teal-500 to-emerald-600",
-  "from-amber-500 to-orange-600",
-  "from-violet-500 to-purple-600",
-  "from-sky-500 to-cyan-600",
-  "from-slate-500 to-gray-600",
-  "from-fuchsia-500 to-pink-600",
-] as const;
-
-function tileGradient(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return TILE_GRADIENTS[h % TILE_GRADIENTS.length];
+/** Strip legal boilerplate and newline soup so the one-line summary under a
+ *  program name is actually a summary. */
+function cleanDescription(d: string): string {
+  return d
+    .replace(/programs? are subject to change[^.;]*[.;]?/gi, "")
+    .replace(/all loans? are subject to (underwriting|credit)[^.;]*[.;]?/gi, "")
+    .replace(/additional (terms|restrictions)[^.;]*[.;]?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export default function PartnerFlyersTab() {
@@ -73,7 +55,7 @@ export default function PartnerFlyersTab() {
   const [ctx, setCtx] = useState<PartnerCtx | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
-  const [category, setCategory] = useState<string>("All");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -97,14 +79,28 @@ export default function PartnerFlyersTab() {
     return () => { cancelled = true; };
   }, []);
 
-  const categories = useMemo(
-    () => ["All", ...[...new Set((products ?? []).map((p) => p.category))].sort()],
-    [products],
-  );
-  const visible = useMemo(
-    () => (products ?? []).filter((p) => category === "All" || p.category === category),
-    [products, category],
-  );
+  // Grouped by category — the categories describe the AUDIENCE ("Community
+  // lending", "Self employed borrowers"), which is exactly how a partner
+  // thinks about picking a flyer. Search filters across name + description
+  // and drops empty sections.
+  const sections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const map = new Map<string, Product[]>();
+    for (const p of products ?? []) {
+      if (
+        q &&
+        !p.name.toLowerCase().includes(q) &&
+        !p.description.toLowerCase().includes(q) &&
+        !p.category.toLowerCase().includes(q)
+      ) {
+        continue;
+      }
+      const list = map.get(p.category) ?? [];
+      list.push(p);
+      map.set(p.category, list);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [products, query]);
 
   if (loadError) {
     return <p className="py-8 text-center text-sm text-red-600">{loadError}</p>;
@@ -136,60 +132,73 @@ export default function PartnerFlyersTab() {
         />
       ) : (
         <div>
-          {categories.length > 2 && (
-            <div className="mb-4 flex flex-wrap gap-1.5">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    category === c
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="grid gap-2 sm:grid-cols-2">
-            {visible.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelected(p)}
-                className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-              >
-                <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold text-white ${tileGradient(p.name)}`}
-                >
-                  {monogram(p.name)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-gray-900 group-hover:text-red-700">
-                    {displayTitle(p.name)}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-gray-500">
-                    {p.description || p.category}
-                  </span>
-                </span>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  className="shrink-0 text-gray-300 transition-all group-hover:translate-x-0.5 group-hover:text-red-400"
-                >
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+          <div className="relative mb-5 max-w-xs">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search programs…"
+              className="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm outline-none transition-colors placeholder:text-gray-400 focus:border-red-200 focus:bg-white focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+
+          <div className="space-y-6">
+            {sections.map(([cat, list]) => (
+              <section key={cat}>
+                <div className="mb-1.5 flex items-center gap-2 px-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-600/80" />
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {cat}
+                  </h3>
+                  <span className="h-px flex-1 bg-gray-100" />
+                </div>
+                <div className="grid md:grid-cols-2 xl:grid-cols-3">
+                  {list.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelected(p)}
+                      className="group relative rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-red-50/70"
+                    >
+                      <span className="absolute bottom-2.5 left-0 top-2.5 w-0.5 rounded-full bg-red-600 opacity-0 transition-opacity group-hover:opacity-100" />
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium text-gray-900 group-hover:text-red-700">
+                          {displayTitle(p.name)}
+                        </span>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="shrink-0 -translate-x-1 text-red-400 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100"
+                        >
+                          <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-gray-500">
+                        {cleanDescription(p.description) || "Program flyer"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-          {visible.length === 0 && (
+
+          {sections.length === 0 && (
             <p className="py-8 text-center text-sm text-gray-400">
-              No flyer templates are available right now.
+              {query.trim()
+                ? "No programs match your search."
+                : "No flyer templates are available right now."}
             </p>
           )}
         </div>
@@ -310,17 +319,17 @@ function FlyerBuilder({
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* Template reference card */}
         <div className="h-fit overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 p-3">
-            <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold text-white ${tileGradient(product.name)}`}
-            >
-              {monogram(product.name)}
-            </span>
-            <p className="text-sm font-semibold text-gray-900">{displayTitle(product.name)}</p>
+          <div className="p-3.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-red-600">
+              {product.category}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{displayTitle(product.name)}</p>
+            {cleanDescription(product.description) && (
+              <p className="mt-1 text-xs leading-snug text-gray-500">
+                {cleanDescription(product.description)}
+              </p>
+            )}
           </div>
-          {product.description && (
-            <p className="px-3 pb-3 text-xs leading-snug text-gray-500">{product.description}</p>
-          )}
           {product.thumbnailUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
