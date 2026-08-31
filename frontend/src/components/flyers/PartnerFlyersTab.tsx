@@ -38,6 +38,7 @@ export default function PartnerFlyersTab() {
   const [ctx, setCtx] = useState<PartnerCtx | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [category, setCategory] = useState<string>("All");
 
   useEffect(() => {
     let cancelled = false;
@@ -61,15 +62,14 @@ export default function PartnerFlyersTab() {
     return () => { cancelled = true; };
   }, []);
 
-  const byCategory = useMemo(() => {
-    const map = new Map<string, Product[]>();
-    for (const p of products ?? []) {
-      const list = map.get(p.category) ?? [];
-      list.push(p);
-      map.set(p.category, list);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [products]);
+  const categories = useMemo(
+    () => ["All", ...[...new Set((products ?? []).map((p) => p.category))].sort()],
+    [products],
+  );
+  const visible = useMemo(
+    () => (products ?? []).filter((p) => category === "All" || p.category === category),
+    [products, category],
+  );
 
   if (loadError) {
     return <p className="py-8 text-center text-sm text-red-600">{loadError}</p>;
@@ -100,52 +100,56 @@ export default function PartnerFlyersTab() {
           onBack={() => setSelected(null)}
         />
       ) : (
-        <div className="space-y-6">
-          {byCategory.map(([category, list]) => (
-            <section key={category}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {category}
-              </h3>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {list.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelected(p)}
-                    className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-                  >
-                    {p.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.thumbnailUrl}
-                        alt=""
-                        loading="lazy"
-                        className="aspect-[3/4] w-full bg-gray-50 object-cover object-top"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] w-full items-center justify-center bg-gray-50 text-gray-300">
-                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.2" />
-                          <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="p-2.5">
-                      <p className="truncate text-xs font-semibold text-gray-900 group-hover:text-red-700">
-                        {p.name}
-                      </p>
-                      {p.description && (
-                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-gray-500">
-                          {p.description}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-          {products.length === 0 && (
+        <div>
+          {categories.length > 2 && (
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategory(c)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    category === c
+                      ? "bg-red-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+            {visible.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelected(p)}
+                className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
+              >
+                {p.thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={p.thumbnailUrl}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-[8.5/11] w-full bg-gray-50 object-cover object-top"
+                  />
+                ) : (
+                  <div className="flex aspect-[8.5/11] w-full items-center justify-center bg-gray-50 text-gray-300">
+                    <svg width="28" height="28" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                )}
+                <p className="truncate px-2 py-1.5 text-[11px] font-semibold text-gray-800 group-hover:text-red-700">
+                  {p.name}
+                </p>
+              </button>
+            ))}
+          </div>
+          {visible.length === 0 && (
             <p className="py-8 text-center text-sm text-gray-400">
               No flyer templates are available right now.
             </p>
