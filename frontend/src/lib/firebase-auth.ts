@@ -63,6 +63,11 @@ export async function signInPartnerWithPassword(
     if (code.includes("USER_DISABLED")) {
       throw new Error("This account has been disabled. Contact your loan officer.");
     }
+    if (code.includes("OPERATION_NOT_ALLOWED") || code.includes("PASSWORD_LOGIN_DISABLED")) {
+      // Project-level toggle, not a user problem: email/password sign-in is
+      // switched off in the Firebase console.
+      throw new Error("Partner sign-in isn't enabled yet — GMCC is still setting this up.");
+    }
     if (
       code.includes("INVALID_LOGIN_CREDENTIALS") ||
       code.includes("INVALID_PASSWORD") ||
