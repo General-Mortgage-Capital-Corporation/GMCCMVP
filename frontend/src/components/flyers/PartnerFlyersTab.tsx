@@ -33,6 +33,41 @@ type PartnerCtx = {
 
 type RealtorDraft = { name: string; phone: string; email: string; nmls: string };
 
+/** "GMCC Buy Without Sell First" → "Buy Without Sell First" — every row
+ *  starting with the company name reads as noise in a list of 25. */
+function displayTitle(name: string): string {
+  return name.replace(/^GMCC\s+(CRA:\s*)?/i, "").trim() || name;
+}
+
+/** Two-letter monogram from the meaningful words of the program name. */
+function monogram(name: string): string {
+  const words = displayTitle(name)
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+/** Deterministic tasteful gradient per program so tiles are telling-apart-able
+ *  without being loud. Same name → same color, always. */
+const TILE_GRADIENTS = [
+  "from-red-500 to-rose-600",
+  "from-indigo-500 to-blue-600",
+  "from-teal-500 to-emerald-600",
+  "from-amber-500 to-orange-600",
+  "from-violet-500 to-purple-600",
+  "from-sky-500 to-cyan-600",
+  "from-slate-500 to-gray-600",
+  "from-fuchsia-500 to-pink-600",
+] as const;
+
+function tileGradient(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return TILE_GRADIENTS[h % TILE_GRADIENTS.length];
+}
+
 export default function PartnerFlyersTab() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [ctx, setCtx] = useState<PartnerCtx | null>(null);
@@ -119,33 +154,36 @@ export default function PartnerFlyersTab() {
               ))}
             </div>
           )}
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid gap-2 sm:grid-cols-2">
             {visible.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => setSelected(p)}
-                className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
+                className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
               >
-                {p.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.thumbnailUrl}
-                    alt=""
-                    loading="lazy"
-                    className="aspect-[8.5/11] w-full bg-gray-50 object-cover object-top"
-                  />
-                ) : (
-                  <div className="flex aspect-[8.5/11] w-full items-center justify-center bg-gray-50 text-gray-300">
-                    <svg width="28" height="28" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                )}
-                <p className="truncate px-2 py-1.5 text-[11px] font-semibold text-gray-800 group-hover:text-red-700">
-                  {p.name}
-                </p>
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold text-white ${tileGradient(p.name)}`}
+                >
+                  {monogram(p.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-gray-900 group-hover:text-red-700">
+                    {displayTitle(p.name)}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-gray-500">
+                    {p.description || p.category}
+                  </span>
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="shrink-0 text-gray-300 transition-all group-hover:translate-x-0.5 group-hover:text-red-400"
+                >
+                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             ))}
           </div>
@@ -270,22 +308,27 @@ function FlyerBuilder({
       </button>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Template preview card */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          {product.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.thumbnailUrl} alt="" className="w-full bg-gray-50 object-cover" />
-          ) : (
-            <div className="flex aspect-[3/4] items-center justify-center bg-gray-50 text-gray-300 text-xs">
-              No preview
-            </div>
-          )}
-          <div className="p-3">
-            <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-            {product.description && (
-              <p className="mt-1 text-xs leading-snug text-gray-500">{product.description}</p>
-            )}
+        {/* Template reference card */}
+        <div className="h-fit overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 p-3">
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold text-white ${tileGradient(product.name)}`}
+            >
+              {monogram(product.name)}
+            </span>
+            <p className="text-sm font-semibold text-gray-900">{displayTitle(product.name)}</p>
           </div>
+          {product.description && (
+            <p className="px-3 pb-3 text-xs leading-snug text-gray-500">{product.description}</p>
+          )}
+          {product.thumbnailUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.thumbnailUrl}
+              alt="Template layout"
+              className="w-full border-t border-gray-100 bg-gray-50 object-cover"
+            />
+          )}
         </div>
 
         {/* Form */}
