@@ -3,7 +3,9 @@
 Three-step approach:
 1. Census Bureau Geocoder (address -> state, county, tract FIPS codes)
 2. FFIEC tract lookup file (MSA code, income level, MFI data)
-3. Census ACS 5-year API (population demographics by race/ethnicity)
+3. Static ACS demographics file (population by race/ethnicity), with the
+   live Census ACS API as a fallback only when CENSUS_API_KEY is set —
+   the API rejects keyless calls since mid-2026.
 
 Caching layers:
 - L1: in-process @lru_cache (within a single invocation)
@@ -62,6 +64,49 @@ def _load_tract_lookup() -> dict:
     else:
         _TRACT_LOOKUP = {}
     return _TRACT_LOOKUP
+
+
+# ACS demographics loaded from pre-processed JSON (see
+# scripts/build_tract_minority.py). Keyed by 11-digit tract FIPS; value is
+# [total, white_nh, black_nh, asian_nh, hispanic] population counts from
+# ACS 2019-2023 5-year table B03002.
+_MINORITY_LOOKUP: dict | None = None
+
+
+def _load_minority_lookup() -> dict:
+    """Load the static ACS demographics dict from JSON. Cached after first call."""
+    global _MINORITY_LOOKUP
+    if _MINORITY_LOOKUP is not None:
+        return _MINORITY_LOOKUP
+
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "tract_minority.json"
+    )
+    if os.path.exists(path):
+        with open(path) as f:
+            _MINORITY_LOOKUP = json.load(f)
+    else:
+        _MINORITY_LOOKUP = {}
+    return _MINORITY_LOOKUP
+
+
+def _static_demographics(fips_11: str) -> dict | None:
+    """Population demographics for a tract from the bundled ACS extract.
+
+    Same shape as ``_get_acs_demographics`` so the two sources are
+    interchangeable downstream.
+    """
+    row = _load_minority_lookup().get(fips_11)
+    if not row or len(row) < 5:
+        return None
+    total, white_nh, black, asian, hispanic = row[:5]
+    return {
+        "total_population": total,
+        "white_nh_population": white_nh,
+        "black_population": black,
+        "asian_population": asian,
+        "hispanic_population": hispanic,
+    }
 
 
 def get_census_data(listing: dict) -> dict | None:
@@ -135,10 +180,14 @@ def get_census_data(listing: dict) -> dict | None:
         result["tract_to_msa_ratio"] = ffiec.get("tract_income_pct")
         result["tract_income_level"] = ffiec.get("tract_income_level")
 
-    # Step 3: ACS demographics
-    acs = _get_acs_demographics(state_fips, county_fips_3, tract_code)
-    if acs:
-        result.update(acs)
+    # Step 3: demographics — bundled ACS extract first; the live ACS API is
+    # only worth calling when a key is configured (keyless calls have been
+    # rejected since mid-2026).
+    demo = _static_demographics(fips_11)
+    if demo is None and os.environ.get("CENSUS_API_KEY"):
+        demo = _get_acs_demographics(state_fips, county_fips_3, tract_code)
+    if demo:
+        result.update(demo)
 
     # Compute minority % using FFIEC standard: Total - White non-Hispanic
     total = result.get("total_population") or 0
@@ -239,12 +288,22 @@ def get_census_data_fast(state: str | None, county_name: str | None,
         result["tract_to_msa_ratio"] = ffiec.get("tract_income_pct")
         result["tract_income_level"] = ffiec.get("tract_income_level")
 
-    # ACS demographics intentionally skipped. The Census Bureau ACS API
-    # has been chronically flaky (HTML error pages, timeouts) and the only
-    # field we got from it was tract_minority_pct. Dropping it makes refi
-    # enrichment near-instant (just an in-memory FFIEC lookup) at the cost
-    # of leaving tract_minority_pct as None. Tract income level + MSA from
-    # FFIEC are the load-bearing fields anyway.
+    # Demographics come from the bundled ACS extract — an in-memory dict
+    # lookup, so unlike the old live ACS call it costs nothing here. (The
+    # live API is never called on this path.)
+    demo = _static_demographics(fips_11)
+    if demo:
+        result.update(demo)
+        total = demo["total_population"] or 0
+        white_nh = demo["white_nh_population"] or 0
+        black = demo["black_population"] or 0
+        hispanic = demo["hispanic_population"] or 0
+        if total > 0:
+            minority = total - white_nh
+            result["tract_minority_pct"] = round((minority / total) * 100, 1)
+            result["minority_population"] = minority
+            result["tract_population"] = total
+            result["majority_aa_hp"] = (black + hispanic) / total > 0.50
     return result
 
 
@@ -439,6 +498,9 @@ def _get_acs_demographics(
         "for": f"tract:{tract_code}",
         "in": f"state:{state_fips} county:{county_fips}",
     }
+    api_key = os.environ.get("CENSUS_API_KEY")
+    if api_key:
+        params["key"] = api_key
     last_err: Exception | None = None
     for attempt in range(3):
         try:

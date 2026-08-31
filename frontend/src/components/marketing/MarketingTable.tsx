@@ -107,7 +107,8 @@ function buildCsv(listings: RentCastListing[]): string {
     const matched = progs.filter((p) => p.status !== "Ineligible");
     const programNames = matched.map((p) => p.program_name).join("; ");
     const programStatuses = matched.map((p) => `${p.program_name}: ${p.status}`).join("; ");
-    const isMMCT = (census.tract_minority_pct ?? 0) > 50;
+    const mmctCsv =
+      census.tract_minority_pct == null ? "" : census.tract_minority_pct > 50 ? "Yes" : "No";
 
     return [
       l.formattedAddress ?? "",
@@ -120,7 +121,7 @@ function buildCsv(listings: RentCastListing[]): string {
       l.daysOnMarket != null ? String(l.daysOnMarket) : "",
       census.msa_code ?? "",
       census.tract_income_level ?? "",
-      isMMCT ? "Yes" : "No",
+      mmctCsv,
       programNames,
       programStatuses,
       agent.name ?? "",
@@ -506,6 +507,7 @@ export default function MarketingTable({
             const progs = listing.matchData?.programs ?? [];
             const eligibleProgs = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
             const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
+            const mmctKnown = census.tract_minority_pct != null;
             const isMMCT = (census.tract_minority_pct ?? 0) > 50;
             const incomeLevel = census.tract_income_level ?? "N/A";
             const isLmi = ["low", "moderate"].includes(incomeLevel.toLowerCase());
@@ -585,10 +587,14 @@ export default function MarketingTable({
                   </span>
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                      isMMCT
+                        ? "bg-emerald-100 text-emerald-800"
+                        : mmctKnown
+                          ? "bg-red-100 text-red-700"
+                          : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    {isMMCT ? "MMCT" : "Not MMCT"}
+                    {isMMCT ? "MMCT" : mmctKnown ? "Not MMCT" : "MMCT ?"}
                   </span>
                 </div>
               </div>
@@ -634,6 +640,7 @@ export default function MarketingTable({
                 const eligible = progs.filter((p) => p.status !== "Ineligible" && !p.is_secondary);
                 const secondaryMatchCount = progs.filter((p) => p.is_secondary && p.status !== "Ineligible").length;
 
+                const mmctKnown = census.tract_minority_pct != null;
                 const isMMCT = (census.tract_minority_pct ?? 0) > 50;
                 const incomeLevel = census.tract_income_level ?? "N/A";
                 const isLmi = ["low", "moderate"].includes(incomeLevel.toLowerCase());
@@ -710,10 +717,14 @@ export default function MarketingTable({
                     <td className="whitespace-nowrap px-3 py-2.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                          isMMCT
+                            ? "bg-emerald-100 text-emerald-800"
+                            : mmctKnown
+                              ? "bg-red-100 text-red-700"
+                              : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        {isMMCT ? "Yes" : "No"}
+                        {isMMCT ? "Yes" : mmctKnown ? "No" : "?"}
                       </span>
                     </td>
 

@@ -134,6 +134,7 @@ GMCCMVP/
 │   ├── programs/              22 program JSONs — eligibility rules per program
 │   ├── knowledge/             RAG knowledge base for the AI agent (markdown)
 │   ├── tract_lookup.json      FFIEC tract data, derived from CensusTractList2026.xlsx
+│   ├── tract_minority.json    ACS 2019-2023 demographics per tract (see scripts/build_tract_minority.py)
 │   ├── diamond_tracts.json
 │   ├── county_fips.json
 │   ├── msa_lookup.json
@@ -675,6 +676,7 @@ To add a program:
 |---|---|---|
 | `data/programs/*.json` | Hand-curated from program PDFs/PPTs (kept alongside in `data/` for reference) | `matching/matcher.py` |
 | `data/tract_lookup.json` | Derived from `CensusTractList2026.xlsx` | `matching/census.py` (LMI lookups) |
+| `data/tract_minority.json` | ACS 5-year B03002 via `scripts/build_tract_minority.py` | `matching/census.py` (MMCT / demographics) |
 | `data/diamond_tracts.json` | GMCC Diamond program's eligible tract list | Diamond CRA matching |
 | `data/county_fips.json` | County FIPS → name, state, lat/lng, cities | Server.py county helpers |
 | `data/msa_lookup.json` | County FIPS → MSA | Display in property modal |
@@ -987,7 +989,7 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 
 ### Census / FFIEC
 
-- **Census ACS is flaky.** `matching/census.py` retries up to 3 times and guards against HTML 5xx responses (Census sometimes returns an error page with a 200 status). This fixed intermittent blank `tract_minority_pct`.
+- **Census ACS requires an API key since mid-2026** (keyless calls 302 to a "Missing Key" page), which is why demographics now come from the bundled `data/tract_minority.json` extract instead of the live API. The live API is only used as a fallback for tracts missing from the extract, and only when `CENSUS_API_KEY` is set on the Python service. To refresh the extract for a new ACS vintage, see `scripts/build_tract_minority.py`.
 - **FFIEC GeoMap requires no key** but is rate-limited. Geocode results are cached aggressively in Upstash; do not bypass.
 
 ### Cron jobs

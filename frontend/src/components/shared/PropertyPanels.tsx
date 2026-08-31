@@ -133,10 +133,14 @@ export function CensusPanel({ census }: { census: CensusData }) {
         </span>
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            isMMCT ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+            isMMCT
+              ? "bg-emerald-100 text-emerald-800"
+              : minorityPct == null
+                ? "bg-slate-100 text-slate-500"
+                : "bg-red-100 text-red-700"
           }`}
         >
-          {isMMCT ? "In-MMCT" : "Not MMCT"}
+          {isMMCT ? "In-MMCT" : minorityPct == null ? "MMCT Unknown" : "Not MMCT"}
         </span>
       </div>
 
