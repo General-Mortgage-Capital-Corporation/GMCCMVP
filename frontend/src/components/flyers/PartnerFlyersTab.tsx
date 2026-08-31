@@ -39,15 +39,32 @@ function displayTitle(name: string): string {
   return name.replace(/^GMCC\s+(CRA:\s*)?/i, "").trim() || name;
 }
 
-/** Strip legal boilerplate and newline soup so the one-line summary under a
- *  program name is actually a summary. */
+/**
+ * Turn a product description into a short human summary.
+ *
+ * Some descriptions are raw text dumps of the whole flyer PDF — program
+ * pitch, then licensing/disclosure boilerplate, addresses, and URLs. The
+ * pitch always comes first, so cut at the first legal/contact marker, then
+ * strip inline boilerplate and cap at a word boundary.
+ */
+const LEGAL_MARKERS =
+  /\b(additional conditions|nmls|dre[\s#:]|cfl:|disclosures|licensed by|licensing|department of|www\.|https?:\/\/|email:|ph:)/i;
+
 function cleanDescription(d: string): string {
-  return d
+  let text = d;
+  const cut = text.search(LEGAL_MARKERS);
+  if (cut > 0) text = text.slice(0, cut);
+  text = text
     .replace(/programs? are subject to change[^.;]*[.;]?/gi, "")
     .replace(/all loans? are subject to (underwriting|credit)[^.;]*[.;]?/gi, "")
-    .replace(/additional (terms|restrictions)[^.;]*[.;]?/gi, "")
     .replace(/\s+/g, " ")
+    .replace(/[\s,;|\-–]+$/, "")
     .trim();
+  if (text.length > 200) {
+    const clipped = text.slice(0, 200);
+    text = clipped.slice(0, Math.max(clipped.lastIndexOf(" "), 160)).trimEnd() + "…";
+  }
+  return text;
 }
 
 export default function PartnerFlyersTab() {
@@ -325,7 +342,7 @@ function FlyerBuilder({
             </p>
             <p className="mt-1 text-sm font-semibold text-gray-900">{displayTitle(product.name)}</p>
             {cleanDescription(product.description) && (
-              <p className="mt-1 text-xs leading-snug text-gray-500">
+              <p className="mt-1 line-clamp-3 text-xs leading-snug text-gray-500">
                 {cleanDescription(product.description)}
               </p>
             )}
