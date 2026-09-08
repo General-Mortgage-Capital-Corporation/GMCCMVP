@@ -21,7 +21,6 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   "GMCC CRA: Celebrity $10K Grant": "celebrity-10k",
   "GMCC CRA: Celebrity Forgivable $10K DPA 2nd": "forgivable-15k",
   "GMCC CRA: Cronus Grand Slam": "grandslam",
-  "GMCC CRA: Cronus Special Conforming": "conforming-special",
   "GMCC CRA: Cronus Jumbo CRA": "jumbo-cra",
   "GMCC CRA: Diamond CRA": "diamond-community-lending",
   "GMCC Celebrity Jumbo": "celebrity-jumbo",

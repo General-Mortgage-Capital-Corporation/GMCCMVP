@@ -648,7 +648,6 @@ Program eligibility rules live in [data/programs/](data/programs/) as JSON, one 
 - GMCC Fabulous Jumbo
 - GMCC Grandslam
 - GMCC $10K Grant
-- GMCC Special Conforming
 
 **Secondary programs** (shown only inside the property modal under "Additional Program Matches"):
 

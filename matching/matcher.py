@@ -33,7 +33,6 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC CRA: Celebrity Community Opportunity",
     "GMCC CRA: Celebrity Forgivable $10K DPA 2nd",
     "GMCC CRA: Cronus Grand Slam",
-    "GMCC CRA: Cronus Special Conforming",
     "GMCC CRA: Cronus Jumbo CRA",
     "GMCC CRA: Diamond CRA",
     "GMCC CRA: Universe CRA",  # Universe Home Outreach (CRA) — broker channel only
