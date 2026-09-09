@@ -8,6 +8,8 @@ interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelect: (suggestion: AutocompleteSuggestion) => void;
+  /** Fires on input blur (after any suggestion click has settled). */
+  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -17,6 +19,7 @@ export default function AddressAutocomplete({
   value,
   onChange,
   onSelect,
+  onBlur,
   placeholder = "Enter address or zip code...",
   className = "",
   required = false,
@@ -97,6 +100,7 @@ export default function AddressAutocomplete({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={required}
         autoComplete="off"

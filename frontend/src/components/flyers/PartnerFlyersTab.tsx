@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authedFetch } from "@/lib/authed-fetch";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { trackEvent } from "@/lib/posthog";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -234,6 +235,8 @@ function FlyerBuilder({
   onBack: () => void;
 }) {
   const [address, setAddress] = useState("");
+  const addressRef = useRef(address);
+  addressRef.current = address;
   const [price, setPrice] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -253,8 +256,12 @@ function FlyerBuilder({
     };
   }, [previewUrl]);
 
+  // Last address we looked a photo up for — selecting a suggestion fires both
+  // the select handler and (a beat later) blur, so dedupe identical lookups.
+  const lastPhotoAddrRef = useRef("");
   const fetchListingPhoto = useCallback(async (addr: string) => {
-    if (!addr.trim()) return;
+    if (!addr.trim() || addr.trim() === lastPhotoAddrRef.current) return;
+    lastPhotoAddrRef.current = addr.trim();
     setPhotoBusy(true);
     try {
       const res = await authedFetch(`/api/zillow-photos?address=${encodeURIComponent(addr)}`);
@@ -363,12 +370,17 @@ function FlyerBuilder({
             <label className="mb-1 block text-xs font-medium text-gray-700">
               Property address <span className="font-normal text-gray-400">· optional</span>
             </label>
-            <input
+            <AddressAutocomplete
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              onBlur={() => void fetchListingPhoto(address)}
+              onChange={setAddress}
+              onSelect={(s) => {
+                setAddress(s.text);
+                void fetchListingPhoto(s.text);
+              }}
+              // Delay so a suggestion click lands first; the ref-dedupe in
+              // fetchListingPhoto keeps this from double-fetching after select.
+              onBlur={() => setTimeout(() => void fetchListingPhoto(addressRef.current), 250)}
               placeholder="123 Main St, San Jose, CA 95112"
-              className={inputCls}
             />
             <div className="mt-1.5 flex items-center gap-2 text-[11px] text-gray-500">
               {photoBusy ? (
