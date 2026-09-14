@@ -21,7 +21,7 @@ export type PartnerProfile = {
     license: string;
     imageUrl: string | null;
   };
-  mlo: { email: string; name: string };
+  mlo: { email: string; name: string; nmls: string; surveyUrl: string | null };
 };
 
 let _cached: PartnerProfile | null = null;

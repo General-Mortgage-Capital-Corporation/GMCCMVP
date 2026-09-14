@@ -30,8 +30,28 @@ export type PartnerRecord = {
 
 export type PartnerContext = {
   partner: PartnerRecord;
-  mlo: { email: string; name: string };
+  mlo: {
+    email: string;
+    name: string;
+    /** LO's NMLS — the key of their public program-fit survey link. */
+    nmls: string;
+    /**
+     * The LO's personal HNW lead-intake (program-fit survey) link on the MLO
+     * portal, shown to the partner so they can send prospects straight to
+     * this LO. Null when the LO has no NMLS on file yet.
+     */
+    surveyUrl: string | null;
+  };
 };
+
+/** Portal origin the survey lives on (the property-search site is a different domain). */
+const PORTAL_ORIGIN = (process.env.NEXT_PUBLIC_PORTAL_ORIGIN || "https://mlo.joingmcc.com").replace(/\/+$/, "");
+
+/** Public survey link for an LO — same shape the portal's own "Your link" card builds. */
+export function surveyUrlForNmls(nmls: string): string | null {
+  const n = nmls.trim();
+  return /^\d+$/.test(n) ? `${PORTAL_ORIGIN}/survey/${n}` : null;
+}
 
 /**
  * Load the partner's record off the owning LO's user doc, plus enough LO
@@ -51,6 +71,7 @@ export async function getPartnerContext(
     realtorPartners?: unknown;
     name?: string;
     displayName?: string;
+    nmls?: unknown;
   };
   if (!Array.isArray(data.realtorPartners)) return null;
   const raw = (data.realtorPartners as Record<string, unknown>[]).find(
@@ -68,7 +89,12 @@ export async function getPartnerContext(
       license: str(raw.license),
       imageUrl: str(raw.imageUrl) || null,
     },
-    mlo: { email: mloEmail, name: str(data.name) || str(data.displayName) || mloEmail },
+    mlo: {
+      email: mloEmail,
+      name: str(data.name) || str(data.displayName) || mloEmail,
+      nmls: str(data.nmls),
+      surveyUrl: surveyUrlForNmls(str(data.nmls)),
+    },
   };
 }
 
