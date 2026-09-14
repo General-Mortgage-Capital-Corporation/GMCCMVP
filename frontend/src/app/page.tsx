@@ -17,6 +17,7 @@ import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import FollowUpDashboard from "@/components/FollowUpDashboard";
 import ChatTab from "@/components/chat/ChatTab";
 import PartnerFlyersTab from "@/components/flyers/PartnerFlyersTab";
+import PartnerLeadIntakeBanner from "@/components/partner/PartnerLeadIntakeBanner";
 import dynamic from "next/dynamic";
 const PropertyModal = dynamic(() => import("@/components/PropertyModal"), { ssr: false });
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -569,6 +570,9 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Partner sessions: the owning LO's lead-intake (survey) link + QR. */}
+      {isPartner && <PartnerLeadIntakeBanner />}
 
       {/* AI Marketing Agent announcement banner */}
       {agentAnnounceVisible && !isPartner && (
