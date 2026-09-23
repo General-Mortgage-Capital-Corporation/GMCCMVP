@@ -39,6 +39,32 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC Celebrity Jumbo",
 }
 
+# Secondary programs that an LO can still SEARCH BY.
+#
+# `is_secondary` describes how a program is DISPLAYED — grouped under
+# "Community Lending Programs" in the property modal, kept off card badges and
+# out of best-match scoring. It was also deciding what the program pickers
+# offer, which is a different question, and the two came apart for Grand Slam:
+# the matcher scores it correctly (it returns ELIGIBLE for an LMI tract in one
+# of its 57 counties), but an LO could never ask for it, so it only ever
+# appeared by accident on a property they had already opened. Hermes is proof
+# the two are separable — it is a primary program with the same LMI gate.
+#
+# Add a name here to make it selectable without promoting it out of the
+# community-lending group.
+SEARCHABLE_SECONDARY_PROGRAM_NAMES: set[str] = {
+    "GMCC CRA: Cronus Grand Slam",
+}
+
+
+def is_selectable_program(program_name: str) -> bool:
+    """True when a program should appear in the search / program pickers."""
+    return (
+        program_name not in SECONDARY_PROGRAM_NAMES
+        or program_name in SEARCHABLE_SECONDARY_PROGRAM_NAMES
+    )
+
+
 # Programs whose eligibility criteria are still pending formalisation.
 # Append these as Potentially Eligible placeholders until a JSON file exists.
 SECONDARY_PROGRAMS_PENDING: list[dict] = []

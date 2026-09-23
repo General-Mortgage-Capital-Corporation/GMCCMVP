@@ -32,7 +32,12 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 from matching.models import ListingInput
-from matching.matcher import match_listing, load_programs, SECONDARY_PROGRAM_NAMES
+from matching.matcher import (
+    match_listing,
+    load_programs,
+    SECONDARY_PROGRAM_NAMES,
+    is_selectable_program,
+)
 from matching.census import get_census_data
 from matching.explain import explain_match
 from rag.config import PROGRAMS_DIR
@@ -186,7 +191,9 @@ def cache_stats():
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
     programs = load_programs()
-    return jsonify({"programs": [p.program_name for p in programs if p.program_name not in SECONDARY_PROGRAM_NAMES]})
+    return jsonify(
+        {"programs": [p.program_name for p in programs if is_selectable_program(p.program_name)]}
+    )
 
 
 @app.route("/api/match", methods=["POST"])
@@ -367,7 +374,7 @@ def program_locations():
 
     result = []
     for program in programs:
-        if program.program_name in SECONDARY_PROGRAM_NAMES:
+        if not is_selectable_program(program.program_name):
             continue
         all_fips: set[str] = set()
         has_any_location_restriction = False
