@@ -16,7 +16,10 @@ Think of it as three things in one:
 It is a companion to the MLO Portal. From the portal, "Property Search" opens this app (and it can sign you in automatically — see Signing in).
 
 ### Who can use it
-Access is limited to GMCC loan officers with a company Outlook account. If you can't get in, contact your admin.
+- **GMCC loan officers** sign in with their company Outlook account and get the full app.
+- **Partners** (realtors, CPAs) can get a limited login when their loan officer invites them — see **Partner access** below.
+
+There is no self-serve signup. If you can't get in, contact your admin (LOs) or the loan officer who invited you (partners).
 
 ---
 
@@ -29,6 +32,8 @@ You sign in with your **GMCC Outlook (Microsoft) company account** — there's n
 - Sessions last a while, so you generally stay signed in between visits. If you're ever bounced back to the login screen, just sign in again.
 
 If sign-in ever fails, the most reliable fix is to reload the page and click "Sign in with Outlook" again. Access is restricted to authorized loan officers; there is no self-serve signup.
+
+**Partners** don't use Outlook. On the login screen, click **"Partner sign in (invited by your loan officer)"** and enter the email and password from your invite email.
 
 ---
 
@@ -66,6 +71,7 @@ A conversational assistant. You type what you want in plain English and it does 
 - **Draft a personalized email** to a realtor or borrower, and **send it** through Outlook (with your approval).
 - **Generate a loan-comparison flyer** (PDF) for a program + property, optionally with a photo.
 - **Schedule a follow-up** — it can remind you, or auto-send a follow-up on a schedule you set.
+- **Run a mass-marketing campaign** — for bigger batches (more than about 10 properties) it runs a campaign: one personalized email per listing agent (agents you've already emailed are skipped), with the program flyer attached. It first shows a **preview** (counts and a sample draft, nothing sent), then starts only after you confirm. The campaign keeps sending in the background even if you close the tab; ask the agent for its **status** or to **cancel** it.
 - **Export results to CSV.**
 
 **Good to know:**
@@ -81,9 +87,9 @@ A conversational assistant. You type what you want in plain English and it does 
 The quickest way to evaluate one property. Enter an address (the search box autocompletes) and you get back:
 
 - **Property details** — price, beds/baths, square footage, lot size, year built, HOA, days on market, MLS #, last sale info.
-- **Census & CRA data** — census tract, MSA (metro area) name, area median income, the tract's minority percentage, and whether it's a **CRA-eligible tract** (see the glossary for LMI / MMCT / DMMCT).
+- **Census & CRA data** — census tract, MSA (metro area) name, area median income, the tract's minority percentage, and whether it's a **CRA-eligible tract** (see the glossary for LMI / MMCT / DMMCT). Minority percentages come from the Census Bureau's 2020–2024 American Community Survey; if a tract's figure isn't available it shows as **Unknown** rather than "Not MMCT".
 - **Listing agent info** — name, phone, email, and company when available.
-- **Program matches** — the GMCC programs the property is **eligible** for, **secondary/optional** programs, and **ineligible** programs, each with a short reason.
+- **Program matches** — the GMCC programs the property is **eligible** for, **additional (community lending)** programs, and **ineligible** programs, each with a short reason.
 - **Photos** — pulled from the listing when available, or you can upload your own for flyers.
 
 **From here you can:** edit/override the realtor's contact info, upload a custom property photo, select one or more programs and click **"Summary & Email"** to draft outreach, generate flyers, and compare pricing across GMCC's lending engines.
@@ -106,7 +112,7 @@ Find listings within a chosen distance of a place.
 
 - Enter an **address, zip, or landmark**, or click **"Use current location"** to use your GPS.
 - Choose **Area Search** (everything within a radius) or **Exact Address** (just that property).
-- Set the **radius** (up to 50 miles) with the slider, and optionally filter to only properties that qualify for one or more programs.
+- Set the **radius** (up to 50 miles) with the slider, and optionally filter to only properties that qualify for one or more programs (**Grand Slam** is included in this list).
 - A map lets you fine-tune the center point.
 
 Results are the same sortable, filterable, CSV-exportable table as the other search tabs, with program matches shown per property.
@@ -115,7 +121,7 @@ Results are the same sortable, filterable, CSV-exportable table as the other sea
 
 ## 8. By Program (start from a program)
 
-When you want to market a specific program. Pick a **GMCC program**, then a **state**, **county**, and optionally a **city**, and the app returns the listings in that area that qualify for that program — with the usual stats, filters, sorting, detail view, and CSV export.
+When you want to market a specific program. Pick a **GMCC program** (including the community-lending program **Grand Slam**), then a **state**, **county**, and optionally a **city**, and the app returns the listings in that area that qualify for that program — with the usual stats, filters, sorting, detail view, and CSV export.
 
 ---
 
@@ -158,7 +164,7 @@ Clicking any property (in any search tab) opens a full detail view with:
 - **Census & CRA panel** — census tract, MSA, income figures, minority percentage, and CRA-eligibility badges.
 - **Photos** — a carousel from the listing, or your own uploaded photo.
 - **Listing agent / builder info.**
-- **Program matches** — eligible programs as cards (with the best tier, the reason it qualifies, and a **View Details** expander), plus separate sections for optional and ineligible programs.
+- **Program matches** — eligible programs as cards (with the best tier, the reason it qualifies, and a **View Details** expander), plus separate sections for **Community Lending Programs** (e.g. Grand Slam, Jumbo CRA, Diamond CRA, Celebrity grants) and ineligible programs.
 - **Actions** — edit realtor info, upload a custom photo, and (after selecting programs) **"Summary & Email"** to draft and send outreach with flyers attached.
 
 ---
@@ -169,7 +175,7 @@ Clicking any property (in any search tab) opens a full detail view with:
 
 Before an email goes out, the app:
 - **Requires that you've set up your email signature** — if you haven't, it prompts you to do that first.
-- **Checks the recipient's address** and warns you if it looks undeliverable.
+- **Checks the recipient's address** when you click Send. Only addresses confirmed deliverable go out. A confirmed-bad address is blocked — fix it (a "Did you mean…?" suggestion may appear). A *flagged* address (e.g. a catch-all or role mailbox the checker can't confirm) is also blocked; email **ai@gmccloan.com** to request approval, and once an admin approves it, it sends for everyone.
 - **Appends your signature and the GMCC legal disclaimer** automatically.
 
 **Follow-ups.** When you send, you can turn on a follow-up:
@@ -191,7 +197,22 @@ To make one: open a property (or ask the AI Agent), pick the program(s), optiona
 
 ---
 
-## 13. Settings
+## 13. Partner access (realtors & CPAs)
+
+A loan officer can give a realtor or CPA partner their own limited login from the MLO Portal. The partner receives an invite email with a sign-in email and password and a button to open Property Search, and signs in with **"Partner sign in"** on the login page.
+
+**What a partner sees** — three tabs:
+- **CRA Check** — look up any address and see its census/CRA data and which GMCC programs it could qualify for, with each program's criteria.
+- **GPS Radius** — explore listings around an address or on a map, with program matches.
+- **Flyers** — build **co-branded program flyers** with their loan officer. Programs are grouped by audience (e.g. Community lending, Self-employed borrowers) and searchable. Pick one, optionally enter a property address (it autocompletes, and a listing photo is pulled in automatically when one is found) and listing price, confirm the partner's own name / DRE-NMLS # / phone / email (pre-filled from what the LO saved; edits apply to that flyer only), then **Preview** or **Download PDF**. Leave the address blank for a general program flyer. Partners can also preview or download a program's flyer straight from a property's program matches.
+
+**Lead-intake link.** At the top of every partner session is the loan officer's personal **program-fit survey link** with **Copy link** and a **QR code** (downloadable). Clients who fill out the short survey through it go straight to that loan officer as a lead — handy for open houses. (Hidden if the LO has no NMLS # on file.)
+
+**Not available to partners:** the AI Agent, Marketing, By Program, Refi Finder, pricing comparison, emailing, talking points, guideline/rate-sheet links, the Email Dashboard, and Settings.
+
+---
+
+## 14. Settings
 
 From the gear icon you can:
 - **Set up your email signature** (used on every email the app sends).
@@ -199,7 +220,7 @@ From the gear icon you can:
 
 ---
 
-## 14. How program matching works
+## 15. How program matching works
 
 When the app says a property is eligible for a program, that decision is **rule-based, not AI guesswork**. It compares the property's facts (price, type, beds/baths, location) and its **census data** (income level, tract minority percentage, CRA-tract status) against each GMCC program's published rules.
 
@@ -207,11 +228,11 @@ Because it's deterministic, the same property always produces the same result, a
 
 ---
 
-## 15. Common questions
+## 16. Common questions
 
-**Do I need a password?** No — you sign in with your GMCC Outlook account.
+**Do I need a password?** Loan officers don't — you sign in with your GMCC Outlook account. Partners sign in with the email and password from their invite.
 
-**Why can't I sign in even though pop-ups are allowed?** Reload the page and click "Sign in with Outlook" again. If it still fails, contact your the AI team.
+**Why can't I sign in even though pop-ups are allowed?** Reload the page and click "Sign in with Outlook" again. If it still fails, contact the AI team.
 
 **Is Preview in Refi Finder free?** Yes. Only **Fetch** (pulling records) and **unlocking contact info** cost credits.
 
@@ -231,9 +252,17 @@ Because it's deterministic, the same property always produces the same result, a
 
 **Which tab pulls a whole county?** Marketing.
 
+**Where did Special Conforming go?** It was retired in favor of **Grand Slam** (GMCC CRA: Cronus Grand Slam), which you can pick in By Program and in the GPS Radius program filter.
+
+**Why does a tract's minority % say "Unknown"?** Census data isn't available for that tract, so the app won't claim it is or isn't a majority-minority tract. Verify MMCT status separately if it matters for the program.
+
+**I'm a realtor/CPA — how do I get access?** Ask your GMCC loan officer to invite you. You'll get an email with your login; use **"Partner sign in"** on the login page. Forgot your password? Your loan officer can reset it and re-send the invite.
+
+**Can I share my loan officer's survey link?** Yes — that's what it's for. Copy it or show the QR code from the strip at the top of the page; every submission goes to your loan officer as a lead.
+
 ---
 
-## 16. Glossary
+## 17. Glossary
 
 - **CRA** — Community Reinvestment Act. Several GMCC programs target properties in CRA-eligible census tracts.
 - **Census tract** — a small geographic area the Census Bureau uses; program eligibility often depends on the tract a property sits in.

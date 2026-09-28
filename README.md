@@ -1,6 +1,6 @@
 # GMCC Property Search Dashboard
 
-An internal tool for GMCC loan officers (LOs). Given an address or filter, it pulls real-estate listings, runs them against GMCC's loan-program eligibility rules (deterministic + census-enriched), and surfaces matching programs. It also covers downstream LO workflows: CRA eligibility checks, refi prospecting, marketing emails, branded PDF fliers, and an AI chat agent that can drive the whole loop.
+An internal tool for GMCC loan officers (LOs). Given an address or filter, it pulls real-estate listings, runs them against GMCC's loan-program eligibility rules (deterministic + census-enriched), and surfaces matching programs. It also covers downstream LO workflows: CRA eligibility checks, refi prospecting, marketing emails, branded PDF fliers, and an AI chat agent that can drive the whole loop. LOs can also invite realtor/CPA **partners** to a deliberately limited surface (address checks, radius search, co-branded flyers) — see [Partner logins](#partner-logins-realtors--cpas).
 
 This document is the take-over guide. Read it end-to-end before touching anything in production.
 
@@ -77,7 +77,7 @@ A third runtime — **Firebase Cloud Functions** — hosts the PDF flier generat
  │   on Vercel)  │   │  RentCast                │   │ fillPdfFlier        │
  │               │   │  Google Places / Maps    │   │ exchangeMsalToken   │
  │ /api/match    │   │  Gemini Flash            │   │ billcomWebhook      │
- │ /api/explain  │   │  AI Gateway (Claude)     │   │ billcomAddon*       │
+ │ /api/explain  │   │  AI Gateway (Gemini)     │   │ billcomAddon*       │
  │ /api/refi/*   │   │  FFIEC GeoMap            │   │ billcomCancel…      │
  │ /api/programs │   │  Census ACS              │   │ billcomRefiFinder…  │
  │ matching/     │   │  PropertyRadar           │   ├─────────────────────┤
@@ -98,7 +98,7 @@ A third runtime — **Firebase Cloud Functions** — hosts the PDF flier generat
 
 Three things to internalize:
 
-1. **The Python service is pure matching.** It has no DB, no auth, and the only third-party key it needs is `GEMINI_API_KEY` (for AI talking points) plus `PROPERTY_RADAR_API_ACCESS_TOKEN` (for refi). Everything else lives in Next.js.
+1. **The Python service is pure matching.** It has no DB and no user auth (only an optional shared-secret header, `PYTHON_SERVICE_SECRET`, so strangers can't call it directly), and the only third-party keys it needs are `GEMINI_API_KEY` (for AI talking points) plus `PROPERTY_RADAR_API_ACCESS_TOKEN` (for refi). Everything else lives in Next.js.
 2. **Auth is layered.** Browser signs in with MSAL → Next.js exchanges that for a Firebase token via Cloud Function → Next.js sets a `gmcc_session` cookie → all subsequent API calls send `Authorization: Bearer <firebase-id-token>`. The cookie is a UX marker only; per-request auth happens inside each API route.
 3. **Upstash Redis is the production source of truth for cache.** Local file caches exist for dev convenience but are no-ops on Vercel (`/var/task` is read-only).
 
@@ -131,7 +131,7 @@ GMCCMVP/
 │   └── config.py
 │
 ├── data/
-│   ├── programs/              22 program JSONs — eligibility rules per program
+│   ├── programs/              21 program JSONs — eligibility rules per program
 │   ├── knowledge/             RAG knowledge base for the AI agent (markdown)
 │   ├── tract_lookup.json      FFIEC tract data, derived from CensusTractList2026.xlsx
 │   ├── tract_minority.json    ACS 2020-2024 demographics per tract (see scripts/build_tract_minority.py)
@@ -160,23 +160,29 @@ GMCCMVP/
 │   ├── src/
 │   │   ├── middleware.ts      Auth gate (session cookie check)
 │   │   ├── app/
-│   │   │   ├── page.tsx       Main dashboard (6 tabs)
+│   │   │   ├── page.tsx       Main dashboard (6 LO tabs; 3 for partners)
 │   │   │   ├── layout.tsx
-│   │   │   ├── login/         Login page
+│   │   │   ├── login/         Login page (Outlook SSO + partner email/password)
+│   │   │   ├── admin/email-approvals/  Admin-only deliverability allowlist
 │   │   │   └── api/           All Next.js API routes (see "API routes" below)
 │   │   ├── components/        React components grouped by feature
-│   │   │   ├── auth/, cra/, chat/, flier/, marketing/, pricing/, program/,
-│   │   │   ├── property/, refi/, search/, shared/
+│   │   │   ├── auth/, cra/, chat/, flier/, flyers/ (partner Flyers tab),
+│   │   │   ├── marketing/, partner/, pricing/, program/, property/, refi/,
+│   │   │   ├── search/, shared/
 │   │   │   └── (top-level: PropertyCard, PropertyModal, FollowUpDashboard, …)
 │   │   ├── contexts/AuthContext.tsx
 │   │   ├── hooks/             useSearch, usePagination, useRateSheets,
-│   │   │                       useRefiSubscription (polled credit balance)
+│   │   │                       useRefiSubscription (polled credit balance),
+│   │   │                       usePartnerProfile (partner + owning-LO context)
 │   │   ├── lib/
 │   │   │   ├── api.ts                Frontend → backend client
 │   │   │   ├── python-client.ts      Server-side proxy to Flask
 │   │   │   ├── cloud-functions.ts    Bill.com cloud-fn helpers (refi credits)
 │   │   │   ├── agents/gmcc-agent.ts  AI SDK ToolLoopAgent definition
-│   │   │   ├── tools/                21 agent tools (one per file)
+│   │   │   ├── tools/                21 agent tools (one per file) + store helpers
+│   │   │   ├── campaigns/engine.ts   Mass-marketing campaign pipeline (agent + cron)
+│   │   │   ├── partner-server.ts     Partner record lookup + owning-LO token minting
+│   │   │   ├── email-approvals.ts    Admin deliverability allowlist (approvedEmails)
 │   │   │   ├── refi-credits/         Credit-deduction infrastructure:
 │   │   │   │   ├── cycle.ts          Dynamic cycleId from planAnniversary
 │   │   │   │   ├── meta.ts           meta/refiFinder cached reader
@@ -277,6 +283,8 @@ vercel env pull .env
 | `PROPERTY_RADAR_API_ACCESS_TOKEN` | yes (for refi) | PropertyRadar API |
 | `UPSTASH_REDIS_REST_URL` | recommended | Shared cache (geocode, ACS, refi search, contacts) |
 | `UPSTASH_REDIS_REST_TOKEN` | recommended | Pair with the URL above |
+| `PYTHON_SERVICE_SECRET` | recommended | When set, every request must carry a matching `X-Service-Secret` header (the Next.js client sends it). Set the same value on both projects. Unset = open. |
+| `CENSUS_API_KEY` | optional | Live Census ACS fallback for tracts missing from `data/tract_minority.json` (keyless ACS calls no longer work) |
 | `FRONTEND_ORIGIN` | optional | Extra allowed CORS origin (e.g. ad-hoc preview URL) |
 | `FLASK_DEBUG` | dev only | Enables Flask debug mode |
 | `PORT` | dev only | Defaults to 5001 |
@@ -293,7 +301,10 @@ vercel env pull .env
 | `GOOGLE_PLACES_API_KEY` | Server-side Places autocomplete & Maps |
 | `GEMINI_API_KEY` | Email subject/body suggestions |
 | `PYTHON_SERVICE_URL` | URL of Flask backend (`http://localhost:5001` or Vercel URL) |
-| `AI_GATEWAY_API_KEY` | Vercel AI Gateway — Claude Sonnet for chat agent |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway — chat agent model (default `google/gemini-3-flash`) |
+| `AGENT_MODEL` | Optional override of the agent's orchestrator model (AI Gateway model id) |
+| `PYTHON_SERVICE_SECRET` | Sent as `X-Service-Secret` to the Flask backend; must match the backend's value |
+| `EMAIL_APPROVAL_ADMINS` | Comma-separated extra admins for `/admin/email-approvals` (extends the hardcoded default) |
 | `FIREBASE_PROJECT_ID` | Firebase Admin SDK (verifyIdToken, Firestore reads) |
 | `FIREBASE_CLIENT_EMAIL` | Firebase Admin service account |
 | `FIREBASE_PRIVATE_KEY` | Firebase Admin service account (note: escape newlines) |
@@ -322,6 +333,7 @@ vercel env pull .env
 | `NEXT_PUBLIC_POSTHOG_HOST` | PostHog host (`https://us.posthog.com` for US cloud) |
 | `NEXT_PUBLIC_CLOUD_FUNCTIONS_URL` | Firebase Functions base URL |
 | `NEXT_PUBLIC_BASE_URL` / `NEXT_PUBLIC_APP_URL` | Public URL of this deployment |
+| `NEXT_PUBLIC_PORTAL_ORIGIN` | MLO portal origin for the partner lead-intake survey link (default `https://mlo.joingmcc.com`) |
 
 **Vercel-injected (do not set manually):** `VERCEL_URL`, `NODE_ENV`.
 
@@ -335,14 +347,14 @@ vercel env pull .env
 | **RentCast** | Property listings + marketing search | `RENTCAST_API_KEY` |
 | **Google Cloud** (Places, Maps JS) | Address autocomplete, map widget | `GOOGLE_PLACES_API_KEY` (restrict by domain in prod) |
 | **Google AI Studio** (Gemini Flash) | Talking points, email suggestions | `GEMINI_API_KEY` |
-| **Vercel AI Gateway** | Claude Sonnet for the agent (unified provider API, observability) | `AI_GATEWAY_API_KEY` |
-| **FFIEC GeoMap + Census ACS** | Census tract + demographics | None (public, has retry for flakiness) |
+| **Vercel AI Gateway** | Agent model — Gemini 3 Flash by default (unified provider API, observability) | `AI_GATEWAY_API_KEY` |
+| **FFIEC GeoMap + Census geocoder / ACS** | Census tract + demographics (demographics served from the bundled ACS extract) | None; optional `CENSUS_API_KEY` for the live ACS fallback |
 | **PropertyRadar** (Solo plan + API trial) | Refi prospecting | `PROPERTY_RADAR_API_ACCESS_TOKEN` |
 | **Firebase** (project `gmcc-66e1e`) | Auth, Firestore (sentEmails, flyers, LO profiles), Cloud Functions | Multiple |
 | **Microsoft Azure AD** | LO SSO (MSAL) | `NEXT_PUBLIC_AZURE_*` + `AZURE_CLIENT_SECRET` |
 | **Microsoft Graph** | Send email as LO, resolve M365 group membership | App-only creds via `AZURE_CLIENT_SECRET` |
 | **Upstash Redis** | Shared cache + ratelimit + daily-spend counter | `UPSTASH_REDIS_REST_*` |
-| **Apify** | Realtor research scrapers | `APIFY_API_TOKEN` |
+| **Apify** | Realtor research scrapers + Zillow listing photos | `APIFY_API_TOKEN` |
 | **ElevenLabs** | Voice readout of agent responses | `ELEVENLABS_TTS_API_KEY` |
 | **PostHog** | Product analytics | `NEXT_PUBLIC_POSTHOG_KEY` + `POSTHOG_PERSONAL_API_KEY` |
 | **MLO Pricing engine** | Live rate quotes for pricing tab | `MLO_PRICING_API_*` |
@@ -372,7 +384,7 @@ Two projects under the `gmcc` team:
 
 - `vercel.json` at root: `@vercel/python` build for `server.py` + catch-all route.
 - `frontend/vercel.json`:
-  - Crons: `/api/cron/follow-ups` hourly, `/api/cron/sync-rate-sheets` daily at 17:00 UTC.
+  - Crons: `/api/cron/follow-ups` hourly, `/api/cron/sync-rate-sheets` daily at 17:00 UTC, `/api/cron/refi-reconcile` hourly at :15, `/api/cron/agent-campaigns` every 5 min.
   - Global headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
   - `/blank.html` overrides X-Frame-Options to `SAMEORIGIN` and disables cache — required for MSAL silent SSO via hidden iframe.
 
@@ -417,6 +429,16 @@ cd frontend && vercel               # preview
 5. ID token is POSTed to `/api/auth/session` → Next.js calls `verifyIdToken` (Firebase Admin) → sets `gmcc_session` HttpOnly cookie. Cookie lifetime: 90 days (matches the typical AAD refresh-token sliding window). The cookie is a UX marker only; the real auth check is the Bearer token on each API call.
 6. All subsequent API calls include `Authorization: Bearer <firebase-id-token>` (see [authed-fetch.ts](frontend/src/lib/authed-fetch.ts) and [require-auth.ts](frontend/src/lib/require-auth.ts)).
 
+### Partner logins (realtors / CPAs)
+
+LOs provision partners from the MLO portal (GMCC-app), which creates a Firebase email/password user in `gmcc-66e1e` with custom claims `{ role: "partner", mloEmail, partnerId }` and emails the credentials. Partners use the **"Partner sign in"** toggle on `/login`.
+
+- **Principal classification** ([firestore-admin.ts](frontend/src/lib/firestore-admin.ts) `verifyIdTokenWithEmail`): `sign_in_provider === "custom"` (MSAL exchange) → `mlo`; password user with the partner claims → `partner`; anything else is rejected.
+- **Deny by default.** [`requireAuth`](frontend/src/lib/require-auth.ts) rejects partners unless the route passes `{ allowPartner: true }`. Allowlisted today: `auth/session`, `match`, `match-batch`, `search`, `programs`, `autocomplete`, `place-details`, `place-photo`, `maps-key`, `reverse-geocode`, `zillow-photos`, `generate-flier`, `partner/me`, `partner/flyer-products`. Everything else (agent, email, pricing, talking points, refi, rate sheets, follow-ups) 401s, and the UI hides it too.
+- **Partner surface**: CRA Check, GPS Radius, and a partner-only **Flyers** tab. A strip under the header shows the owning LO's program-fit survey link (`<portal>/survey/<nmls>`) + QR.
+- **Partner record** lives on the LO's doc: `users/{mloEmail}.realtorPartners[]` (written by the portal, read-only here via [partner-server.ts](frontend/src/lib/partner-server.ts)). If the record is gone, partner routes 403.
+- **Flyers render as the owning LO.** `fillPdfFlier` only renders for its own caller, so for partner calls `/api/generate-flier` mints a short-lived ID token for the LO server-side (never sent to the browser).
+
 **Zombie-cookie protection.** Because the cookie's lifetime is decoupled from the real session, a user can end up with a valid cookie but expired Firebase/MSAL state. [AuthContext](frontend/src/contexts/AuthContext.tsx) detects this on mount — if localStorage has no usable user and MSAL silent refresh can't recover one, it `DELETE`s the cookie and bounces to `/login`. Without this, the gate would let the user through to a signed-out dashboard where every API call 401s.
 
 ### Refi Finder gating (credit system)
@@ -451,16 +473,17 @@ App-only (client credentials):
 
 ## Features (tab-by-tab)
 
-The dashboard has six tabs ([frontend/src/app/page.tsx](frontend/src/app/page.tsx)):
+The dashboard has six LO tabs and opens on **CRA Check** ([frontend/src/app/page.tsx](frontend/src/app/page.tsx)). Partner sessions get CRA Check, GPS Radius (`find`) and Flyers only.
 
-### 1. AI Marketing Agent (`chat`, default landing tab)
+### 1. AI Marketing Agent (`chat`)
 
 Natural-language interface that drives the whole workflow — search, match, draft email, send, generate flier, record follow-up.
 
-- **Backend**: [/api/chat](frontend/src/app/api/chat/route.ts) using AI SDK v6 `ToolLoopAgent` with Claude Sonnet via AI Gateway.
+- **Backend**: [/api/chat](frontend/src/app/api/chat/route.ts) using AI SDK v6 `ToolLoopAgent` with `google/gemini-3-flash` via AI Gateway (override with `AGENT_MODEL`). Old bulky tool outputs are stubbed each step by [prune-history.ts](frontend/src/lib/agents/prune-history.ts).
 - **Agent definition**: [frontend/src/lib/agents/gmcc-agent.ts](frontend/src/lib/agents/gmcc-agent.ts).
-- **Tools** (21, one file each in [frontend/src/lib/tools/](frontend/src/lib/tools/)): `search-properties`, `lookup-property`, `match-programs`, `lookup-programs`, `search-by-program`, `check-cra-eligibility`, `draft-email`, `send-email`, `search-sent-emails`, `record-follow-up`, `research-realtor`, `fetch-property-photo`, `generate-flyer`, `generate-csv`, `query-admiral` (pricing), `search-knowledge`, `web-search`, `ask-user`, `ask-for-confirmation`, plus dataset/flyer store helpers.
+- **Tools** (21, one file each in [frontend/src/lib/tools/](frontend/src/lib/tools/)): `search-properties`, `lookup-property`, `match-programs`, `lookup-programs`, `search-by-program`, `check-cra-eligibility`, `draft-email`, `send-email`, `search-sent-emails`, `record-follow-up`, `research-realtor`, `fetch-property-photo`, `generate-flyer`, `generate-csv`, `query-admiral` (pricing), `search-knowledge`, `web-search`, `ask-user`, `ask-for-confirmation`, `run-marketing-campaign`, `check-campaign-status`, plus dataset/flyer/send-ledger helpers.
 - **Knowledge base**: markdown in [data/knowledge/](data/knowledge/) (read directly at runtime — no vector store). `next.config.ts` uses `outputFileTracingIncludes` to bundle `data/` into the `/api/chat` function on Vercel; without that hoist, the agent's `searchKnowledge` tool silently returns nothing in production.
+- **Mass-marketing campaigns**: for >10 properties the agent uses `runMarketingCampaign` (mode `preview` → counts + sample draft, then `start` after confirmation) instead of per-property tool loops. [lib/campaigns/engine.ts](frontend/src/lib/campaigns/engine.ts) dedupes to one email per listing agent, skips agents already in `sentEmails`, gates deliverability, drafts per agent with Gemini, attaches the program flyer, and sends with Graph app credentials. Progress persists to Firestore `agentCampaigns/{id}`; `/api/cron/agent-campaigns` drains the rest every 5 min (survives closed tabs) and expires stalled campaigns after 7 days.
 - **Persistence**: chat history in Upstash Redis with `CHAT_TTL_DAYS` expiry (default 4). Browsable via `/api/chat/history`.
 - **Voice**: optional speech-in (`use-speech-recognition.ts`) and ElevenLabs TTS readout (`tts-engine.ts`).
 
@@ -468,7 +491,7 @@ Natural-language interface that drives the whole workflow — search, match, dra
 
 Quick "is this address in an LMI tract?" lookup with a side-by-side loan-comparison flyer. Calls Python `/api/match` and renders LMI/CRA-eligible programs.
 
-### 3. Find Properties (`find`)
+### 3. GPS Radius / Find Properties (`find`)
 
 Address or radius search via RentCast → for each listing call `/api/match-batch` → render program badges. Property modal shows MSA/Census panel + full program eligibility details.
 
@@ -635,37 +658,41 @@ and the shared `performUnlock` orchestrator.
 
 Untested but likely viable: `fetch_property_persons(purchase=0)` for free ownership detection. If verified, we can wire a "L2 ownership check before paid unlock" path that makes unlocks free indefinitely (not just within the 365-day cache window). See the roadmap.
 
+### 7. Partner Flyers (`flyers`) — partner sessions only
+
+[PartnerFlyersTab.tsx](frontend/src/components/flyers/PartnerFlyersTab.tsx). Lists templates from the shared `mortgage_products` Firestore collection (the MLO portal's Media Hub catalog) via `/api/partner/flyer-products`, grouped by category and searchable; long descriptions are trimmed at the first legal/contact marker. The builder takes an optional address (Places autocomplete; a Zillow listing photo is fetched on select/blur), optional price, and the partner's own name / DRE-NMLS / phone / email (pre-filled from `partner/me`), then previews or downloads via `/api/generate-flier`.
+
 ---
 
 ## Loan programs
 
 Program eligibility rules live in [data/programs/](data/programs/) as JSON, one file per program. Schema is defined by `ProgramRules` in [rag/schemas.py](rag/schemas.py).
 
-**Primary programs** (shown as badges in search results and the program-filter dropdown):
+There are 21 program JSONs. Every program is **primary** (badges in search results, program filters, best-match scoring) unless its `program_name` is in `SECONDARY_PROGRAM_NAMES` in [matching/matcher.py](matching/matcher.py).
 
-- GMCC Jumbo CRA
-- GMCC Diamond CRA
-- GMCC Fabulous Jumbo
-- GMCC Grandslam
-- GMCC $10K Grant
+**Secondary programs** — shown only in the property modal under "Community Lending Programs" ("Additional Programs" on the CRA tab), kept off card badges and out of best-match scoring:
 
-**Secondary programs** (shown only inside the property modal under "Additional Program Matches"):
-
-- GMCC Hermes
-- GMCC Ocean
+- GMCC CRA: Celebrity $10K Grant
+- GMCC CRA: Celebrity Community Opportunity
+- GMCC CRA: Celebrity Forgivable $10K DPA 2nd
+- GMCC CRA: Cronus Grand Slam
+- GMCC CRA: Cronus Jumbo CRA
+- GMCC CRA: Diamond CRA
+- GMCC CRA: Universe CRA
 - GMCC Celebrity Jumbo
-- GMCC Massive
-- GMCC Universe
-- GMCC Buy Without Sell First
 
-The `SECONDARY_PROGRAM_NAMES` constant in [matching/matcher.py](matching/matcher.py) controls this split.
+**Primary programs** — everything else: Bank Statement Self Employed, Buy Without Sell First, Diamond Express, DSCR Rental Flow, Fabulous Jumbo, Hermes, Jubilant, Massive, Ocean, Radiant, Thunder, Universe, WVOE P&L.
+
+**Display vs. searchable are separate.** `/api/programs` and `/api/program-locations` (which feed the GPS Radius program filter and the By Program picker) include a program when `is_selectable_program()` is true: not secondary, **or** listed in `SEARCHABLE_SECONDARY_PROGRAM_NAMES`. Today only Grand Slam is in that set — it stays in the community-lending group but can be searched for. Adding another community program there is a product call.
 
 To add a program:
 
 1. Drop a new JSON in [data/programs/](data/programs/) matching the existing schema (tiers, criteria, county FIPS, state restrictions, loan limits, occupancy, property types, etc.).
-2. If it's secondary-only, add the `program_name` to `SECONDARY_PROGRAM_NAMES`.
-3. Verify with `pytest tests/test_matching.py`.
-4. The Thunder program was deleted in March 2026 — don't restore it without checking with product.
+2. If it's secondary-only, add the `program_name` to `SECONDARY_PROGRAM_NAMES` (and to `SEARCHABLE_SECONDARY_PROGRAM_NAMES` if LOs should be able to search by it).
+3. If it has a flyer, map it to its `productId` in [FlierButton.tsx](frontend/src/components/flier/FlierButton.tsx) and [generate-flyer.ts](frontend/src/lib/tools/generate-flyer.ts).
+4. Verify with `pytest tests/test_matching.py`.
+
+**Special Conforming was retired (Sep 2026)** in favor of the existing GMCC CRA: Cronus Grand Slam — its JSON, secondary entry, and flyer mappings were removed. Don't restore it.
 
 ---
 
@@ -693,7 +720,7 @@ To regenerate `tract_lookup.json` from a new FFIEC release: drop the new `Census
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/health` | Liveness |
+| GET | `/api/health` | Liveness. `?deep=1` also reports tract/minority lookup sizes and Census geocoder reachability |
 | GET | `/api/cache-stats` | Upstash key counts by namespace |
 | GET | `/api/programs` | List all loadable programs |
 | POST | `/api/match` | Match one listing → returns programs + census data |
@@ -717,18 +744,22 @@ Major handlers:
 
 **Auth & session**
 - `auth/sso-exchange` — MSAL → Firebase token swap
-- `auth/session` — set/clear `gmcc_session` cookie (verifies Firebase ID token; 90d lifetime)
+- `auth/session` — set/clear `gmcc_session` cookie (verifies Firebase ID token, MLO or partner; 90d lifetime)
 
 **Search & geo**
 - `search`, `marketing-search` — RentCast wrappers
 - `place-details`, `place-photo`, `autocomplete`, `maps-key` — Google Places helpers
 - `reverse-geocode` — lat/lng → street address (Google Geocoding; used by "Use current location" button)
-- `zillow-photos` — fallback photo lookup
+- `zillow-photos` — listing photos via Apify (address → ZPID → `maxcopell~zillow-detail-scraper`), cached in Redis
 
 **Match & programs**
 - `match`, `match-batch` — proxy to Flask
 - `programs`, `program-locations`, `program-search` — proxy to Flask
 - `cra-check` — CRA tab backend
+
+**Partner**
+- `partner/me` — partner record + owning LO (name, NMLS, survey URL); partner sessions only
+- `partner/flyer-products` — flyer template catalog from Firestore `mortgage_products` (5-min in-memory cache)
 
 **AI agent**
 - `chat` — AI SDK ToolLoopAgent endpoint (streaming)
@@ -754,11 +785,14 @@ Major handlers:
 
 **Admin & ops**
 - `admin/usage` — per-LO email stats (Firestore aggregation)
+- `admin/email-approvals` — list/approve/revoke allowlisted recipient addresses (admin-only)
 - `cron/follow-ups` — hourly follow-up dispatcher
+- `cron/refi-reconcile` — hourly refi credit-safety sweep
+- `cron/agent-campaigns` — 5-min campaign drainer
 - `cron/sync-rate-sheets` — daily SharePoint → cache sync
 - `health` — liveness
 
-Auth: every authenticated route uses `requireAuth` from [require-auth.ts](frontend/src/lib/require-auth.ts) which validates the Firebase Bearer token via Firebase Admin. Cron routes validate `Authorization: Bearer <CRON_SECRET>` instead.
+Auth: every authenticated route uses `requireAuth` (LO-only unless `{ allowPartner: true }`) from [require-auth.ts](frontend/src/lib/require-auth.ts) which validates the Firebase Bearer token via Firebase Admin. Cron routes validate `Authorization: Bearer <CRON_SECRET>` instead.
 
 ---
 
@@ -805,7 +839,11 @@ The Python-side wrapper is [matching/cache.py](matching/cache.py). The Next.js w
 
 ## Email deliverability (Bouncer)
 
-Every outbound LO email is gated by a real-time Bouncer call. We added this in June 2026 after IT flagged that bounces from RentCast-sourced agent emails were hurting the company's M365 sender reputation. Policy is deliberately strict: only Bouncer's `deliverable` status allows a send — `undeliverable`, `risky`, and `unknown` all block at the UI layer with no override.
+Every outbound LO email is gated by a real-time Bouncer call. We added this in June 2026 after IT flagged that bounces from RentCast-sourced agent emails were hurting the company's M365 sender reputation. Policy is deliberately strict: only Bouncer's `deliverable` status allows a send — `undeliverable`, `risky`, and `unknown` all block at the UI layer. There is no LO self-override: for `risky`/`unknown` the LO is told to email `ai@gmccloan.com`, and an admin allowlists the address at `/admin/email-approvals`.
+
+### Admin allowlist
+
+[lib/email-approvals.ts](frontend/src/lib/email-approvals.ts) stores approved addresses in Firestore `approvedEmails`. `verifyDeliverability` short-circuits an approved address to `deliverable` for **everyone** (no Bouncer credit), which also covers the agent send tool and the cron auto-send guard. Admins = `naitik.poddar@gmccloan.com` plus anything in `EMAIL_APPROVAL_ADMINS`; Settings shows an "Email approvals" link to admins only.
 
 ### Surfaces guarded
 
@@ -862,17 +900,18 @@ If `BOUNCER_API_KEY` is unset or Bouncer is unreachable, the server returns `unk
 
 ## Cron jobs
 
-Three Vercel Cron jobs declared in [frontend/vercel.json](frontend/vercel.json):
+Four Vercel Cron jobs declared in [frontend/vercel.json](frontend/vercel.json):
 
 | Schedule (UTC) | Path | Purpose |
 |---|---|---|
 | `0 * * * *` (hourly) | `/api/cron/follow-ups` | Scan Firestore `sentEmails`, send follow-up nudges where rules match. Auto-send branch reads the Bouncer cache (`emailValidations`) and skips recipients previously flagged non-deliverable — never spends Bouncer credits in cron. Skipped items are marked `followUp.status = "skipped_undeliverable"`. |
 | `0 17 * * *` (daily 17:00 UTC) | `/api/cron/sync-rate-sheets` | Pull latest rate sheet from SharePoint into Upstash cache. |
 | `15 * * * *` (hourly at :15) | `/api/cron/refi-reconcile` | Credit-safety sweep. Refunds orphaned Refi Finder charges — unlock jobs that deducted credits but died before refunding (see [Refi Finder](#6-refi-finder-refi--paid-subscription-tier)). Scans `refiUnlockJobs` for rows still `pending` past a 15-min grace window and refunds the full deducted amount. Idempotent (txn-claimed, no double-refund). |
+| `*/5 * * * *` (every 5 min) | `/api/cron/agent-campaigns` | Drains running AI-agent marketing campaigns (`agentCampaigns`) with Graph app credentials + server Gemini key, retries signature-blocked ones, expires campaigns with no progress for 7 days. |
 
-> **Cron count needs Vercel Pro** — Hobby caps at 2 cron jobs; this project runs 3. GMCC is on Pro.
+> **Cron count needs Vercel Pro** — Hobby caps at 2 cron jobs; this project runs 4. GMCC is on Pro.
 
-All three validate `Authorization: Bearer ${CRON_SECRET}` (and fall back to a rate-limited public trigger if `CRON_SECRET` is unset). To test locally:
+All four validate `Authorization: Bearer ${CRON_SECRET}` (and fall back to a rate-limited public trigger if `CRON_SECRET` is unset). To test locally:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/follow-ups
@@ -904,6 +943,9 @@ Events emitted from the client (see [posthog.ts](frontend/src/lib/posthog.ts)):
 - `flyer_previewed`, `flyer_downloaded`, `agent_flyer_downloaded`
 - `follow_up_sent`, `follow_up_dismissed`
 - `tab_changed`
+- `partner_lead_link_copied`, `partner_lead_link_opened`
+
+Partner sessions are identified with `role: "partner"` and the owning LO's `mlo_email` (person + super properties); LO sessions carry `role: "mlo"`.
 
 Plus PostHog autocapture (pageviews + clicks).
 
@@ -990,6 +1032,15 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 
 - **Census ACS requires an API key since mid-2026** (keyless calls 302 to a "Missing Key" page), which is why demographics now come from the bundled `data/tract_minority.json` extract instead of the live API. The live API is only used as a fallback for tracts missing from the extract, and only when `CENSUS_API_KEY` is set on the Python service. To refresh the extract for a new ACS vintage, see `scripts/build_tract_minority.py`.
 - **FFIEC GeoMap requires no key** but is rate-limited. Geocode results are cached aggressively in Upstash; do not bypass.
+- **Unknown minority % renders as a neutral "Unknown" badge**, not "Not MMCT" (and a blank CSV cell). If MMCT suddenly looks blank site-wide, hit the backend's `/api/health?deep=1` — it reports the loaded tract/minority lookup sizes and geocoder reachability.
+
+### Zillow photos (Apify)
+
+- **The detail scraper changed its output schema (Sep 2026).** `maxcopell~zillow-detail-scraper` now returns `listingPhotos[].url` + `mainImage.{hiRes,thumbnail}` instead of `responsivePhotos`/`originalPhotos`/`photos`/`imgSrc`. [zillow-photos.ts](frontend/src/lib/services/zillow-photos.ts) reads the new keys first and keeps the old ones as fallbacks. If every listing suddenly has 0 photos (flyers without a hero image), check the actor's payload shape again.
+
+### Python service secret
+
+- **`PYTHON_SERVICE_SECRET` must match on both Vercel projects.** Flask enforces it only when set, so the two can be deployed in either order — but once the backend has it, a frontend without it (or with a different value) gets 401 on every match/refi call.
 
 ### Cron jobs
 
@@ -998,7 +1049,7 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 
 ### Removed / archived
 
-- **Thunder program** was deleted in March 2026. Files still exist as reference PDFs but no JSON in `data/programs/`.
+- **Special Conforming** was retired in Sep 2026 in favor of GMCC CRA: Cronus Grand Slam (JSON deleted). (Thunder, deleted in March 2026, was re-added in April 2026 and is live.)
 - **ChromaDB / RAG vector pipeline** was removed in March 2026. The `rag/` folder now only contains `schemas.py` and `config.py`. Dependencies (`pymupdf4llm`, `chromadb`, `click`) are gone from `requirements.txt`.
 - **`gmccmvp-two`** Vercel project is the older frontend; treat as deprecated but don't delete without checking whether anyone still hits it.
 
@@ -1027,6 +1078,15 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
   - Crash-safe `refiUnlockJobs` tracking + hourly `/api/cron/refi-reconcile` sweep that auto-refunds orphaned charges (request died after deduction, before refund)
   - Coverage across `unlock-search`, `unlock-contact-paid`, and `performUnlock`
 - ✅ **Redis-backed rate limiter** — `rateLimit()` now async, shared Upstash fixed-window counter across all Vercel instances (was per-process in-memory `Map`); in-memory fallback on missing env / Redis error. All 17 callers migrated to `await`.
+- ✅ **Mass-marketing campaign engine** for the AI agent (`runMarketingCampaign` / `checkCampaignStatus` + 5-min cron)
+- ✅ **Admin email allowlist** replaces LO self-override for flagged recipients
+- ✅ **Partner logins** — password auth, deny-by-default API surface, partner Flyers tab
+- ✅ **Census demographics** from a bundled ACS 2020–2024 extract (live ACS API went key-only)
+
+**Shipped September 2026:**
+- ✅ Special Conforming retired in favor of Grand Slam; Grand Slam made selectable in the program pickers
+- ✅ Partner flyer builder address autocomplete; LO lead-intake survey link + QR on partner sessions
+- ✅ Zillow photos read the detail scraper's new `listingPhotos`/`mainImage` schema
 
 **In flight / queued:**
 - **PR `purchase=0` ownership check**: theoretically lets us serve owned contacts forever at no cost (currently 365-day Redis TTL covers ~99% of cases). 10-min API poke to verify; ~30 min to wire if confirmed. See ["PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-tier).
