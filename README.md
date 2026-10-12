@@ -681,7 +681,7 @@ There are 21 program JSONs. Every program is **primary** (badges in search resul
 - GMCC CRA: Universe CRA
 - GMCC Celebrity Jumbo
 
-**Primary programs** — everything else: Bank Statement Self Employed, Buy Without Sell First, Diamond Express, DSCR Rental Flow, Fabulous Jumbo, Hermes, Jubilant, Massive, Ocean, Radiant, Thunder, Universe, WVOE P&L.
+**Primary programs** — everything else: Bank Statement Self Employed, Buy Without Sell First, Diamond Express, DSCR Rental Flow, Fabulous Jumbo, Hermes, Jubilant, Ocean, Radiant, Thunder, Universe, WVOE P&L.
 
 **Display vs. searchable are separate.** `/api/programs` and `/api/program-locations` (which feed the GPS Radius program filter and the By Program picker) include a program when `is_selectable_program()` is true: not secondary, **or** listed in `SEARCHABLE_SECONDARY_PROGRAM_NAMES`. Today only Grand Slam is in that set — it stays in the community-lending group but can be searched for. Adding another community program there is a product call.
 

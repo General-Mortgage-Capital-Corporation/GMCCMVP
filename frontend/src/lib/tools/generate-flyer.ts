@@ -9,22 +9,28 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   // Hot Programs
   "GMCC Buy Without Sell First": "buy-without-sell-first",
   "GMCC Universe": "universe",
-  "GMCC Massive": "massive",
-  "GMCC Diamond Express": "diamond-express",
+  "GMCC: Diamond Express (Jumbo/Conforming) to $10M": "diamond-express",
   "GMCC DSCR Rental Flow": "dscr",
-  "GMCC Ocean": "ocean",
-  "GMCC Hermes": "hermes",
-  "GMCC Radiant": "radiant",
+  "GMCC: Ocean, Borrower Prepared P&L": "ocean",
+  "GMCC: Hermes, Borrower Prepared P&L": "hermes",
+  "GMCC: Radiant No Income Doc/No DTI": "radiant",
   "GMCC Bank Statement Self Employed": "bank-statement",
-  "GMCC Fabulous Jumbo": "fabulous-program",
+  "GMCC Fabulous Jumbo": "fabulous",
   // Community Lending Programs (CRA)
   "GMCC CRA: Celebrity $10K Grant": "celebrity-10k",
   "GMCC CRA: Celebrity Forgivable $10K DPA 2nd": "forgivable-15k",
-  "GMCC CRA: Cronus Grand Slam": "grandslam",
+  "GMCC CRA: Cronus Grand Slam": "grand-slam",
   "GMCC CRA: Cronus Jumbo CRA": "jumbo-cra",
-  "GMCC CRA: Diamond CRA": "diamond-community-lending",
-  "GMCC Celebrity Jumbo": "celebrity-jumbo",
+  "GMCC Celebrity CRA: $15k DPA": "diamond-community-lending",
+  "GMCC Celebrity CRA: 100% First + $15k DPA": "celebrity-jumbo",
   "GMCC Thunder": "thunder",
+  // Short names the AI agent may still pass after the 2026-10 display renames.
+  "GMCC Diamond Express": "diamond-express",
+  "GMCC Ocean": "ocean",
+  "GMCC Hermes": "hermes",
+  "GMCC Radiant": "radiant",
+  "GMCC Diamond CRA": "diamond-community-lending",
+  "GMCC Celebrity Jumbo": "celebrity-jumbo",
 };
 
 export function resolveProductId(programName: string): string | null {
@@ -109,7 +115,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
     inputSchema: z.object({
       programName: z
         .string()
-        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC CRA: Diamond CRA'"),
+        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC Celebrity CRA: $15k DPA'"),
       address: z.string().optional().describe("Property address"),
       listingPrice: z.string().optional().describe("Listing price"),
       propertyImage: z

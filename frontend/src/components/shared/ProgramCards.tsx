@@ -97,7 +97,7 @@ export function ProgramCard({
     program.matching_tiers.find((t) => t.tier_name === program.best_tier) ??
     program.matching_tiers[0];
 
-  const isDiamond = program.program_name === "GMCC CRA: Diamond CRA";
+  const isDiamond = program.program_name === "GMCC Celebrity CRA: $15k DPA";
 
   return (
     <div

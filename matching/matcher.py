@@ -34,9 +34,9 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC CRA: Celebrity Forgivable $10K DPA 2nd",
     "GMCC CRA: Cronus Grand Slam",
     "GMCC CRA: Cronus Jumbo CRA",
-    "GMCC CRA: Diamond CRA",
+    "GMCC Celebrity CRA: $15k DPA",
     "GMCC CRA: Universe CRA",  # Universe Home Outreach (CRA) — broker channel only
-    "GMCC Celebrity Jumbo",
+    "GMCC Celebrity CRA: 100% First + $15k DPA",
 }
 
 # Secondary programs that an LO can still SEARCH BY.

@@ -22,10 +22,10 @@ const DISPLAY_NAME_TO_PROGRAM_KEY: Record<string, ProgramKey> = {
   "GMCC Thunder": "thunder",
   "GMCC Fabulous Jumbo": "fabulous",
   "GMCC Jubilant": "jubilant",
-  "GMCC Hermes": "hermes",
-  "GMCC Ocean": "ocean",
+  "GMCC: Hermes, Borrower Prepared P&L": "hermes",
+  "GMCC: Ocean, Borrower Prepared P&L": "ocean",
   "GMCC Universe": "universe",
-  "GMCC Radiant": "radiant",
+  "GMCC: Radiant No Income Doc/No DTI": "radiant",
 };
 
 const STORAGE_KEY = "gmcc_rate_sheets_v1";

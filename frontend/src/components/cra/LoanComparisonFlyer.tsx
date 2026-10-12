@@ -53,7 +53,7 @@ const DEFAULT_GROUPS: GroupTemplate[] = [
     ],
   },
   {
-    name: "Universe / Massive No Ratio No DTI",
+    name: "Universe No Ratio No DTI",
     subs: [
       { name: "30-Year Fixed", termMonths: 360 },
       { name: "5/1 ARM", termMonths: 360 },

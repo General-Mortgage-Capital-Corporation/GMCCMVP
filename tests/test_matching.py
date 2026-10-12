@@ -615,7 +615,7 @@ class TestGrandSlamIsSelectable:
         # Widening this is a deliberate product call, not a side effect.
         from matching.matcher import is_selectable_program
 
-        assert not is_selectable_program("GMCC CRA: Diamond CRA")
+        assert not is_selectable_program("GMCC Celebrity CRA: $15k DPA")
         assert not is_selectable_program("GMCC CRA: Universe CRA")
 
     def test_still_grouped_as_community_lending(self):
