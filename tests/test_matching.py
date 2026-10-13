@@ -657,3 +657,32 @@ class TestGrandSlamIsSelectable:
                     "stateFips": "48", "countyFips": "201"}
         assert quick_prescreen(in_county, ["GMCC CRA: Cronus Grand Slam"])
         assert not quick_prescreen(off_list, ["GMCC CRA: Cronus Grand Slam"])
+
+
+class TestCrown:
+    """GMCC Crown (asset qualifier, DTA): AZ/CA/NJ/NY, no county limits, a
+    primary program LOs can pick, flyer + rate sheet wired in the frontend."""
+
+    NAME = "GMCC: Crown No Income Doc/No Ratio (DTA)"
+
+    def _result(self, **kw):
+        from matching.matcher import match_listing
+        from matching.models import ListingInput
+
+        listing = ListingInput(**{"price": 2_500_000, "property_type": "Single Family", **kw})
+        return next(r for r in match_listing(listing) if r.program_name == self.NAME)
+
+    def test_eligible_in_its_states(self):
+        for state, county, fips in [("CA", "Santa Clara", "06085"), ("NY", "Queens", "36081"), ("NJ", "Bergen", "34003"), ("AZ", "Maricopa", "04013")]:
+            r = self._result(state=state, county=county, county_fips=fips)
+            assert r.status.value == "Eligible", (state, r)
+            assert r.is_secondary is False
+
+    def test_not_offered_outside_its_states(self):
+        r = self._result(state="TX", county="Harris", county_fips="48201")
+        assert r.status.value != "Eligible"
+
+    def test_selectable_in_the_pickers(self):
+        from matching.matcher import is_selectable_program
+
+        assert is_selectable_program(self.NAME)

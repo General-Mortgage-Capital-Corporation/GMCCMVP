@@ -26,6 +26,7 @@ const DISPLAY_NAME_TO_PROGRAM_KEY: Record<string, ProgramKey> = {
   "GMCC: Ocean, Borrower Prepared P&L": "ocean",
   "GMCC Universe": "universe",
   "GMCC: Radiant No Income Doc/No DTI": "radiant",
+  "GMCC: Crown No Income Doc/No Ratio (DTA)": "crown",
 };
 
 const STORAGE_KEY = "gmcc_rate_sheets_v1";

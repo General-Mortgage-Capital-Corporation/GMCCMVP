@@ -46,6 +46,7 @@ test("detectProgram: matches every supported program by keyword", () => {
   assert.equal(detectProgram("GMCC Ocean Rate Sheet 2.3.2026.pdf"), "ocean");
   assert.equal(detectProgram("GMCC Universe 5-4-2026 Rho.pdf"), "universe");
   assert.equal(detectProgram("GMCC Radiant Rate Sheet 2.10.2026.pdf"), "radiant");
+  assert.equal(detectProgram("GMCC Crown Rate Sheet 10.12.2026.pdf"), "crown");
 });
 
 test("detectProgram: returns null for unknown programs", () => {

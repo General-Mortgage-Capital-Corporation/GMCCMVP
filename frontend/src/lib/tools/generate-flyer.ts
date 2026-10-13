@@ -14,6 +14,7 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   "GMCC: Ocean, Borrower Prepared P&L": "ocean",
   "GMCC: Hermes, Borrower Prepared P&L": "hermes",
   "GMCC: Radiant No Income Doc/No DTI": "radiant",
+  "GMCC: Crown No Income Doc/No Ratio (DTA)": "gmcc-crown",
   "GMCC Bank Statement Self Employed": "bank-statement",
   "GMCC Fabulous Jumbo": "fabulous",
   // Community Lending Programs (CRA)
@@ -29,6 +30,7 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   "GMCC Ocean": "ocean",
   "GMCC Hermes": "hermes",
   "GMCC Radiant": "radiant",
+  "GMCC Crown": "gmcc-crown",
   "GMCC Diamond CRA": "diamond-community-lending",
   "GMCC Celebrity Jumbo": "celebrity-jumbo",
 };

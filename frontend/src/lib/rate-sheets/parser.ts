@@ -36,6 +36,7 @@ const PROGRAM_KEYWORDS: { key: ProgramKey; pattern: RegExp }[] = [
   { key: "ocean",    pattern: /\bocean\b/i },
   { key: "universe", pattern: /\buniverse\b/i },
   { key: "radiant",  pattern: /\bradiant\b/i },
+  { key: "crown",    pattern: /\bcrown\b/i },
 ];
 
 // Two-letter US state + DC + territories. Matches what SharePoint filenames use.
@@ -258,7 +259,7 @@ export function buildRecord(filename: string, url: string): RateSheetRecord | nu
  */
 export function groupByProgram(records: RateSheetRecord[]): Record<ProgramKey, RateSheetRecord[]> {
   const out: Record<ProgramKey, RateSheetRecord[]> = {
-    thunder: [], fabulous: [], jubilant: [], hermes: [], ocean: [], universe: [], radiant: [],
+    thunder: [], fabulous: [], jubilant: [], hermes: [], ocean: [], universe: [], radiant: [], crown: [],
   };
   for (const r of records) out[r.program].push(r);
   for (const key of Object.keys(out) as ProgramKey[]) {
