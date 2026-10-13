@@ -161,6 +161,22 @@ def check_loan_amount(
             ),
         )
 
+    # A soft minimum (Crown: $200K on the flyer, priced below that on the
+    # rate sheet): if even the largest loan the program allows on this price
+    # is under it, the listing is only Potentially Eligible.
+    if tier.soft_min_loan_amount is not None:
+        max_loan = price * (tier.max_ltv or 100.0) / 100.0
+        if max_loan < tier.soft_min_loan_amount:
+            return CriterionResult(
+                criterion="loan_amount",
+                status=CriterionStatus.UNVERIFIED,
+                detail=(
+                    f"Price ${price:,.0f} allows at most a ${max_loan:,.0f} loan "
+                    f"({tier.max_ltv or 100:.0f}% LTV) — below ${tier.soft_min_loan_amount:,.0f}; "
+                    "may still qualify, confirm the loan amount with the rate sheet"
+                ),
+            )
+
     # For conforming-only programs: price above max could still work with
     # a larger down payment, so mark as UNVERIFIED rather than FAIL.
     if tier.max_loan_amount is not None and price > tier.max_loan_amount:

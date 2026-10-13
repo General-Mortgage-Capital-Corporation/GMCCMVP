@@ -686,3 +686,11 @@ class TestCrown:
         from matching.matcher import is_selectable_program
 
         assert is_selectable_program(self.NAME)
+
+    def test_small_loans_are_only_potentially_eligible(self):
+        # Largest loan = 60% of price: $300K → $180K, under the $200K soft minimum.
+        small = self._result(price=300_000, state="CA", county="Santa Clara", county_fips="06085")
+        assert small.status.value == "Potentially Eligible"
+        # $400K → $240K possible loan: clears it.
+        ok = self._result(price=400_000, state="CA", county="Santa Clara", county_fips="06085")
+        assert ok.status.value == "Eligible"

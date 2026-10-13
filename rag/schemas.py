@@ -30,6 +30,14 @@ class EligibilityTier(BaseModel):
         default=None,
         description="Minimum loan amount in dollars",
     )
+    soft_min_loan_amount: float | None = Field(
+        default=None,
+        description=(
+            "A minimum loan amount that is not firm (e.g. on a flyer but not in the "
+            "guidelines). Listings whose largest possible loan (price x max_ltv) is "
+            "below it are Potentially Eligible instead of Eligible."
+        ),
+    )
     max_ltv: float | None = Field(
         default=None,
         description="Maximum LTV as percentage, e.g., 95.0",
