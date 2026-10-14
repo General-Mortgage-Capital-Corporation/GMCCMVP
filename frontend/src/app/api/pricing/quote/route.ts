@@ -21,7 +21,7 @@ export const maxDuration = 30;
  *     in the JSON body for v1.
  */
 
-const DEFAULT_PROGRAMS: EngineProgram[] = ["loannex", "qm_jumbo", "bws"];
+const DEFAULT_PROGRAMS: EngineProgram[] = ["loannex", "portfolio", "bws"];
 
 interface PostBody {
   scenario?: PricingScenario;

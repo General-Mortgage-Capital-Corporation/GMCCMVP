@@ -397,7 +397,7 @@ export default function CRACheckTab() {
                 <button
                   onClick={() => setShowComparePricing(true)}
                   className="group inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:border-violet-300 hover:shadow-md"
-                  title="Fan out this scenario across Loannex, QM Jumbo, and BWS engines"
+                  title="Fan out this scenario across Loannex, GMCC Portfolio, and BWS engines"
                 >
                   <svg
                     width="13"

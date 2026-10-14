@@ -51,6 +51,7 @@ interface Props {
 const ENGINE_KEY: Record<EngineProgram, ResultEngine> = {
   loannex: "loannex",
   qm_jumbo: "gmcc_processor",
+  portfolio: "gmcc_processor",
   bws: "bws",
 };
 
@@ -60,7 +61,7 @@ const ENGINE_KEY: Record<EngineProgram, ResultEngine> = {
 
 export default function EngineResults({ results, defaultsApplied, enabledEngines }: Props) {
   const byEngine = useMemo(() => groupByEngine(results), [results]);
-  const enabled = enabledEngines ?? (["loannex", "qm_jumbo", "bws"] as EngineProgram[]);
+  const enabled = enabledEngines ?? (["loannex", "portfolio", "bws"] as EngineProgram[]);
   const isOn = (key: EngineProgram) => enabled.includes(key);
 
   return (
@@ -72,11 +73,11 @@ export default function EngineResults({ results, defaultsApplied, enabledEngines
         </div>
       )}
 
-      {isOn("qm_jumbo") && (
+      {(isOn("portfolio") || isOn("qm_jumbo")) && (
         <EngineSection
-          title="QM Jumbo"
-          subtitle="Thunder, Jubilant, Fabulous"
-          rows={byEngine[ENGINE_KEY.qm_jumbo]}
+          title="GMCC Portfolio"
+          subtitle={isOn("portfolio") ? "Thunder, Jubilant, Fabulous, Ocean, Hermes, Universe, Radiant, Crown" : "Thunder, Jubilant, Fabulous"}
+          rows={byEngine[ENGINE_KEY.portfolio]}
         />
       )}
       {isOn("loannex") && (

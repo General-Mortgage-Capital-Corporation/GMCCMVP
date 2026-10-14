@@ -105,7 +105,12 @@ export interface PricingScenario {
   hcltv?: number | null;
 }
 
-export type EngineProgram = "loannex" | "qm_jumbo" | "bws";
+/**
+ * MLO portal aggregator engines. `portfolio` = every program GMCC's own pricing
+ * engine prices (Thunder, Jubilant, Fabulous, Ocean, Hermes, Universe,
+ * Radiant, Crown); `qm_jumbo` = the old QM-only subset, kept for compatibility.
+ */
+export type EngineProgram = "loannex" | "qm_jumbo" | "portfolio" | "bws";
 
 export interface QuoteRequest {
   programs: EngineProgram[];
