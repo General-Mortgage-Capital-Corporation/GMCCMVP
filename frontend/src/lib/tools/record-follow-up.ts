@@ -71,6 +71,7 @@ export function createRecordFollowUpTool(auth: AuthContext, ledger?: SendLedger)
           programNames: input.programNames,
           followUpDays: input.followUpDays,
           followUpMode: input.followUpMode,
+          sentEmailId: ledger?.sentEmailId(input.subject),
         });
 
         return {

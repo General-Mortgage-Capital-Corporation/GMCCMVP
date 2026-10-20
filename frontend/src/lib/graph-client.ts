@@ -66,13 +66,31 @@ export interface GraphMessage {
   conversationId?: string;
   /** Set internetMessageHeaders for In-Reply-To threading */
   internetMessageHeaders?: { name: string; value: string }[];
+  ccRecipients?: { emailAddress: { address: string; name?: string } }[];
+  /** Inline file attachments — the whole sendMail body must stay under 4 MB. */
+  attachments?: GraphFileAttachment[];
+}
+
+export interface GraphFileAttachment {
+  "@odata.type": "#microsoft.graph.fileAttachment";
+  name: string;
+  contentType: string;
+  contentBytes: string;
+}
+
+export interface SendMailResult {
+  ok: boolean;
+  error?: string;
+  status?: number;
+  /** "TOO_LARGE" when Graph rejected the message for its size. */
+  code?: "TOO_LARGE" | "GRAPH_ERROR";
 }
 
 /** Send an email as a specific user using application permissions. */
 export async function sendMailAs(
   userEmail: string,
   message: GraphMessage,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<SendMailResult> {
   const token = await getAppToken();
   if (!token) return { ok: false, error: "Graph application credentials not configured" };
 
@@ -90,11 +108,16 @@ export async function sendMailAs(
   );
 
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    return { ok: false, error: err.error?.message ?? `Graph API error ${res.status}` };
+    const err = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
+    const message = err.error?.message ?? `Graph API error ${res.status}`;
+    const tooLarge =
+      res.status === 413 ||
+      /size|large/i.test(err.error?.code ?? "") ||
+      /exceed|too large|maximum size/i.test(message);
+    return { ok: false, error: message, status: res.status, code: tooLarge ? "TOO_LARGE" : "GRAPH_ERROR" };
   }
 
-  return { ok: true };
+  return { ok: true, status: res.status };
 }
 
 /** Check if the recipient has sent any email to the user since the original was sent. */

@@ -11,12 +11,21 @@
  * the initial invocation. Campaigns survive timeouts, closed tabs, and
  * redeploys.
  *
+ * Honesty rules the engine enforces (the model never gets to decide these):
+ *   - A recipient this LO emailed in the last 30 days is skipped — checked at
+ *     plan time AND again right before each send, so parallel campaigns can't
+ *     double up either. If send history can't be read, the campaign refuses
+ *     to start rather than sending blind.
+ *   - A flyer is "attached" only when it really is. Flyers too big for Graph's
+ *     4 MB sendMail body are LINKED (portal URL) and the draft is told so; a
+ *     program with no flyer template gets a draft that mentions no flyer.
+ *
  * Storage:
- *   agentCampaigns/{id}        — campaign doc (rows embedded; ≤200 rows)
- *   agentCampaignAssets/{id}   — pre-generated per-program flyer PDFs
- *                                (generated at start while the user's Firebase
- *                                token is valid — the flyer Cloud Function
- *                                needs it; sends + drafts don't)
+ *   agentCampaigns/{id}                    — campaign doc (rows embedded; ≤200 rows)
+ *   Storage agent-campaign-flyers/{id}/…   — pre-generated per-program flyer PDFs
+ *                                            (generated at start while the user's
+ *                                            Firebase token is valid; sends + drafts
+ *                                            don't need it)
  *
  * Sending uses Graph APPLICATION credentials (sendMailAs), drafting uses the
  * server's GEMINI_API_KEY, and the signature is read live from the server
@@ -37,31 +46,32 @@ import {
   verifyDeliverability,
   describeReason,
 } from "@/lib/email-deliverability";
-import type { DatasetRow } from "@/lib/tools/dataset-store";
+import {
+  RECIPIENT_COOLDOWN_MS,
+  appendFlyerLink,
+  daysAgo,
+  portalFlyerUrl,
+  type FlyerDelivery,
+} from "@/lib/email/attachment-policy";
+import { readCampaignFlyer, deleteCampaignFlyers } from "@/lib/campaigns/flyer-assets";
+import { planCampaignRows, type CampaignRow } from "@/lib/campaigns/plan";
+
+export { planCampaignRows };
+export type { CampaignRow, CampaignRowStatus, CampaignPlan, PlanOptions } from "@/lib/campaigns/plan";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type CampaignRowStatus = "pending" | "sent" | "skipped" | "failed";
-
-export interface CampaignRow {
-  /** Primary property for this recipient (rows are deduped per agent). */
-  address: string;
-  city?: string;
-  state?: string;
-  price?: number | null;
-  /** Other property addresses by the same listing agent in this dataset. */
-  otherAddresses?: string[];
-  agentName: string;
-  agentEmail: string;
-  agentPhone?: string;
-  officeName?: string;
-  program: string;
-  status: CampaignRowStatus;
+/** One program's flyer for a campaign, decided once at start. */
+export interface CampaignFlyer {
+  productId: string;
+  /** Storage path of the PDF; null when it couldn't be generated. */
+  path: string | null;
+  sizeKB: number;
+  delivery: FlyerDelivery;
+  /** Why it's linked or missing ("3.9 MB is over Outlook's attachment limit"). */
   reason?: string;
-  subject?: string;
-  sentAt?: number;
 }
 
 export interface CampaignDoc {
@@ -70,16 +80,23 @@ export interface CampaignDoc {
   userEmail: string;
   loName?: string;
   loTitle?: string;
+  /** For personalized portal flyer links. */
+  loNmls?: string;
   instructions: string;
   includeFlyer: boolean;
   followUpDays: number | null;
   status: "running" | "done" | "cancelled" | "blocked";
   createdAt: number;
   updatedAt: number;
-  totals: { total: number; sent: number; skipped: number; failed: number };
+  totals: { total: number; sent: number; skipped: number; failed: number; attached?: number; linked?: number };
   rows: CampaignRow[];
-  /** program name -> agentCampaignAssets doc id (flyer PDF). */
+  /**
+   * Legacy (pre-2026-10-20): program name -> agentCampaignAssets doc id.
+   * New campaigns leave this empty and use `flyerMeta`.
+   */
   flyers: Record<string, string>;
+  /** program name -> how its flyer goes out. */
+  flyerMeta?: Record<string, CampaignFlyer>;
   lastError?: string | null;
 }
 
@@ -90,97 +107,27 @@ export const CAMPAIGN_ASSETS_COLLECTION = "agentCampaignAssets";
 export const MAX_CAMPAIGN_ROWS = 200;
 
 // ---------------------------------------------------------------------------
-// Planning: dataset rows -> campaign rows (pure, shared by preview + start)
+// Send history (dedupe + cooldown)
 // ---------------------------------------------------------------------------
 
-export interface CampaignPlan {
-  rows: CampaignRow[];
-  counts: {
-    listings: number;
-    recipients: number;
-    skippedNoEmail: number;
-    skippedNoProgram: number;
-    skippedAlreadyEmailed: number;
-    cappedAtLimit: boolean;
-  };
-}
-
-export interface PlanOptions {
-  limit: number;
-  usePotential: boolean;
-  /** Lowercased recipient emails already contacted (from sentEmails). */
-  alreadyEmailed: Set<string>;
-  skipAlreadyEmailed: boolean;
-}
-
-export function planCampaignRows(
-  dataset: DatasetRow[],
-  opts: PlanOptions,
-): CampaignPlan {
-  let skippedNoEmail = 0;
-  let skippedNoProgram = 0;
-  let skippedAlreadyEmailed = 0;
-
-  // One email per listing agent — an agent with several listings in the
-  // dataset gets a single email about their first listing (others noted).
-  const byAgent = new Map<string, CampaignRow>();
-
-  for (const l of dataset) {
-    const email = (l.listingAgentEmail ?? "").trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      skippedNoEmail++;
-      continue;
-    }
-    const program =
-      l.eligiblePrograms?.[0] ??
-      (opts.usePotential ? l.potentialPrograms?.[0] : undefined);
-    if (!program) {
-      skippedNoProgram++;
-      continue;
-    }
-    if (opts.skipAlreadyEmailed && opts.alreadyEmailed.has(email)) {
-      skippedAlreadyEmailed++;
-      continue;
-    }
-    const existing = byAgent.get(email);
-    if (existing) {
-      existing.otherAddresses = [...(existing.otherAddresses ?? []), l.address];
-      continue;
-    }
-    byAgent.set(email, {
-      address: l.address,
-      city: l.city ?? undefined,
-      state: l.state ?? undefined,
-      price: l.price ?? null,
-      agentName: l.listingAgentName ?? "",
-      agentEmail: email,
-      agentPhone: l.listingAgentPhone ?? undefined,
-      officeName: l.listingOfficeName ?? undefined,
-      program,
-      status: "pending",
-    });
+export class DedupeUnavailableError extends Error {
+  constructor(cause: string) {
+    super(`Could not read this user's send history (${cause}). Refusing to plan a campaign without it — it would re-email people.`);
+    this.name = "DedupeUnavailableError";
   }
-
-  const all = [...byAgent.values()];
-  const capped = all.length > opts.limit;
-  return {
-    rows: all.slice(0, opts.limit),
-    counts: {
-      listings: dataset.length,
-      recipients: Math.min(all.length, opts.limit),
-      skippedNoEmail,
-      skippedNoProgram,
-      skippedAlreadyEmailed,
-      cappedAtLimit: capped,
-    },
-  };
 }
 
-/** Lowercased recipient emails this user has already contacted (recent 500). */
-export async function fetchAlreadyEmailed(userId: string): Promise<Set<string>> {
-  const out = new Set<string>();
+/**
+ * Lowercased recipient email -> most recent sentAt for this LO (recent 500
+ * sends). Throws instead of returning an empty map: an empty map here means
+ * "never emailed anyone", which is exactly the wrong default when the query
+ * fails (that's how one LO's realtors got the same email ten times in a day).
+ */
+export async function fetchAlreadyEmailed(userId: string): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
   const db = getDb();
-  if (!db || !userId) return out;
+  if (!db) throw new DedupeUnavailableError("Firestore not configured");
+  if (!userId) throw new DedupeUnavailableError("no user id");
   try {
     const snap = await db
       .collection("sentEmails")
@@ -189,13 +136,33 @@ export async function fetchAlreadyEmailed(userId: string): Promise<Set<string>> 
       .limit(500)
       .get();
     for (const d of snap.docs) {
-      const e = d.data().recipientEmail;
-      if (typeof e === "string" && e) out.add(e.trim().toLowerCase());
+      const data = d.data();
+      const e = typeof data.recipientEmail === "string" ? data.recipientEmail.trim().toLowerCase() : "";
+      const at = typeof data.sentAt === "number" ? data.sentAt : 0;
+      if (e && (out.get(e) ?? 0) < at) out.set(e, at);
     }
-  } catch {
-    /* dedupe is best-effort */
+  } catch (err) {
+    throw new DedupeUnavailableError(err instanceof Error ? err.message.slice(0, 160) : "query failed");
   }
   return out;
+}
+
+/** Most recent send from this LO to this address (equality-only query — no composite index needed). */
+export async function lastSentTo(userId: string, recipientEmail: string): Promise<{ sentAt: number; subject: string } | null> {
+  const db = getDb();
+  if (!db || !userId) return null;
+  const snap = await db
+    .collection("sentEmails")
+    .where("userId", "==", userId)
+    .where("recipientEmail", "==", recipientEmail.trim().toLowerCase())
+    .get();
+  let best: { sentAt: number; subject: string } | null = null;
+  for (const d of snap.docs) {
+    const data = d.data();
+    const at = typeof data.sentAt === "number" ? data.sentAt : 0;
+    if (!best || at > best.sentAt) best = { sentAt: at, subject: String(data.subject ?? "") };
+  }
+  return best;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +171,8 @@ export async function fetchAlreadyEmailed(userId: string): Promise<Set<string>> 
 
 async function draftForRow(
   row: CampaignRow,
-  campaign: Pick<CampaignDoc, "instructions" | "loName" | "includeFlyer">,
+  campaign: Pick<CampaignDoc, "instructions" | "loName">,
+  flyerDelivery: FlyerDelivery,
 ): Promise<{ subject: string; body: string }> {
   const extra = row.otherAddresses?.length
     ? ` (They also list: ${row.otherAddresses.slice(0, 3).join("; ")}${row.otherAddresses.length > 3 ? "; and more" : ""} — you may mention you noticed their other listings too.)`
@@ -219,38 +187,49 @@ async function draftForRow(
     loName: campaign.loName,
     userPrompt: campaign.instructions + extra,
     hasSignature: true,
+    flyerDelivery,
   });
 }
 
 /** Public wrapper so the tool can produce a preview sample draft. */
 export async function draftCampaignSample(
   row: CampaignRow,
-  campaign: Pick<CampaignDoc, "instructions" | "loName" | "includeFlyer">,
+  campaign: Pick<CampaignDoc, "instructions" | "loName">,
+  flyerDelivery: FlyerDelivery,
 ): Promise<{ subject: string; body: string }> {
-  return draftForRow(row, campaign);
+  return draftForRow(row, campaign, flyerDelivery);
 }
 
 // ---------------------------------------------------------------------------
 // Execution
 // ---------------------------------------------------------------------------
 
-async function readFlyerAsset(
-  assetId: string,
+/** The flyer PDF for a program: Storage for new campaigns, Firestore for legacy ones. */
+async function readFlyer(
+  campaign: CampaignDoc,
+  program: string,
   cache: Map<string, string | null>,
 ): Promise<string | null> {
-  if (cache.has(assetId)) return cache.get(assetId) ?? null;
-  const db = getDb();
+  const meta = campaign.flyerMeta?.[program];
+  const key = meta?.path ?? campaign.flyers[program];
+  if (!key) return null;
+  if (cache.has(key)) return cache.get(key) ?? null;
   let base64: string | null = null;
-  if (db) {
-    try {
-      const snap = await db.collection(CAMPAIGN_ASSETS_COLLECTION).doc(assetId).get();
-      const b = snap.data()?.base64;
-      base64 = typeof b === "string" && b ? b : null;
-    } catch {
-      base64 = null;
+  if (meta?.path) {
+    base64 = await readCampaignFlyer(meta.path);
+  } else {
+    const db = getDb();
+    if (db) {
+      try {
+        const snap = await db.collection(CAMPAIGN_ASSETS_COLLECTION).doc(key).get();
+        const b = snap.data()?.base64;
+        base64 = typeof b === "string" && b ? b : null;
+      } catch {
+        base64 = null;
+      }
     }
   }
-  cache.set(assetId, base64);
+  cache.set(key, base64);
   return base64;
 }
 
@@ -259,6 +238,7 @@ async function recordCampaignSend(
   row: CampaignRow,
   subject: string,
   body: string,
+  flyer: { delivery: FlyerDelivery; productId?: string; sizeKB?: number; url?: string },
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
@@ -277,6 +257,7 @@ async function recordCampaignSend(
       programNames: [row.program],
       sentAt: now,
       campaignId: campaign.id,
+      flyer: stripUndefined(flyer),
       followUp: followUpDays
         ? {
             mode: "remind",
@@ -313,16 +294,20 @@ async function persistCampaign(campaign: CampaignDoc): Promise<void> {
 }
 
 function recount(campaign: CampaignDoc): void {
-  const t = { total: campaign.rows.length, sent: 0, skipped: 0, failed: 0 };
+  const t = { total: campaign.rows.length, sent: 0, skipped: 0, failed: 0, attached: 0, linked: 0 };
   for (const r of campaign.rows) {
-    if (r.status === "sent") t.sent++;
-    else if (r.status === "skipped") t.skipped++;
+    if (r.status === "sent") {
+      t.sent++;
+      if (r.flyer === "attached") t.attached++;
+      else if (r.flyer === "linked") t.linked++;
+    } else if (r.status === "skipped") t.skipped++;
     else if (r.status === "failed") t.failed++;
   }
   campaign.totals = t;
 }
 
 export async function deleteCampaignAssets(campaign: CampaignDoc): Promise<void> {
+  await deleteCampaignFlyers(campaign.id);
   const db = getDb();
   if (!db) return;
   await Promise.all(
@@ -360,8 +345,86 @@ export async function processCampaign(
   const flyerCache = new Map<string, string | null>();
   const CONCURRENCY = 3;
 
+  /** How this row's flyer goes out right now (a program can be downgraded to "linked" mid-campaign). */
+  const flyerFor = (program: string): CampaignFlyer | null => {
+    if (!campaign.includeFlyer) return null;
+    const meta = campaign.flyerMeta?.[program];
+    if (meta) return meta;
+    // Legacy campaign with a Firestore asset.
+    if (campaign.flyers[program]) return { productId: "", path: null, sizeKB: 0, delivery: "attached" };
+    return null;
+  };
+
+  const sendRow = async (row: CampaignRow, flyer: CampaignFlyer | null): Promise<"sent" | "too-large"> => {
+    let delivery: FlyerDelivery = flyer?.delivery ?? "none";
+    let base64: string | null = null;
+    if (delivery === "attached") {
+      base64 = await readFlyer(campaign, row.program, flyerCache);
+      if (!base64) {
+        // The PDF is gone (bucket hiccup, cleaned up early) — link instead of
+        // sending a body that promises an attachment.
+        delivery = flyer?.productId ? "linked" : "none";
+      }
+    }
+
+    const draft = await draftForRow(row, campaign, delivery);
+    let body = draft.body;
+    let url: string | undefined;
+    if (delivery === "linked" && flyer?.productId) {
+      url = portalFlyerUrl(flyer.productId, campaign.loNmls);
+      body = appendFlyerLink(body, url);
+    } else if (delivery === "linked") {
+      delivery = "none";
+    }
+
+    const message: GraphMessage = {
+      subject: draft.subject,
+      body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml) },
+      toRecipients: [
+        { emailAddress: { address: row.agentEmail, ...(row.agentName ? { name: row.agentName } : {}) } },
+      ],
+    };
+    if (delivery === "attached" && base64) {
+      message.attachments = [
+        {
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: `GMCC-${row.program.replace(/[^a-zA-Z0-9]+/g, "-")}.pdf`,
+          contentType: "application/pdf",
+          contentBytes: base64,
+        },
+      ];
+    }
+
+    const result = await sendMailAs(campaign.userEmail, message);
+    if (!result.ok) {
+      if (result.code === "TOO_LARGE" && delivery === "attached") return "too-large";
+      throw new Error(result.error ?? "Send failed.");
+    }
+
+    row.status = "sent";
+    row.subject = draft.subject;
+    row.sentAt = Date.now();
+    row.flyer = delivery;
+    await recordCampaignSend(campaign, row, draft.subject, body, {
+      delivery,
+      productId: flyer?.productId || undefined,
+      sizeKB: delivery === "attached" ? flyer?.sizeKB : undefined,
+      url,
+    });
+    return "sent";
+  };
+
   const processRow = async (row: CampaignRow): Promise<void> => {
     try {
+      // Send-time cooldown: another campaign (or a hand-sent email) may have
+      // reached this agent since the plan was made.
+      const last = await lastSentTo(campaign.userId, row.agentEmail);
+      if (last && Date.now() - last.sentAt < RECIPIENT_COOLDOWN_MS) {
+        row.status = "skipped";
+        row.reason = `Already emailed ${daysAgo(last.sentAt)} day(s) ago — not sent twice within 30 days.`;
+        return;
+      }
+
       const verify = await verifyDeliverability(row.agentEmail, campaign.userEmail);
       if (verify.status !== "deliverable") {
         row.status = "skipped";
@@ -369,50 +432,20 @@ export async function processCampaign(
         return;
       }
 
-      const { subject, body } = await draftForRow(row, campaign);
-
-      const message: GraphMessage = {
-        subject,
-        body: {
-          contentType: "HTML",
-          content: buildHtmlBodyWithSignature(body, signatureHtml),
-        },
-        toRecipients: [
-          {
-            emailAddress: {
-              address: row.agentEmail,
-              ...(row.agentName ? { name: row.agentName } : {}),
-            },
-          },
-        ],
-      };
-
-      const assetId = campaign.includeFlyer ? campaign.flyers[row.program] : undefined;
-      if (assetId) {
-        const base64 = await readFlyerAsset(assetId, flyerCache);
-        if (base64) {
-          (message as unknown as Record<string, unknown>).attachments = [
-            {
-              "@odata.type": "#microsoft.graph.fileAttachment",
-              name: `GMCC-${row.program.replace(/[^a-zA-Z0-9]+/g, "-")}.pdf`,
-              contentType: "application/pdf",
-              contentBytes: base64,
-            },
-          ];
-        }
+      const flyer = flyerFor(row.program);
+      const outcome = await sendRow(row, flyer);
+      if (outcome === "too-large" && flyer) {
+        // Graph refused the attachment: link this program's flyer from now on
+        // and send this row again with an honest draft.
+        const linked: CampaignFlyer = {
+          ...flyer,
+          delivery: flyer.productId ? "linked" : "none",
+          reason: "Outlook rejected the attachment as too large",
+        };
+        campaign.flyerMeta = { ...(campaign.flyerMeta ?? {}), [row.program]: linked };
+        const retry = await sendRow(row, linked);
+        if (retry !== "sent") throw new Error("Send failed after dropping the attachment.");
       }
-
-      const result = await sendMailAs(campaign.userEmail, message);
-      if (!result.ok) {
-        row.status = "failed";
-        row.reason = result.error ?? "Send failed.";
-        return;
-      }
-
-      row.status = "sent";
-      row.subject = subject;
-      row.sentAt = Date.now();
-      await recordCampaignSend(campaign, row, subject, body);
     } catch (err) {
       row.status = "failed";
       row.reason = err instanceof Error ? err.message.slice(0, 200) : "Unknown error";
@@ -444,6 +477,26 @@ export async function cancelCampaign(campaign: CampaignDoc): Promise<void> {
   campaign.status = "cancelled";
   await persistCampaign(campaign);
   await deleteCampaignAssets(campaign);
+}
+
+/** One line a person can trust: counts plus how flyers went out. */
+export function summarizeCampaign(campaign: CampaignDoc): string {
+  const t = campaign.totals;
+  const pending = campaign.rows.filter((r) => r.status === "pending").length;
+  const flyerBits: string[] = [];
+  if (campaign.includeFlyer) {
+    if (t.attached) flyerBits.push(`${t.attached} with the flyer attached`);
+    if (t.linked) flyerBits.push(`${t.linked} with a flyer link (too large to attach)`);
+    const bare = t.sent - (t.attached ?? 0) - (t.linked ?? 0);
+    if (bare > 0) flyerBits.push(`${bare} WITHOUT a flyer`);
+  }
+  const parts = [
+    `${t.sent} sent${flyerBits.length ? ` (${flyerBits.join(", ")})` : campaign.includeFlyer ? "" : " (no flyers requested)"}`,
+    `${t.skipped} skipped`,
+    `${t.failed} failed`,
+  ];
+  if (pending) parts.push(`${pending} still to send`);
+  return parts.join(", ") + ".";
 }
 
 // ---------------------------------------------------------------------------

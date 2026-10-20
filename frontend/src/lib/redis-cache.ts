@@ -295,6 +295,8 @@ interface AgentArtifactEntry {
   kind: "pdf" | "csv";
   base64: string;
   filename?: string;
+  /** Flyer PDFs: the product the flyer is for (drives the link fallback). */
+  productId?: string;
 }
 
 export async function getAgentArtifact(ref: string): Promise<AgentArtifactEntry | null> {

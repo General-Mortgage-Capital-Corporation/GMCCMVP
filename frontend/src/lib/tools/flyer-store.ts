@@ -26,6 +26,7 @@ interface StoreEntry {
   kind: StoredKind;
   base64: string;
   filename?: string;
+  productId?: string;
 }
 
 /** Store a binary artifact and return its reference ID. */
@@ -33,6 +34,7 @@ export async function storeArtifact(
   kind: StoredKind,
   base64: string,
   filename?: string,
+  meta: { productId?: string } = {},
 ): Promise<string> {
   // ~75% of base64 length = actual byte size
   if (base64.length > MAX_ENTRY_BYTES) {
@@ -41,7 +43,7 @@ export async function storeArtifact(
     );
   }
   const id = `${kind}-${randomBytes(6).toString("hex")}`;
-  await setAgentArtifact(id, { kind, base64, filename });
+  await setAgentArtifact(id, { kind, base64, filename, ...meta });
   return id;
 }
 

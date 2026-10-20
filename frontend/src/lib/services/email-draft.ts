@@ -60,6 +60,12 @@ export interface EmailDraftInput {
   userPrompt: string;
   realtorResearch?: string;
   hasSignature: boolean;
+  /**
+   * How the program flyer goes out with this email. The body may only say
+   * "attached" when it really is; a linked flyer gets a link line appended
+   * by the sender; "none" (default) must not mention a flyer at all.
+   */
+  flyerDelivery?: "attached" | "linked" | "none";
 }
 
 export interface EmailDraftResult {
@@ -86,6 +92,13 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
     ? `\n\nResearch on the recipient:\n${input.realtorResearch}\n\nPersonalization guidance: Use the research to make a genuine connection to the loan program being marketed. For example, if the agent specializes in an area where this program shines, mention that. If they work with first-time buyers and the program suits that, connect those dots. Pick the most relevant detail — don't force it or list everything.`
     : "";
 
+  const flyerLine =
+    input.flyerDelivery === "attached"
+      ? "- A PDF flyer for this program is attached to the email (you may refer to the attached flyer)"
+      : input.flyerDelivery === "linked"
+        ? "- A link to the program flyer (PDF) is added automatically right after your text. You may say \"the flyer linked below\" — never say it is attached or enclosed"
+        : "- No flyer or attachment is included. Do NOT mention an attachment, a flyer, or anything \"attached\" or \"enclosed\"";
+
   const prompt = `You are helping a mortgage loan officer at GMCC (General Mortgage Capital Corporation) write an email.
 
 Context:
@@ -93,7 +106,7 @@ Context:
 - Recipient: ${recipientLabel}${input.recipientEmail ? ` (${input.recipientEmail})` : ""}
 - Property: ${input.propertyAddress || "property address not specified"}, listed at ${priceFormatted}
 - GMCC Loan Program: ${input.programName || "GMCC program"}
-- A PDF flier for this program will be attached to the email${researchBlock}
+${flyerLine}${researchBlock}
 
 The loan officer's instructions: ${input.userPrompt}
 

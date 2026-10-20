@@ -16,6 +16,8 @@ export interface RecordFollowUpInput {
   programNames?: string[];
   followUpDays?: number;
   followUpMode?: "remind" | "auto-send";
+  /** The sentEmails doc sendEmail already wrote for this send (update, don't duplicate). */
+  sentEmailId?: string;
 }
 
 export interface RecordFollowUpResult {
@@ -65,6 +67,20 @@ export async function recordFollowUp(
         }
       : null,
   };
+
+  if (input.sentEmailId) {
+    const ref = db.collection("sentEmails").doc(input.sentEmailId);
+    const existing = await ref.get();
+    if (existing.exists && existing.data()?.userId === uid) {
+      await ref.update({ followUp: doc.followUp, programNames: doc.programNames.length ? doc.programNames : existing.data()?.programNames ?? [] });
+      return {
+        id: ref.id,
+        followUp: doc.followUp
+          ? { mode: doc.followUp.mode, scheduledAt: doc.followUp.scheduledAt, status: doc.followUp.status }
+          : null,
+      };
+    }
+  }
 
   const ref = await db.collection("sentEmails").add(doc);
 
