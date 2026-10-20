@@ -48,6 +48,13 @@ function generateConvId(): string {
 // Tools answered by the user in the UI (no server execute). These may
 // legitimately sit in "input-available" awaiting a human response.
 const HITL_TOOLS = new Set(["askUser", "askForConfirmation"]);
+// Tools with outward side effects. A turn that ran one of these is never
+// auto-resumed: "Continue from where you left off" against a pruned history
+// is how emails got sent twice and how "I already sent that" claims started.
+// The user gets the error and the Continue button instead.
+const SEND_TOOLS = new Set(["sendEmail", "runMarketingCampaign"]);
+const RESUME_PROMPT =
+  "Continue from where you left off. Before sending anything, call searchSentEmails and do not re-send emails that already went out; tell me which steps are confirmed done and which are unknown.";
 
 /**
  * Repair orphaned tool calls left behind by an interrupted stream (function
@@ -549,7 +556,11 @@ export default function ChatTab() {
       lastMsg?.role === "user" &&
       !!lastText &&
       "text" in lastText &&
-      lastText.text === "Continue from where you left off.";
+      lastText.text === RESUME_PROMPT;
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const turnHadSends = !!lastAssistant?.parts.some(
+      (p) => isToolUIPart(p) && SEND_TOOLS.has(getToolName(p)),
+    );
     // Orphaned non-HITL tool calls (from an interrupted stream) are repaired
     // before retrying — previously they blocked the retry entirely and the
     // conversation dead-ended. Only a genuinely pending HITL prompt
@@ -561,14 +572,14 @@ export default function ChatTab() {
         (p) => isToolUIPart(p) && p.state === "input-available" && HITL_TOOLS.has(getToolName(p)),
       ),
     );
-    const willRetry = retryCount.current < 1 && !alreadyResumeMsg && !hasPendingHitl;
+    const willRetry = retryCount.current < 1 && !alreadyResumeMsg && !hasPendingHitl && !turnHadSends;
 
     if (willRetry) {
       setResuming(true);
       const timer = setTimeout(() => {
         retryCount.current += 1;
         if (repaired.changed) setMessages(repaired.msgs);
-        sendMessage({ text: "Continue from where you left off." });
+        sendMessage({ text: RESUME_PROMPT });
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -583,6 +594,7 @@ export default function ChatTab() {
         message: error?.message ?? "unknown",
         retried: retryCount.current > 0,
         hadPendingHitl: hasPendingHitl,
+        turnHadSends,
       });
     }
   }, [status, messages, sendMessage, setMessages, error]);

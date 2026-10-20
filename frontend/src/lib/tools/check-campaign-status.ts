@@ -4,7 +4,9 @@ import {
   getCampaign,
   listUserCampaigns,
   cancelCampaign,
+  summarizeCampaign,
 } from "@/lib/campaigns/engine";
+import { describeFlyerDelivery } from "@/lib/email/attachment-policy";
 
 interface AuthContext {
   userEmail: string;
@@ -15,7 +17,8 @@ export function createCheckCampaignStatusTool(auth: AuthContext) {
     description:
       "Check (or cancel) a mass marketing campaign started with runMarketingCampaign. " +
       "Without a campaignId it reports the user's most recent campaign. " +
-      "Use whenever the user asks how their campaign/mass emails are going, or wants to stop one.",
+      "Use whenever the user asks how their campaign/mass emails are going, whether flyers went out, or wants to stop one. " +
+      "Repeat the returned `summary` to the user as-is.",
     inputSchema: z.object({
       campaignId: z
         .string()
@@ -49,12 +52,21 @@ export function createCheckCampaignStatusTool(auth: AuthContext) {
         .filter((r) => r.status === "failed" || r.status === "skipped")
         .slice(0, 10)
         .map((r) => ({ agent: r.agentName, email: r.agentEmail, outcome: r.status, reason: r.reason }));
+      const flyers = campaign.flyerMeta
+        ? Object.fromEntries(
+            Object.entries(campaign.flyerMeta).map(([p, m]) => [p, describeFlyerDelivery(m.delivery, { sizeKB: m.sizeKB, reason: m.reason })]),
+          )
+        : campaign.includeFlyer
+          ? { note: "older campaign: flyers were requested but none could be attached (size limit) — those emails went out without a flyer" }
+          : undefined;
 
       return {
         campaignId: campaign.id,
         status: campaign.status,
+        summary: `Campaign ${campaign.id} (${campaign.status}): ${summarizeCampaign(campaign)}`,
         totals: campaign.totals,
         pending,
+        ...(flyers ? { flyers } : {}),
         ...(campaign.lastError ? { lastError: campaign.lastError } : {}),
         ...(failures.length ? { recentIssues: failures } : {}),
         startedAt: new Date(campaign.createdAt).toLocaleString(),

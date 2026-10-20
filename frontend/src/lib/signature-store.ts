@@ -106,6 +106,8 @@ export function buildHtmlBodyWithSignature(
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    // Flyer links appended by the sender must be clickable.
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
     .replace(/\n/g, "<br>");
 
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#333">

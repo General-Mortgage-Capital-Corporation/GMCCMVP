@@ -33,6 +33,14 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
         .string()
         .optional()
         .describe("Research summary for personalization (from researchRealtor output)"),
+      flyerDelivery: z
+        .enum(["attached", "linked", "none"])
+        .default("none")
+        .describe(
+          "How the program flyer will go out with this email. Call generateFlyer BEFORE drafting: " +
+            "'attached' only if it returned canAttach: true; 'linked' if it returned canAttach: false (a portal link is added under the text); " +
+            "'none' if there is no flyer. The draft only mentions a flyer in the way that is true.",
+        ),
     }),
     execute: async (input) => {
       const sig = ctx?.signatureHtml ?? "";
@@ -66,12 +74,17 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
           userPrompt: input.userPrompt,
           realtorResearch: input.realtorResearch,
           hasSignature: true,
+          flyerDelivery: input.flyerDelivery,
         });
 
         return {
           subject,
           body,
-          note: "Your email signature and GMCC company disclaimer will be automatically appended when sent.",
+          flyerDelivery: input.flyerDelivery,
+          note:
+            "Your email signature and GMCC company disclaimer will be automatically appended when sent." +
+            (input.flyerDelivery === "linked" ? " Send with sendEmail flyerDelivery: 'link' — the flyer link is added under the body." : "") +
+            (input.flyerDelivery === "attached" ? " Send with sendEmail and the flyerRef, or the send will be refused." : ""),
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Email draft failed.";

@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     ? `${SYSTEM_PROMPT}\n\n## Current User (Loan Officer)\n${userContext}\n\nAlways use this information when drafting emails, referencing the loan officer, or personalizing content. Never use placeholders like "[Your Name]" — use the real name above.`
     : SYSTEM_PROMPT;
 
-  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "" };
+  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "", loNmls: sanitizeField(loInfo.nmls) };
 
   // Per-request ledger so recordFollowUp always uses the address sendEmail
   // actually sent to (scoped here so it never bleeds across users on a warm
@@ -150,6 +150,7 @@ export async function POST(req: Request) {
         userEmail,
         loName: loInfo.name,
         loTitle: loInfo.title,
+        loNmls: sanitizeField(loInfo.nmls),
       }),
       checkCampaignStatus: createCheckCampaignStatusTool({ userEmail }),
     },

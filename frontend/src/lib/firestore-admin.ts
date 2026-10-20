@@ -37,6 +37,11 @@ function getApp(): App | null {
   return _app;
 }
 
+/** The initialized Admin app (for Storage); null when env is missing. */
+export function getAdminApp(): App | null {
+  return getApp();
+}
+
 export function getDb(): Firestore | null {
   const app = getApp();
   return app ? getFirestore(app) : null;
