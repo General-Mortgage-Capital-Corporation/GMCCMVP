@@ -101,6 +101,7 @@ Three things to internalize:
 1. **The Python service is pure matching.** It has no DB and no user auth (only an optional shared-secret header, `PYTHON_SERVICE_SECRET`, so strangers can't call it directly), and the only third-party keys it needs are `GEMINI_API_KEY` (for AI talking points) plus `PROPERTY_RADAR_API_ACCESS_TOKEN` (for refi). Everything else lives in Next.js.
 2. **Auth is layered.** Browser signs in with MSAL → Next.js exchanges that for a Firebase token via Cloud Function → Next.js sets a `gmcc_session` cookie → all subsequent API calls send `Authorization: Bearer <firebase-id-token>`. The cookie is a UX marker only; per-request auth happens inside each API route.
 3. **Upstash Redis is the production source of truth for cache.** Local file caches exist for dev convenience but are no-ops on Vercel (`/var/task` is read-only).
+4. **Sending is deterministic code, not the model.** The AI agent plans; [lib/campaigns/engine.ts](frontend/src/lib/campaigns/engine.ts) and the `sendEmail` tool decide what actually goes out: Bouncer gate, a 30-day per-recipient cooldown (checked at plan time and again before each send), program flyers rendered to **Firebase Storage** and attached only when they fit Graph's 4 MB `sendMail` body (otherwise linked to the portal's public flyer URL), and every send written to `sentEmails`. Tool results carry a `summary` string the model must repeat verbatim, so "sent with the flyer attached" can only be said when it happened. If send history can't be read, campaigns refuse to start.
 
 ---
 
@@ -467,7 +468,14 @@ To add/remove bufferAllowlist members: edit the array in `meta/refiFinder` in th
 
 App-only (client credentials):
 - `Mail.Send` — for `sendMail` outbound flow
+- `Mail.Read` — reply detection for follow-ups (`checkForReply`)
 - `GroupMember.Read.All` — for refi group membership resolution
+
+**Not granted: `Mail.ReadWrite`.** Without it the app cannot create drafts or use attachment upload
+sessions, so an attachment must ride inside the single `sendMail` request (4 MB body cap → PDFs up to
+~2.7 MB). Larger program flyers (Universe, DSCR, Celebrity ≈ 3.9 MB) are therefore **linked**, not
+attached — see [attachment-policy.ts](frontend/src/lib/email/attachment-policy.ts). Ask IT for
+`Mail.ReadWrite` if attaching them matters.
 
 ---
 
@@ -481,9 +489,11 @@ Natural-language interface that drives the whole workflow — search, match, dra
 
 - **Backend**: [/api/chat](frontend/src/app/api/chat/route.ts) using AI SDK v6 `ToolLoopAgent` with `google/gemini-3-flash` via AI Gateway (override with `AGENT_MODEL`). Old bulky tool outputs are stubbed each step by [prune-history.ts](frontend/src/lib/agents/prune-history.ts).
 - **Agent definition**: [frontend/src/lib/agents/gmcc-agent.ts](frontend/src/lib/agents/gmcc-agent.ts).
-- **Tools** (21, one file each in [frontend/src/lib/tools/](frontend/src/lib/tools/)): `search-properties`, `lookup-property`, `match-programs`, `lookup-programs`, `search-by-program`, `check-cra-eligibility`, `draft-email`, `send-email`, `search-sent-emails`, `record-follow-up`, `research-realtor`, `fetch-property-photo`, `generate-flyer`, `generate-csv`, `query-admiral` (pricing), `search-knowledge`, `web-search`, `ask-user`, `ask-for-confirmation`, `run-marketing-campaign`, `check-campaign-status`, plus dataset/flyer/send-ledger helpers.
+- **Tools** (21, one file each in [frontend/src/lib/tools/](frontend/src/lib/tools/)): `search-properties`, `lookup-property`, `match-programs`, `lookup-programs`, `search-by-program`, `check-cra-eligibility`, `draft-email`, `send-email`, `search-sent-emails`, `record-follow-up`, `research-realtor`, `fetch-property-photo`, `generate-flyer`, `generate-csv`, `query-admiral` (pricing), `search-knowledge`, `web-search`, `ask-user`, `ask-for-confirmation`, `run-marketing-campaign`, `check-campaign-status`, plus dataset/flyer/send-ledger helpers and the pure policy modules [lib/email/attachment-policy.ts](frontend/src/lib/email/attachment-policy.ts) and [lib/campaigns/plan.ts](frontend/src/lib/campaigns/plan.ts) (unit-tested with `npm test`).
+- **Flyers in emails — what is true and what gets said** (2026-10-20): `generateFlyer` returns `canAttach`; `draftEmail` takes `flyerDelivery` (`attached` | `linked` | `none`) and only mentions a flyer the way that is true; `sendEmail` refuses a body that says "attached" with no flyer, links flyers too large to attach (personalized portal URL under the text), reports `flyer.delivery`, enforces the 30-day cooldown (`allowRecent` only on explicit user insistence) and writes `sentEmails` itself. The system prompt's "tell the truth about sends" rules make the model report only what tool results say.
 - **Knowledge base**: markdown in [data/knowledge/](data/knowledge/) (read directly at runtime — no vector store). `next.config.ts` uses `outputFileTracingIncludes` to bundle `data/` into the `/api/chat` function on Vercel; without that hoist, the agent's `searchKnowledge` tool silently returns nothing in production.
-- **Mass-marketing campaigns**: for >10 properties the agent uses `runMarketingCampaign` (mode `preview` → counts + sample draft, then `start` after confirmation) instead of per-property tool loops. [lib/campaigns/engine.ts](frontend/src/lib/campaigns/engine.ts) dedupes to one email per listing agent, skips agents already in `sentEmails`, gates deliverability, drafts per agent with Gemini, attaches the program flyer, and sends with Graph app credentials. Progress persists to Firestore `agentCampaigns/{id}`; `/api/cron/agent-campaigns` drains the rest every 5 min (survives closed tabs) and expires stalled campaigns after 7 days.
+- **Mass-marketing campaigns**: for >10 properties the agent uses `runMarketingCampaign` (mode `preview` → counts, per-program flyer availability + sample draft, then `start` once after confirmation) instead of per-property tool loops. [lib/campaigns/engine.ts](frontend/src/lib/campaigns/engine.ts) dedupes to one email per listing agent, **refuses to start if `sentEmails` can't be read**, skips anyone emailed in the last 30 days (and, by default, anyone ever emailed), gates deliverability, drafts per agent with Gemini, pre-renders one flyer per program to Storage (`agent-campaign-flyers/{campaignId}/`) and decides per program whether it is attached, linked or absent, and sends with Graph app credentials. One campaign per user at a time. Progress persists to Firestore `agentCampaigns/{id}` (rows carry `flyer: attached|linked|none`); `/api/cron/agent-campaigns` drains the rest every 5 min (survives closed tabs) and expires stalled campaigns after 7 days. `checkCampaignStatus` reports a trustworthy `summary` incl. flyer delivery.
+- **Interrupted runs**: [ChatTab.tsx](frontend/src/components/chat/ChatTab.tsx) repairs orphaned tool calls, but **never auto-resumes a turn that ran `sendEmail` / `runMarketingCampaign`** — the user gets the error and a Continue button, and the resume prompt tells the model to check `searchSentEmails` before sending anything.
 - **Persistence**: chat history in Upstash Redis with `CHAT_TTL_DAYS` expiry (default 4). Browsable via `/api/chat/history`.
 - **Voice**: optional speech-in (`use-speech-recognition.ts`) and ElevenLabs TTS readout (`tts-engine.ts`).
 
@@ -809,6 +819,8 @@ A single Upstash database. Namespaced keys, no `KEYS` scans in prod paths.
 | `refi:contacts:v2:<radar_id>` | **365 days** | yes | Person records + unlocked phones/emails (PR ownership is permanent) |
 | `pr:spend:records:<UTC-date>` | 48h | yes | Daily PR record-spend counter (cap retired May 2026; counter kept for ops) |
 | `chat:*` | `CHAT_TTL_DAYS` | per-user | Conversation history |
+| `agent:dataset:*` | 30 min | per-ref | Full search/match datasets behind the agent's `ds-…` refs |
+| `agent:artifact:*` | 30 min | per-ref | Generated PDFs / CSVs behind `pdf-…` / `csv-…` refs (flyer `productId` kept for the link fallback) |
 | `rl:*` | 60s | per-IP/user | API rate limits ([ratelimit.ts](frontend/src/lib/ratelimit.ts)) |
 
 > **Rate limiting is Redis-backed as of Aug 2026.** `rateLimit()` is now async and
@@ -834,6 +846,22 @@ The Python-side wrapper is [matching/cache.py](matching/cache.py). The Next.js w
 | `creditPacks/company_buffer` | Shared internal pool (200/2K) | MLO portal cron (resets); our deduct.ts (decrements lazily) |
 | `creditPacks/company_usage_<cycleId>` | Cycle-total counter | Our deduct.ts (FieldValue.increment) |
 | `meta/refiFinder` | bufferAllowlist, planAnniversary | MLO portal admin (manual via Firebase console) |
+
+### Firestore + Storage (marketing agent)
+
+| Path | Purpose | Writer |
+|---|---|---|
+| `sentEmails/{auto-id}` | Every outbound marketing email (`userId`, `recipientEmail`, `sentAt`, `subject`, `flyer`, optional `followUp`, `campaignId`) — the dedupe and cooldown source of truth, shared with the MLO portal | `sendEmail` tool, campaign engine, `/api/follow-up` |
+| `agentCampaigns/{cmp-…}` | Campaign doc with embedded rows (≤200), `flyerMeta` per program, totals incl. `attached` / `linked` | `runMarketingCampaign`, cron |
+| `emailValidations/*` | Bouncer verdict cache (90 d) | deliverability gate |
+| Storage `agent-campaign-flyers/{campaignId}/{productId}.pdf` | Pre-rendered program flyers for a running campaign (deleted when it finishes) | `runMarketingCampaign` |
+
+> **Composite index required:** `sentEmails (userId ASC, sentAt DESC)`. It is defined in the MLO
+> portal repo (`GMCC-app/firebase/firestore.indexes.json`) and was created live on 2026-10-20 with
+> `gcloud firestore indexes composite create`. Without it `fetchAlreadyEmailed` and
+> `searchSentEmails` throw `FAILED_PRECONDITION` — which used to be swallowed, so campaigns
+> re-emailed the same realtors. Equality-only lookups (`userId == … && recipientEmail == …`) need no
+> composite index.
 
 ---
 
@@ -963,7 +991,11 @@ cd frontend && npx tsc --noEmit        # Frontend: type-check
 
 `pytest.ini` defines an `integration` marker for tests that hit the live Gemini API; those are skipped unless a key is present.
 
-There is **no automated frontend test suite** yet. A smoke test for the credit infra exists:
+Frontend unit tests cover the pure agent-policy modules (`npm test` → `node --test src/**/*.test.ts`,
+Node 24 type-stripping; test files import with explicit `.ts` extensions): campaign planning / cooldown
+([plan.test.ts](frontend/src/lib/campaigns/plan.test.ts)) and attachment policy
+([attachment-policy.test.ts](frontend/src/lib/email/attachment-policy.test.ts)). Nothing covers the UI
+yet. A smoke test for the credit infra exists:
 
 ```bash
 cd frontend && npx tsx --env-file=./.env.local scripts/refi-credits-smoke.ts
@@ -1047,6 +1079,13 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
 - **CRON_SECRET must be set in Vercel** or every cron run will 401 itself.
 - **Hourly follow-ups can rapidly send many emails** if Firestore has a backlog. Use `drain-follow-up-backlog.ts` to dry-run before unleashing.
 
+### Firestore indexes
+
+Any Admin-SDK query that combines an equality filter with `orderBy` needs a composite index, and the
+service account **cannot** create one (403). Add it to the portal repo's `firestore.indexes.json`
+and create it with `gcloud firestore indexes composite create --project gmcc-66e1e …` (or the console
+link in the `FAILED_PRECONDITION` error). Never `catch {}` around such a query in a send path.
+
 ### Removed / archived
 
 - **Special Conforming** was retired in Sep 2026 in favor of GMCC CRA: Cronus Grand Slam (JSON deleted). (Thunder, deleted in March 2026, was re-added in April 2026 and is live.)
@@ -1079,6 +1118,10 @@ See ["Critical PropertyRadar gotchas"](#6-refi-finder-refi--paid-subscription-ti
   - Coverage across `unlock-search`, `unlock-contact-paid`, and `performUnlock`
 - ✅ **Redis-backed rate limiter** — `rateLimit()` now async, shared Upstash fixed-window counter across all Vercel instances (was per-process in-memory `Map`); in-memory fallback on missing env / Redis error. All 17 callers migrated to `await`.
 - ✅ **Mass-marketing campaign engine** for the AI agent (`runMarketingCampaign` / `checkCampaignStatus` + 5-min cron)
+- ✅ **Honest sends (2026-10-20)** — flyers to Storage with attached / linked / none delivery, 30-day recipient cooldown, dedupe failure is fatal, truthful `sendEmail` results, no auto-resume after sends
+- ⬜ Fold ≤10-recipient personalized sends (photo + realtor research) into the campaign engine so long chat runs stop timing out
+- ⬜ Server-rendered "what was sent" card in the chat UI (like the CSV button) so results never pass through the model
+- ⬜ `Mail.ReadWrite` from IT → attach >2.7 MB flyers via upload sessions instead of linking
 - ✅ **Admin email allowlist** replaces LO self-override for flagged recipients
 - ✅ **Partner logins** — password auth, deny-by-default API surface, partner Flyers tab
 - ✅ **Census demographics** from a bundled ACS 2020–2024 extract (live ACS API went key-only)
