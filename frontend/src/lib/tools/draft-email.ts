@@ -34,11 +34,11 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
         .optional()
         .describe("Research summary for personalization (from researchRealtor output)"),
       flyerDelivery: z
-        .enum(["attached", "linked", "none"])
+        .enum(["embedded", "attached", "linked", "none"])
         .default("none")
         .describe(
           "How the program flyer will go out with this email. Call generateFlyer BEFORE drafting: " +
-            "'attached' only if it returned canAttach: true; 'linked' if it returned canAttach: false (a portal link is added under the text); " +
+            "'embedded' if it returned canEmbed: true and the flyer will be shown in the email body; 'attached' only if it returned canAttach: true and the PDF will be attached; 'linked' if it returned canAttach: false (a portal link is added under the text); " +
             "'none' if there is no flyer. The draft only mentions a flyer in the way that is true.",
         ),
     }),
@@ -84,6 +84,7 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
           note:
             "Your email signature and GMCC company disclaimer will be automatically appended when sent." +
             (input.flyerDelivery === "linked" ? " Send with sendEmail flyerDelivery: 'link' — the flyer link is added under the body." : "") +
+            (input.flyerDelivery === "embedded" ? " Send with sendEmail flyerDelivery: 'embed' and the flyerRef — the flyer shows right under the body." : "") +
             (input.flyerDelivery === "attached" ? " Send with sendEmail and the flyerRef, or the send will be refused." : ""),
         };
       } catch (err) {

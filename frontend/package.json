@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/react": "^3.0.145",
     "@azure/msal-browser": "^4.29.1",
+    "@napi-rs/canvas": "^1.1.0",
     "@types/dompurify": "^3.2.0",
     "@upstash/redis": "^1.37.0",
     "@upstash/vector": "^1.2.3",
@@ -23,6 +24,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "next": "16.1.6",
+    "pdfjs-dist": "^6.5.438",
     "posthog-js": "^1.371.2",
     "qrcode": "^1.5.4",
     "react": "19.2.3",

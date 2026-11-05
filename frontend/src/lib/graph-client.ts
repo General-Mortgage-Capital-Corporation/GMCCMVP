@@ -76,6 +76,9 @@ export interface GraphFileAttachment {
   name: string;
   contentType: string;
   contentBytes: string;
+  /** Inline images: shown in the body via <img src="cid:contentId">. */
+  isInline?: boolean;
+  contentId?: string;
 }
 
 export interface SendMailResult {

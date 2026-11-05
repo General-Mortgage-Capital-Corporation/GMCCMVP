@@ -471,6 +471,8 @@ App-only (client credentials):
 - `Mail.Read` — reply detection for follow-ups (`checkForReply`)
 - `GroupMember.Read.All` — for refi group membership resolution
 
+**Embedded flyers.** By default a flyer is shown in the email body rather than attached, at most 2 per email ([flyer-embed.ts](frontend/src/lib/email/flyer-embed.ts)); any others go as PDFs or links. Page 1 is rendered to a JPEG on the server ([flyer-image.ts](frontend/src/lib/email/flyer-image.ts), about 200 KB against a 3-6 MB PDF) and carried as an inline `cid:` attachment, so Outlook shows it without a "download pictures" prompt. Manual emails choose per flyer; the agent uses `flyerDelivery: 'embed'`; campaigns embed each recipient's one program flyer unless told to attach. If the image can't be made, the flyer falls back to the PDF or a link and the result says so.
+
 **Not granted: `Mail.ReadWrite`.** Without it the app cannot create drafts or use attachment upload
 sessions, so an attachment must ride inside the single `sendMail` request (4 MB body cap → PDFs up to
 ~2.7 MB). Larger program flyers (Universe, DSCR, Celebrity ≈ 3.9 MB) are therefore **linked**, not

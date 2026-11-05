@@ -71,7 +71,7 @@ A conversational assistant. You type what you want in plain English and it does 
 - **Draft a personalized email** to a realtor or borrower, and **send it** through Outlook (with your approval).
 - **Generate a loan-comparison flyer** (PDF) for a program + property, optionally with a photo.
 - **Schedule a follow-up** — it can remind you, or auto-send a follow-up on a schedule you set.
-- **Run a mass-marketing campaign** — for bigger batches (more than about 10 properties) it runs a campaign: one personalized email per listing agent (agents you've already emailed are skipped), with the program flyer attached. It first shows a **preview** (counts and a sample draft, nothing sent), then starts only after you confirm. The campaign keeps sending in the background even if you close the tab; ask the agent for its **status** or to **cancel** it.
+- **Run a mass-marketing campaign** — for bigger batches (more than about 10 properties) it runs a campaign: one personalized email per listing agent (agents you've already emailed are skipped), with the program flyer shown in the email (or attached, if you ask). It first shows a **preview** (counts and a sample draft, nothing sent), then starts only after you confirm. The campaign keeps sending in the background even if you close the tab; ask the agent for its **status** or to **cancel** it.
 - **Export results to CSV.**
 
 **Good to know:**
@@ -165,13 +165,13 @@ Clicking any property (in any search tab) opens a full detail view with:
 - **Photos** — a carousel from the listing, or your own uploaded photo.
 - **Listing agent / builder info.**
 - **Program matches** — eligible programs as cards (with the best tier, the reason it qualifies, and a **View Details** expander), plus separate sections for **Community Lending Programs** (e.g. Grand Slam, Jumbo CRA, Diamond CRA, Celebrity grants) and ineligible programs.
-- **Actions** — edit realtor info, upload a custom photo, and (after selecting programs) **"Summary & Email"** to draft and send outreach with flyers attached.
+- **Actions** — edit realtor info, upload a custom photo, and (after selecting programs) **"Summary & Email"** to draft and send outreach with flyers. Up to 2 flyers can be shown in the email itself; any others go as PDF attachments.
 
 ---
 
 ## 11. Emails, signatures & follow-ups
 
-**Sending an email.** From a property (or the AI Agent), you compose an email that's pre-addressed to the realtor, with a subject and an AI-drafted or self-written body, and flyer PDFs attached automatically when you're sending flyers. You review it and send — delivery goes through Outlook.
+**Sending an email.** From a property (or the AI Agent), you compose an email that's pre-addressed to the realtor, with a subject and an AI-drafted or self-written body, and your flyers included: up to 2 shown in the email itself, any others attached as PDFs (or linked if they're too large). You review it and send — delivery goes through Outlook.
 
 Before an email goes out, the app:
 - **Requires that you've set up your email signature** — if you haven't, it prompts you to do that first.

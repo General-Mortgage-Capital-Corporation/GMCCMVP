@@ -2,6 +2,8 @@ import { tool } from "ai";
 import { z } from "zod";
 import { storeArtifact } from "@/lib/tools/flyer-store";
 import { MAX_INLINE_ATTACHMENT_BASE64 } from "@/lib/email/attachment-policy";
+import type { FlyerImage } from "@/lib/email/flyer-embed";
+import { renderFlyerImage } from "@/lib/email/flyer-image";
 
 const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 
@@ -197,7 +199,13 @@ export function createGenerateFlyerTool(auth: AuthContext) {
           const base64 = Buffer.from(pdfBytes).toString("base64");
 
           // Store PDF server-side to avoid bloating conversation context
-          const flyerRef = await storeArtifact("pdf", base64, `GMCC-${productId}-flyer.pdf`, { productId });
+          let image: FlyerImage | undefined;
+          try {
+            image = await renderFlyerImage(new Uint8Array(pdfBytes));
+          } catch (err) {
+            console.error("[generateFlyer] could not render the flyer image:", err);
+          }
+          const flyerRef = await storeArtifact("pdf", base64, `GMCC-${productId}-flyer.pdf`, { productId, image });
           const canAttach = base64.length <= MAX_INLINE_ATTACHMENT_BASE64;
           const sizeKB = Math.round(pdfBytes.byteLength / 1024);
 
@@ -207,8 +215,11 @@ export function createGenerateFlyerTool(auth: AuthContext) {
             productId,
             flyerRef,
             sizeKB,
+            canEmbed: !!image,
             canAttach,
-            note: canAttach
+            note: image
+              ? "Can be shown in the email body — draft with flyerDelivery 'embedded' and send with flyerDelivery 'embed', unless the user asked for an attachment."
+              : canAttach
               ? "Fits Outlook's attachment limit — draft with flyerDelivery 'attached' and send with this flyerRef."
               : `${Math.round(sizeKB / 102.4) / 10} MB is over Outlook's attachment limit — draft with flyerDelivery 'linked' and send with flyerDelivery 'link' (a personalized portal link to this flyer is added under the text).`,
           };

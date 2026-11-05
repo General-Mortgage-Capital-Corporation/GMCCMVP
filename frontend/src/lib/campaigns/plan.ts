@@ -27,7 +27,7 @@ export interface CampaignRow {
   subject?: string;
   sentAt?: number;
   /** How the program flyer went out with this email. */
-  flyer?: "attached" | "linked" | "none";
+  flyer?: "embedded" | "attached" | "linked" | "none";
 }
 
 export interface CampaignPlan {

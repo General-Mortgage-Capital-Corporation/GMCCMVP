@@ -275,7 +275,7 @@ export default function CRACheckTab() {
 
   // Fetch filled PDF for email attachments
   const fetchPdfForProduct = useCallback(
-    async (productId: string): Promise<Blob | null> => {
+    async (productId: string, format: "pdf" | "jpeg" = "pdf"): Promise<Blob | null> => {
       try {
         let email = user?.email;
         let idToken: string | null = null;
@@ -293,6 +293,7 @@ export default function CRACheckTab() {
           body: JSON.stringify({
             productId,
             userId: email,
+            ...(format === "jpeg" ? { format } : {}),
             ...(listing?.formattedAddress ? { address: listing.formattedAddress } : {}),
             ...(listing?.price ? { listingPrice: String(listing.price) } : {}),
             ...(realtorInfo.name ? { realtorName: realtorInfo.name } : {}),

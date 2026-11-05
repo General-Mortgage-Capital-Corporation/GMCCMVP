@@ -14,6 +14,19 @@ import type { RealtorInfo } from "./FlierButton";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
 import type { DeliverabilityResult } from "@/lib/email-deliverability";
+import { getLOInfo } from "@/lib/lo-info-store";
+import { appendFlyerLink, mentionsAttachment, portalFlyerUrl } from "@/lib/email/attachment-policy";
+import {
+  MAX_EMBEDDED_FLYERS,
+  defaultEmbedIds,
+  describeFlyerCounts,
+  flyerImageFromBlob,
+  flyerImagesHtml,
+  inlineFlyerAttachment,
+  splitByBudget,
+  toggleEmbedId,
+  type EmbeddedFlyer,
+} from "@/lib/email/flyer-embed";
 
 type RecipientTab = "realtor" | "borrower" | "myself";
 
@@ -37,7 +50,7 @@ interface MultiEmailModalProps {
   /** Go back to the summary modal */
   onBackToSummary?: () => void;
   /** Fetch a PDF for a given productId. Returns null if unavailable. */
-  fetchPdf: (productId: string) => Promise<Blob | null>;
+  fetchPdf: (productId: string, format?: "pdf" | "jpeg") => Promise<Blob | null>;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -136,6 +149,10 @@ export default function MultiEmailModal({
 
   const loName = user?.displayName || user?.email || "Loan Officer";
   const programsWithFlyer = programs.filter((p) => p.product_id);
+  const flyerIds = programsWithFlyer.map((p) => p.product_id!);
+  const [embedChoice, setEmbedChoice] = useState<string[]>(() => defaultEmbedIds(flyerIds));
+  const embedIds = embedChoice.filter((id) => flyerIds.includes(id));
+  const [sentFlyers, setSentFlyers] = useState("");
 
   // Send-time deliverability blockers — verify only at click time (see EmailModal).
   const skipValidation = tab === "myself";
@@ -172,7 +189,7 @@ export default function MultiEmailModal({
           `Listing Price: ${price}`,
           `Programs: ${programs.map((p) => p.name).join(", ")}`,
           "",
-          `${programsWithFlyer.length} flyer(s) attached.`,
+          `${programsWithFlyer.length} flyer(s) included.`,
         ].join("\n"),
       );
     } else if (tab === "realtor") {
@@ -306,32 +323,73 @@ export default function MultiEmailModal({
         return;
       }
 
-      // Fetch all flyer PDFs in parallel
-      const attachments: { name: string; base64: string }[] = [];
+      // Prepare each flyer: an image for the ones shown in the email, a PDF for
+      // the rest. If an image can't be made, that flyer goes as a PDF instead.
+      const embedded: EmbeddedFlyer[] = [];
+      const pdfs: { id: string; name: string; base64: string }[] = [];
+      let failed = 0;
       if (programsWithFlyer.length > 0) {
         setSendProgress(`Generating ${programsWithFlyer.length} flyer(s)...`);
-        const pdfResults = await Promise.allSettled(
+        const results = await Promise.allSettled(
           programsWithFlyer.map(async (p) => {
-            const blob = await fetchPdf(p.product_id!);
-            if (!blob) throw new Error(`Failed to generate ${p.product_id} flyer`);
-            const base64 = await blobToBase64(blob);
-            return { name: `${p.product_id}-flyer.pdf`, base64 };
+            const id = p.product_id!;
+            if (embedIds.includes(id)) {
+              const imageBlob = await fetchPdf(id, "jpeg");
+              if (imageBlob) {
+                return {
+                  kind: "image" as const,
+                  flyer: {
+                    id,
+                    title: p.name,
+                    pdfUrl: portalFlyerUrl(id, getLOInfo().nmls),
+                    ...(await flyerImageFromBlob(imageBlob, blobToBase64)),
+                  },
+                };
+              }
+            }
+            const blob = await fetchPdf(id);
+            if (!blob) throw new Error(`Failed to generate ${id} flyer`);
+            return { kind: "pdf" as const, pdf: { id, name: `${id}-flyer.pdf`, base64: await blobToBase64(blob) } };
           }),
         );
-        for (const r of pdfResults) {
-          if (r.status === "fulfilled") attachments.push(r.value);
+        for (const r of results) {
+          if (r.status === "rejected") failed++;
+          else if (r.value.kind === "image") embedded.push(r.value.flyer);
+          else pdfs.push(r.value.pdf);
         }
       }
 
       setSendProgress("Sending email...");
 
+      const summaryAttachment =
+        attachSummary && summary
+          ? {
+              "@odata.type": "#microsoft.graph.fileAttachment",
+              name: "program-summary.html",
+              contentType: "text/html",
+              contentBytes: btoa(unescape(encodeURIComponent(buildSummaryHtml(summary, programs, propertyAddress, listingPrice)))),
+            }
+          : null;
+
+      // Graph takes one request of at most 4 MB: PDFs that don't fit become links.
+      const used =
+        embedded.reduce((n, f) => n + f.base64.length, 0) + (summaryAttachment?.contentBytes.length ?? 0);
+      const { fit: attachedPdfs, overflow: linkedPdfs } = splitByBudget(pdfs, used);
+      const sendBody = linkedPdfs.reduce(
+        (text, pdf) => appendFlyerLink(text, portalFlyerUrl(pdf.id, getLOInfo().nmls)),
+        body,
+      );
+      setSentFlyers(
+        describeFlyerCounts({ embedded: embedded.length, attached: attachedPdfs.length, linked: linkedPdfs.length, failed }),
+      );
+
       // Build email body — append signature if the user has one saved
       const sig = getSignatureHtml();
-      const useHtml = !!sig;
-      setSentWithSig(useHtml);
+      const useHtml = !!sig || embedded.length > 0;
+      setSentWithSig(!!sig);
       const emailBody = useHtml
-        ? { contentType: "HTML" as const, content: buildHtmlBodyWithSignature(body, sig) }
-        : { contentType: "Text" as const, content: body };
+        ? { contentType: "HTML" as const, content: buildHtmlBodyWithSignature(sendBody, sig, flyerImagesHtml(embedded)) }
+        : { contentType: "Text" as const, content: sendBody };
 
       const message: Record<string, unknown> = {
         subject,
@@ -343,21 +401,14 @@ export default function MultiEmailModal({
           ? { ccRecipients: [{ emailAddress: { address: ccEmail.trim() } }] }
           : {}),
         attachments: [
-          ...attachments.map((a) => ({
+          ...embedded.map(inlineFlyerAttachment),
+          ...attachedPdfs.map((a) => ({
             "@odata.type": "#microsoft.graph.fileAttachment",
             name: a.name,
             contentType: "application/pdf",
             contentBytes: a.base64,
           })),
-          // Attach formatted summary as HTML file if toggled on
-          ...(attachSummary && summary
-            ? [{
-                "@odata.type": "#microsoft.graph.fileAttachment",
-                name: "program-summary.html",
-                contentType: "text/html",
-                contentBytes: btoa(unescape(encodeURIComponent(buildSummaryHtml(summary, programs, propertyAddress, listingPrice)))),
-              }]
-            : []),
+          ...(summaryAttachment ? [summaryAttachment] : []),
         ],
       };
 
@@ -451,7 +502,7 @@ export default function MultiEmailModal({
                 Email {programs.length} Programs
               </span>
               <span className="ml-2 text-xs text-gray-400">
-                {programsWithFlyer.length} flyer(s) attached
+                {programsWithFlyer.length} flyer(s)
               </span>
             </div>
           </div>
@@ -489,7 +540,7 @@ export default function MultiEmailModal({
                 <div className="text-2xl mb-1">✓</div>
                 <p className="text-sm font-medium text-emerald-800">Email sent successfully!</p>
                 <p className="text-xs text-emerald-600 mt-0.5">
-                  Sent to {toEmail} with {programsWithFlyer.length} flyer(s) attached.
+                  Sent to {toEmail}: {sentFlyers}.
                   {ccEmail.trim() ? ` CC: ${ccEmail.trim()}` : ""}
                   {sentWithSig ? " — with your signature." : ""}
                 </p>
@@ -698,23 +749,40 @@ export default function MultiEmailModal({
                   </label>
                 )}
 
-                {/* Attachments indicator */}
-                <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                      <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                    <span>{programsWithFlyer.length} flyer PDF(s) will be attached:</span>
+                {/* How each flyer goes out */}
+                {programsWithFlyer.length > 0 && (
+                  <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    <div className="font-medium text-gray-700">Show in the email (up to {MAX_EMBEDDED_FLYERS})</div>
+                    <p className="mt-0.5 text-[0.7rem] text-gray-400">
+                      Flyers you don&rsquo;t pick here are attached as PDFs.
+                    </p>
+                    <div className="mt-1.5 space-y-1">
+                      {programsWithFlyer.map((p) => {
+                        const id = p.product_id!;
+                        const on = embedIds.includes(id);
+                        const full = !on && embedIds.length >= MAX_EMBEDDED_FLYERS;
+                        return (
+                          <label key={id} className={`flex items-center gap-2 ${full ? "cursor-not-allowed text-gray-400" : "cursor-pointer"}`}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              disabled={full}
+                              onChange={() => setEmbedChoice(toggleEmbedId(embedIds, id))}
+                              className="accent-red-600"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                            <span className="shrink-0 text-[0.65rem] text-gray-400">{on ? "In the email" : "PDF"}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {embedIds.length === programsWithFlyer.length && mentionsAttachment(body) && (
+                      <p className="mt-1.5 text-amber-700">
+                        Your message says &ldquo;attached&rdquo;, but the flyers will be shown in the email. You may want to reword it.
+                      </p>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-1 pl-5">
-                    {programsWithFlyer.map((p) => (
-                      <span key={p.product_id} className="rounded bg-gray-200 px-1.5 py-0.5 text-[0.65rem] text-gray-600">
-                        {p.product_id}-flyer.pdf
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 {/* Signature status */}
                 {sigOk ? (

@@ -65,7 +65,7 @@ export interface EmailDraftInput {
    * "attached" when it really is; a linked flyer gets a link line appended
    * by the sender; "none" (default) must not mention a flyer at all.
    */
-  flyerDelivery?: "attached" | "linked" | "none";
+  flyerDelivery?: "embedded" | "attached" | "linked" | "none";
 }
 
 export interface EmailDraftResult {
@@ -93,7 +93,9 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
     : "";
 
   const flyerLine =
-    input.flyerDelivery === "attached"
+    input.flyerDelivery === "embedded"
+      ? "- The program flyer is shown as an image right below your text. You may say \"the flyer below\" — never say it is attached or enclosed"
+      : input.flyerDelivery === "attached"
       ? "- A PDF flyer for this program is attached to the email (you may refer to the attached flyer)"
       : input.flyerDelivery === "linked"
         ? "- A link to the program flyer (PDF) is added automatically right after your text. You may say \"the flyer linked below\" — never say it is attached or enclosed"

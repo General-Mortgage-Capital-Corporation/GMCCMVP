@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
 import { getPartnerContext, mintIdTokenForEmail } from "@/lib/partner-server";
+import { renderFlyerImage } from "@/lib/email/flyer-image";
+import { fetchWithRetry } from "@/lib/email/retry-flyer-fetch";
 
 export const runtime = "nodejs";
 
@@ -93,15 +95,17 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const res = await fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30_000),
-    });
+    const res = await fetchWithRetry(() =>
+      fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
+      }),
+    );
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "Flier generation failed." })) as { error?: string; detail?: string };
@@ -113,6 +117,16 @@ export async function POST(req: NextRequest) {
 
     const pdfBytes = await res.arrayBuffer();
     const safeProductId = (productId ?? "flyer").replace(/[^a-zA-Z0-9-]/g, "");
+    // format: "jpeg" = page 1 as an image, for embedding in an email body.
+    if (body.format === "jpeg") {
+      const image = await renderFlyerImage(new Uint8Array(pdfBytes));
+      return new Response(Buffer.from(image.base64, "base64"), {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Content-Disposition": `inline; filename="${safeProductId}-flyer.jpg"`,
+        },
+      });
+    }
     return new Response(pdfBytes, {
       headers: {
         "Content-Type": "application/pdf",
@@ -123,6 +137,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof Error && err.message.includes("timeout")) {
       return NextResponse.json({ error: "Flier generation timed out." }, { status: 504 });
     }
+    console.error("[generate-flier] failed:", productId, body.format ?? "pdf", err);
     return NextResponse.json({ error: "Flier generation failed." }, { status: 500 });
   }
 }

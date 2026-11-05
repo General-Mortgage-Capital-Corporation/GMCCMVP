@@ -145,7 +145,7 @@ export default function FlierButton({
   const liveUrl = resolveLiveRatesheet(programName, propertyState);
   const ratesheetUrl = liveUrl ?? resolveRatesheetUrl(rawRatesheetUrl, propertyState);
 
-  async function fetchPdf(): Promise<Blob | null> {
+  async function fetchPdf(format: "pdf" | "jpeg" = "pdf"): Promise<Blob | null> {
     setError(null);
     try {
       let email = user?.email;
@@ -167,6 +167,7 @@ export default function FlierButton({
       const body: Record<string, string | undefined> = {
         productId,
         userId: email,
+        ...(format === "jpeg" ? { format } : {}),
         ...(getLOInfo().title ? { title: getLOInfo().title } : {}),
         ...(propertyAddress ? { address: propertyAddress } : {}),
         ...(listingPrice ? { listingPrice: String(listingPrice) } : {}),

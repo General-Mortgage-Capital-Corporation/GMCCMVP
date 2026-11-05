@@ -53,6 +53,7 @@ import {
   portalFlyerUrl,
   type FlyerDelivery,
 } from "@/lib/email/attachment-policy";
+import { flyerImagesHtml, inlineFlyerAttachment, type EmbeddedFlyer } from "@/lib/email/flyer-embed";
 import { readCampaignFlyer, deleteCampaignFlyers } from "@/lib/campaigns/flyer-assets";
 import { planCampaignRows, type CampaignRow } from "@/lib/campaigns/plan";
 
@@ -70,6 +71,8 @@ export interface CampaignFlyer {
   path: string | null;
   sizeKB: number;
   delivery: FlyerDelivery;
+  /** Page-1 image for embedding in the email body. */
+  image?: { path: string; width: number; height: number };
   /** Why it's linked or missing ("3.9 MB is over Outlook's attachment limit"). */
   reason?: string;
 }
@@ -88,7 +91,7 @@ export interface CampaignDoc {
   status: "running" | "done" | "cancelled" | "blocked";
   createdAt: number;
   updatedAt: number;
-  totals: { total: number; sent: number; skipped: number; failed: number; attached?: number; linked?: number };
+  totals: { total: number; sent: number; skipped: number; failed: number; embedded?: number; attached?: number; linked?: number };
   rows: CampaignRow[];
   /**
    * Legacy (pre-2026-10-20): program name -> agentCampaignAssets doc id.
@@ -294,11 +297,12 @@ async function persistCampaign(campaign: CampaignDoc): Promise<void> {
 }
 
 function recount(campaign: CampaignDoc): void {
-  const t = { total: campaign.rows.length, sent: 0, skipped: 0, failed: 0, attached: 0, linked: 0 };
+  const t = { total: campaign.rows.length, sent: 0, skipped: 0, failed: 0, embedded: 0, attached: 0, linked: 0 };
   for (const r of campaign.rows) {
     if (r.status === "sent") {
       t.sent++;
-      if (r.flyer === "attached") t.attached++;
+      if (r.flyer === "embedded") t.embedded++;
+      else if (r.flyer === "attached") t.attached++;
       else if (r.flyer === "linked") t.linked++;
     } else if (r.status === "skipped") t.skipped++;
     else if (r.status === "failed") t.failed++;
@@ -367,6 +371,26 @@ export async function processCampaign(
       }
     }
 
+    let embedded: EmbeddedFlyer | null = null;
+    if (delivery === "embedded" && flyer?.image) {
+      const { path, width, height } = flyer.image;
+      if (!flyerCache.has(path)) flyerCache.set(path, await readCampaignFlyer(path));
+      const imageBase64 = flyerCache.get(path);
+      if (imageBase64) {
+        embedded = {
+          id: flyer.productId,
+          title: row.program,
+          base64: imageBase64,
+          width,
+          height,
+          pdfUrl: portalFlyerUrl(flyer.productId, campaign.loNmls),
+        };
+      } else {
+        // The image is gone: link instead of drafting "the flyer below" over nothing.
+        delivery = flyer.productId ? "linked" : "none";
+      }
+    }
+
     const draft = await draftForRow(row, campaign, delivery);
     let body = draft.body;
     let url: string | undefined;
@@ -379,12 +403,17 @@ export async function processCampaign(
 
     const message: GraphMessage = {
       subject: draft.subject,
-      body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml) },
+      body: {
+        contentType: "HTML",
+        content: buildHtmlBodyWithSignature(body, signatureHtml, embedded ? flyerImagesHtml([embedded]) : ""),
+      },
       toRecipients: [
         { emailAddress: { address: row.agentEmail, ...(row.agentName ? { name: row.agentName } : {}) } },
       ],
     };
-    if (delivery === "attached" && base64) {
+    if (embedded) {
+      message.attachments = [inlineFlyerAttachment(embedded)];
+    } else if (delivery === "attached" && base64) {
       message.attachments = [
         {
           "@odata.type": "#microsoft.graph.fileAttachment",
@@ -409,7 +438,7 @@ export async function processCampaign(
       delivery,
       productId: flyer?.productId || undefined,
       sizeKB: delivery === "attached" ? flyer?.sizeKB : undefined,
-      url,
+      url: url ?? embedded?.pdfUrl,
     });
     return "sent";
   };
@@ -485,9 +514,10 @@ export function summarizeCampaign(campaign: CampaignDoc): string {
   const pending = campaign.rows.filter((r) => r.status === "pending").length;
   const flyerBits: string[] = [];
   if (campaign.includeFlyer) {
+    if (t.embedded) flyerBits.push(`${t.embedded} with the flyer shown in the email`);
     if (t.attached) flyerBits.push(`${t.attached} with the flyer attached`);
     if (t.linked) flyerBits.push(`${t.linked} with a flyer link (too large to attach)`);
-    const bare = t.sent - (t.attached ?? 0) - (t.linked ?? 0);
+    const bare = t.sent - (t.embedded ?? 0) - (t.attached ?? 0) - (t.linked ?? 0);
     if (bare > 0) flyerBits.push(`${bare} WITHOUT a flyer`);
   }
   const parts = [

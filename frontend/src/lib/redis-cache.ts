@@ -297,6 +297,8 @@ interface AgentArtifactEntry {
   filename?: string;
   /** Flyer PDFs: the product the flyer is for (drives the link fallback). */
   productId?: string;
+  /** Flyer PDFs: page 1 as a JPEG, for embedding in the email body. */
+  image?: { base64: string; width: number; height: number };
 }
 
 export async function getAgentArtifact(ref: string): Promise<AgentArtifactEntry | null> {

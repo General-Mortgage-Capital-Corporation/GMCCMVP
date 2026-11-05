@@ -36,6 +36,17 @@ export async function saveCampaignFlyer(campaignId: string, productId: string, b
   return path;
 }
 
+/** Store a program flyer's page-1 image for embedding; returns its storage path. */
+export async function saveCampaignFlyerImage(campaignId: string, productId: string, base64: string): Promise<string> {
+  const path = `${PREFIX}/${campaignId}/${productId}.jpg`;
+  await bucket().file(path).save(Buffer.from(base64, "base64"), {
+    contentType: "image/jpeg",
+    resumable: false,
+    metadata: { metadata: { campaignId, productId } },
+  });
+  return path;
+}
+
 /** The flyer as base64, or null when it is gone (campaign finished, bucket issue). */
 export async function readCampaignFlyer(path: string): Promise<string | null> {
   try {

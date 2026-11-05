@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
+import { sendMailAs, type GraphFileAttachment, type GraphMessage } from "@/lib/graph-client";
 import { getArtifact } from "@/lib/tools/flyer-store";
 import { getDb, verifyIdToken } from "@/lib/firestore-admin";
 import { lastSentTo } from "@/lib/campaigns/engine";
@@ -24,6 +24,12 @@ import {
   portalFlyerUrl,
   type FlyerDelivery,
 } from "@/lib/email/attachment-policy";
+import {
+  MAX_EMBEDDED_FLYERS,
+  flyerImagesHtml,
+  inlineFlyerAttachment,
+  type EmbeddedFlyer,
+} from "@/lib/email/flyer-embed";
 import type { SendLedger } from "@/lib/tools/send-ledger";
 
 interface AuthContext {
@@ -33,11 +39,20 @@ interface AuthContext {
   loNmls?: string;
 }
 
+interface SentFlyer {
+  delivery: FlyerDelivery;
+  name?: string;
+  sizeKB?: number;
+  url?: string;
+  productId?: string;
+}
+
 interface SentRecord {
   success: true;
   sentTo: string;
   subject: string;
-  flyer: { delivery: FlyerDelivery; name?: string; sizeKB?: number; url?: string; productId?: string };
+  flyer: SentFlyer;
+  flyers: SentFlyer[];
   summary: string;
   sentEmailId?: string;
 }
@@ -53,8 +68,9 @@ const mb = (sizeKB: number) => `${Math.round(sizeKB / 102.4) / 10} MB`;
  *
  * What this tool guarantees, whatever the model asked for:
  *   - the body never promises an attachment that isn't on the message;
- *   - a flyer is reported "attached" only when Graph accepted it inline,
- *     "linked" when it went out as a portal link, otherwise "no flyer";
+ *   - a flyer is reported "embedded" only when it is shown in the body,
+ *     "attached" when the PDF is on the message, "linked" when it went out as
+ *     a portal link, otherwise "no flyer";
  *   - nobody gets an automated email twice within 30 days unless the LO
  *     explicitly asks (allowRecent);
  *   - every send is written to sentEmails so dedupe and history see it even
@@ -71,9 +87,10 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
   return tool({
     description:
       "Send an email via Microsoft Outlook/Graph API as the signed-in user. " +
-      "To include a program flyer, generate it FIRST (generateFlyer) and pass its flyerRef; the result's `flyer.delivery` " +
-      "tells you whether it was 'attached', 'linked' (too large for Outlook — a portal link was added under the text) or 'none'. " +
-      "Report exactly that to the user. If the body says anything is attached but no flyer is attached, the send is refused. " +
+      "To include a program flyer, generate it FIRST (generateFlyer) and pass its flyerRef; the result's `flyers` list " +
+      "tells you whether each was 'embedded' (shown in the email body), 'attached', or 'linked' (too large for Outlook — a portal link was added under the text). " +
+      "At most 2 flyers can be embedded; more can be attached or linked through moreFlyers. " +
+      "Report exactly that to the user. If the body says anything is attached but no PDF is attached, the send is refused. " +
       "ALWAYS call askForConfirmation before using this tool.",
     inputSchema: z.object({
       to: z.string().email().describe("Recipient email address"),
@@ -87,13 +104,18 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
         .optional()
         .describe("Flyer reference ID from generateFlyer output (e.g. 'pdf-1a2b3c')."),
       flyerDelivery: z
-        .enum(["attach", "link"])
-        .default("attach")
+        .enum(["embed", "attach", "link"])
+        .default("embed")
         .describe(
-          "'attach' puts the PDF on the email (only works when generateFlyer said canAttach: true). " +
+          "'embed' shows the flyer as an image in the email body (the default; needs canEmbed: true from generateFlyer). " +
+            "'attach' puts the PDF on the email (only works when generateFlyer said canAttach: true). " +
             "'link' adds a personalized portal link to the flyer under the body instead — use it when the flyer is too large, " +
             "and draft the email with draftEmail flyerDelivery 'linked' so the text doesn't say 'attached'.",
         ),
+      moreFlyers: z
+        .array(z.object({ flyerRef: z.string(), flyerDelivery: z.enum(["embed", "attach", "link"]) }))
+        .default([])
+        .describe("Any further flyers for this email. At most 2 flyers in total can use 'embed'."),
       attachmentFilename: z
         .string()
         .optional()
@@ -153,52 +175,89 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
         }
       }
 
-      // ── Flyer: decide what can honestly be said before anything is sent ──
+      // ── Flyers: decide what can honestly be said before anything is sent ──
       let body = input.body;
-      let flyer: SentRecord["flyer"] = { delivery: "none" };
-      let attachmentBase64: string | null = null;
+      const requested = [
+        ...(input.flyerRef ? [{ flyerRef: input.flyerRef, flyerDelivery: input.flyerDelivery }] : []),
+        ...input.moreFlyers,
+      ].filter((f, i, all) => all.findIndex((x) => x.flyerRef === f.flyerRef) === i);
+      const toEmbed = requested.filter((f) => f.flyerDelivery === "embed");
+      if (toEmbed.length > MAX_EMBEDDED_FLYERS) {
+        return {
+          error: `Not sent: at most ${MAX_EMBEDDED_FLYERS} flyers can be shown in the email body, and ${toEmbed.length} were requested. Ask the user which ${MAX_EMBEDDED_FLYERS} to show; the others can go with flyerDelivery 'attach'.`,
+        };
+      }
 
-      if (input.flyerRef) {
-        const entry = await getArtifact(input.flyerRef);
+      const embedded: EmbeddedFlyer[] = [];
+      const pdfAttachments: GraphFileAttachment[] = [];
+      const sentFlyers: SentFlyer[] = [];
+      let usedBase64 = 0;
+
+      // Embedded flyers first: they are small and shouldn't lose out to a big PDF.
+      for (const f of [...toEmbed, ...requested.filter((x) => x.flyerDelivery !== "embed")]) {
+        const entry = await getArtifact(f.flyerRef);
         if (!entry?.base64) {
-          return { error: `Flyer "${input.flyerRef}" not found or expired. Regenerate it with generateFlyer, then send again.` };
+          return { error: `Flyer "${f.flyerRef}" not found or expired. Regenerate it with generateFlyer, then send again.` };
         }
         const sizeKB = kb(entry.base64.length);
-        if (input.flyerDelivery === "attach") {
-          if (entry.base64.length > MAX_INLINE_ATTACHMENT_BASE64) {
+        if (f.flyerDelivery === "embed") {
+          if (!entry.image) {
             return {
               error:
-                `Not sent: this flyer is ${mb(sizeKB)}, over Outlook's attachment limit. ` +
-                "Re-draft with draftEmail (flyerDelivery: 'linked') so the text says the flyer is linked, then call sendEmail again with flyerDelivery: 'link' and the same flyerRef.",
+                `Not sent: flyer "${f.flyerRef}" can't be shown in the email. ` +
+                "Re-draft with draftEmail (flyerDelivery: 'attached' or 'linked') and send it with the matching flyerDelivery.",
             };
           }
-          attachmentBase64 = entry.base64;
-          flyer = {
-            delivery: "attached",
-            name: input.attachmentFilename ?? entry.filename ?? "GMCC-flyer.pdf",
-            sizeKB,
+          embedded.push({
+            ...entry.image,
+            id: f.flyerRef,
+            title:
+              input.programName && toEmbed.length === 1
+                ? input.programName
+                : (entry.productId ?? "GMCC program").replace(/-/g, " "),
+            ...(entry.productId ? { pdfUrl: portalFlyerUrl(entry.productId, auth.loNmls) } : {}),
+          });
+          usedBase64 += entry.image.base64.length;
+          sentFlyers.push({
+            delivery: "embedded",
             productId: entry.productId,
-          };
+            ...(entry.productId ? { url: portalFlyerUrl(entry.productId, auth.loNmls) } : {}),
+          });
+        } else if (f.flyerDelivery === "attach") {
+          if (usedBase64 + entry.base64.length > MAX_INLINE_ATTACHMENT_BASE64) {
+            return {
+              error:
+                `Not sent: this flyer is ${mb(sizeKB)}, which puts the email over Outlook's size limit. ` +
+                "Re-draft with draftEmail (flyerDelivery: 'embedded' or 'linked') and send it with flyerDelivery 'embed' or 'link' and the same flyerRef.",
+            };
+          }
+          const name = (pdfAttachments.length === 0 && input.attachmentFilename) || entry.filename || "GMCC-flyer.pdf";
+          pdfAttachments.push({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            name,
+            contentType: "application/pdf",
+            contentBytes: entry.base64,
+          });
+          usedBase64 += entry.base64.length;
+          sentFlyers.push({ delivery: "attached", name, sizeKB, productId: entry.productId });
         } else {
           if (!entry.productId) {
             return { error: "This flyer can't be linked (unknown program). Regenerate it with generateFlyer, then send again." };
           }
-          if (mentionsAttachment(body)) {
-            return {
-              error:
-                "Not sent: the email body says something is attached, but the flyer would only be linked. " +
-                "Re-draft with draftEmail (flyerDelivery: 'linked') and send again.",
-            };
-          }
           const url = portalFlyerUrl(entry.productId, auth.loNmls);
           body = appendFlyerLink(body, url);
-          flyer = { delivery: "linked", url, productId: entry.productId, sizeKB };
+          sentFlyers.push({ delivery: "linked", url, productId: entry.productId, sizeKB });
         }
-      } else if (mentionsAttachment(body)) {
+      }
+      const flyer: SentFlyer = sentFlyers[0] ?? { delivery: "none" };
+
+      if (pdfAttachments.length === 0 && mentionsAttachment(input.body)) {
         return {
           error:
-            "Not sent: the email body mentions an attachment, but no flyerRef was provided — the realtor would get a promise with nothing attached. " +
-            "Either generate the flyer (generateFlyer) and pass its flyerRef, or re-draft with draftEmail (flyerDelivery: 'none') so the text doesn't mention one.",
+            "Not sent: the email body says something is attached, but no PDF is attached. " +
+            (sentFlyers.length
+              ? "Re-draft with draftEmail using the flyerDelivery that matches how the flyer goes out ('embedded' or 'linked') and send again."
+              : "Either generate the flyer (generateFlyer) and pass its flyerRef, or re-draft with draftEmail (flyerDelivery: 'none') so the text doesn't mention one."),
         };
       }
 
@@ -237,22 +296,16 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
       // Build HTML email body with user signature + company disclaimer
       const message: GraphMessage = {
         subject: input.subject,
-        body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, auth.signatureHtml) },
+        body: {
+          contentType: "HTML",
+          content: buildHtmlBodyWithSignature(body, auth.signatureHtml, flyerImagesHtml(embedded)),
+        },
         toRecipients: [
           { emailAddress: { address: input.to, ...(input.toName ? { name: input.toName } : {}) } },
         ],
         ...(input.cc ? { ccRecipients: [{ emailAddress: { address: input.cc } }] } : {}),
-        ...(attachmentBase64
-          ? {
-              attachments: [
-                {
-                  "@odata.type": "#microsoft.graph.fileAttachment" as const,
-                  name: flyer.name ?? "GMCC-flyer.pdf",
-                  contentType: "application/pdf",
-                  contentBytes: attachmentBase64,
-                },
-              ],
-            }
+        ...(embedded.length || pdfAttachments.length
+          ? { attachments: [...embedded.map(inlineFlyerAttachment), ...pdfAttachments] }
           : {}),
       };
 
@@ -261,8 +314,8 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
         if (result.code === "TOO_LARGE") {
           return {
             error:
-              `Not sent: Outlook rejected the message as too large (${flyer.sizeKB ? mb(flyer.sizeKB) : "attachment"}). ` +
-              "Re-draft with draftEmail (flyerDelivery: 'linked') and send again with flyerDelivery: 'link'.",
+              "Not sent: Outlook rejected the message as too large. " +
+              "Re-draft with draftEmail (flyerDelivery: 'embedded' or 'linked') and send again with flyerDelivery 'embed' or 'link'.",
           };
         }
         return { error: `Not sent: ${result.error ?? "Failed to send email."}` };
@@ -270,9 +323,13 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
 
       const summary =
         `Sent to ${input.to}` +
-        (flyer.delivery === "none" && !input.flyerRef
+        (sentFlyers.length === 0
           ? " (no flyer)"
-          : ` — flyer ${describeFlyerDelivery(flyer.delivery, { sizeKB: flyer.sizeKB, reason: flyer.delivery === "linked" ? "over Outlook's attachment limit" : undefined })}`) +
+          : ` — ${sentFlyers
+              .map((f) =>
+                `flyer ${describeFlyerDelivery(f.delivery, { sizeKB: f.sizeKB, reason: f.delivery === "linked" ? "over Outlook's attachment limit" : undefined })}`,
+              )
+              .join("; ")}`) +
         ".";
 
       // History: every send is recorded here, follow-up or not.
@@ -293,6 +350,7 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
             sentAt: Date.now(),
             source: "agent-sendEmail",
             flyer: JSON.parse(JSON.stringify(flyer)),
+            flyers: JSON.parse(JSON.stringify(sentFlyers)),
             followUp: null,
           });
           sentEmailId = ref.id;
@@ -301,7 +359,7 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
         }
       }
 
-      const record: SentRecord = { success: true, sentTo: input.to, subject: input.subject, flyer, summary, sentEmailId };
+      const record: SentRecord = { success: true, sentTo: input.to, subject: input.subject, flyer, flyers: sentFlyers, summary, sentEmailId };
       sent.set(key, record);
 
       // Record the ACTUAL recipient (keyed by subject) so a later
