@@ -23,7 +23,8 @@ import {
   type CampaignDoc,
   type CampaignFlyer,
 } from "@/lib/campaigns/engine";
-import { saveCampaignFlyer } from "@/lib/campaigns/flyer-assets";
+import { saveCampaignFlyer, saveCampaignFlyerImage } from "@/lib/campaigns/flyer-assets";
+import { renderFlyerImage } from "@/lib/email/flyer-image";
 import { deliveryForSize, describeFlyerDelivery, kb } from "@/lib/email/attachment-policy";
 
 interface AuthContext {
@@ -56,7 +57,7 @@ export function createRunMarketingCampaignTool(auth: AuthContext) {
       "WORKFLOW (mandatory): first call with mode 'preview' — it returns recipient counts, flyer availability and a sample draft WITHOUT " +
       "sending anything. Show the user the counts, the flyer status per program, and the sample; get approval via askForConfirmation. " +
       "Only after approval, call again with mode 'start'. After starting, repeat the returned `summary` to the user word for word " +
-      "(it says exactly how many went out and whether flyers were attached, linked or missing) — the rest sends automatically in the " +
+      "(it says exactly how many went out and whether flyers were shown in the email, attached, linked or missing) — the rest sends automatically in the " +
       "background within minutes; use checkCampaignStatus to report progress when asked. Never start a second campaign while one is running.",
     inputSchema: z.object({
       mode: z
@@ -79,7 +80,14 @@ export function createRunMarketingCampaignTool(auth: AuthContext) {
       includeFlyer: z
         .boolean()
         .default(true)
-        .describe("Send the matched program's flyer PDF with each email (attached when it fits Outlook's size limit, otherwise linked)."),
+        .describe("Send the matched program's flyer with each email."),
+      flyerDelivery: z
+        .enum(["embed", "attach"])
+        .default("embed")
+        .describe(
+          "'embed' shows each recipient's one program flyer as an image in the email body (default). " +
+            "'attach' sends the PDF instead, or a link when it's over Outlook's size limit. Use 'attach' only if the user asks for it.",
+        ),
       usePotential: z
         .boolean()
         .default(false)
@@ -163,11 +171,15 @@ export function createRunMarketingCampaignTool(auth: AuthContext) {
             !input.includeFlyer
               ? "not requested"
               : resolveProductId(p)
-                ? "flyer template available (attached if it fits Outlook's size limit, otherwise linked)"
+                ? input.flyerDelivery === "embed"
+                  ? "flyer template available (shown in the email body)"
+                  : "flyer template available (attached if it fits Outlook's size limit, otherwise linked)"
                 : "NO flyer template — emails for this program go out without a flyer and won't mention one",
           ]),
         );
-        const sampleDelivery = input.includeFlyer && resolveProductId(plan.rows[0].program) ? "attached" : "none";
+        const sampleDelivery = input.includeFlyer && resolveProductId(plan.rows[0].program)
+          ? input.flyerDelivery === "embed" ? "embedded" : "attached"
+          : "none";
         const sample = await draftCampaignSample(plan.rows[0], campaignMeta, sampleDelivery).catch(
           (err) => ({ subject: "(draft failed)", body: String(err instanceof Error ? err.message : err) }),
         );
@@ -226,6 +238,23 @@ export function createRunMarketingCampaignTool(auth: AuthContext) {
             continue;
           }
           const sizeKB = kb(result.base64.length);
+          if (input.flyerDelivery === "embed") {
+            try {
+              const image = await renderFlyerImage(Buffer.from(result.base64, "base64"));
+              const imagePath = await saveCampaignFlyerImage(id, productId, image.base64);
+              flyerMeta[program] = {
+                productId,
+                path: null,
+                sizeKB,
+                delivery: "embedded",
+                image: { path: imagePath, width: image.width, height: image.height },
+              };
+              continue;
+            } catch (err) {
+              // Fall through to the PDF: drafts are written per send, so they stay honest.
+              console.error("[campaigns] flyer image failed, using the PDF:", err);
+            }
+          }
           const delivery = deliveryForSize(result.base64.length);
           let path: string | null = null;
           if (delivery === "attached") {
@@ -266,7 +295,7 @@ export function createRunMarketingCampaignTool(auth: AuthContext) {
         status: "running",
         createdAt: now,
         updatedAt: now,
-        totals: { total: plan.rows.length, sent: 0, skipped: 0, failed: 0, attached: 0, linked: 0 },
+        totals: { total: plan.rows.length, sent: 0, skipped: 0, failed: 0, embedded: 0, attached: 0, linked: 0 },
         rows: plan.rows,
         flyers: {},
         flyerMeta,

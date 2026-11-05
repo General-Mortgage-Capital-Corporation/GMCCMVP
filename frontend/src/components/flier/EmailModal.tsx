@@ -14,6 +14,15 @@ import type { RealtorInfo } from "./FlierButton";
 import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
 import type { DeliverabilityResult } from "@/lib/email-deliverability";
+import { getLOInfo } from "@/lib/lo-info-store";
+import { appendFlyerLink, mentionsAttachment, portalFlyerUrl } from "@/lib/email/attachment-policy";
+import {
+  flyerImageFromBlob,
+  flyerImagesHtml,
+  inlineFlyerAttachment,
+  splitByBudget,
+  type EmbeddedFlyer,
+} from "@/lib/email/flyer-embed";
 
 type RecipientTab = "myself" | "realtor" | "borrower";
 
@@ -25,7 +34,7 @@ interface EmailModalProps {
   realtorInfo: RealtorInfo;
   onClose: () => void;
   /** Resolves to a PDF blob — called lazily on Send */
-  fetchPdf: () => Promise<Blob | null>;
+  fetchPdf: (format?: "pdf" | "jpeg") => Promise<Blob | null>;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -58,7 +67,7 @@ function autoPropertyBody(
     `  • Program: ${programName}`,
     ...(realtorName ? [`  • Listing Agent: ${realtorName}`] : []),
     "",
-    "The program flyer is attached for quick reference.",
+    "The program flyer is included for quick reference.",
   ].join("\n");
 }
 
@@ -84,6 +93,8 @@ export default function EmailModal({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [sentWithSig, setSentWithSig] = useState(false);
+  const [flyerMode, setFlyerMode] = useState<"embed" | "attach">("embed");
+  const [sentFlyer, setSentFlyer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpDays, setFollowUpDays] = useState(3);
@@ -232,27 +243,65 @@ export default function EmailModal({
       if (!user) await signIn();
 
       // Fetch MSAL token and generate PDF in parallel
-      const [msalToken, pdfBlob] = await Promise.all([
-        getMsalAccessToken(emailRequest.scopes),
-        fetchPdf(),
-      ]);
-
+      const msalToken = await getMsalAccessToken(emailRequest.scopes);
       if (!msalToken) {
         setError("Could not get email permission. Please sign in again.");
         return;
       }
-      if (!pdfBlob) return; // fetchPdf sets its own error
 
-      const base64Pdf = await blobToBase64(pdfBlob);
-      const fileName = `${productId}-flyer.pdf`;
+      const pdfUrl = portalFlyerUrl(productId, getLOInfo().nmls);
+
+      // Show the flyer in the email when asked to; if the image can't be made,
+      // the PDF still goes out and the confirmation says so.
+      let embedded: EmbeddedFlyer | null = null;
+      if (flyerMode === "embed") {
+        const imageBlob = await fetchPdf("jpeg");
+        if (imageBlob) {
+          embedded = { id: productId, title: programName, pdfUrl, ...(await flyerImageFromBlob(imageBlob, blobToBase64)) };
+        }
+      }
+
+      let attachments: Record<string, unknown>[];
+      let sendBody = body;
+      if (embedded) {
+        attachments = [inlineFlyerAttachment(embedded)];
+        setSentFlyer("The flyer is shown in the email.");
+      } else {
+        const pdfBlob = await fetchPdf();
+        if (!pdfBlob) return; // fetchPdf sets its own error
+        const base64Pdf = await blobToBase64(pdfBlob);
+        const fellBack = flyerMode === "embed" ? "It couldn't be shown in the email, so " : "";
+        if (splitByBudget([{ base64: base64Pdf }], 0).fit.length) {
+          attachments = [
+            {
+              "@odata.type": "#microsoft.graph.fileAttachment",
+              name: `${productId}-flyer.pdf`,
+              contentType: "application/pdf",
+              contentBytes: base64Pdf,
+            },
+          ];
+          setSentFlyer(fellBack ? `${fellBack}the flyer is attached as a PDF.` : "The flyer is attached as a PDF.");
+        } else {
+          attachments = [];
+          sendBody = appendFlyerLink(body, pdfUrl);
+          setSentFlyer(
+            fellBack
+              ? `${fellBack}the flyer is linked (too large to attach).`
+              : "The flyer is linked (too large to attach).",
+          );
+        }
+      }
 
       // Build email body — append signature if the user has one saved
       const sig = getSignatureHtml();
-      const useHtml = !!sig;
-      setSentWithSig(useHtml);
+      const useHtml = !!sig || !!embedded;
+      setSentWithSig(!!sig);
       const emailBody = useHtml
-        ? { contentType: "HTML" as const, content: buildHtmlBodyWithSignature(body, sig) }
-        : { contentType: "Text" as const, content: body };
+        ? {
+            contentType: "HTML" as const,
+            content: buildHtmlBodyWithSignature(sendBody, sig, embedded ? flyerImagesHtml([embedded]) : ""),
+          }
+        : { contentType: "Text" as const, content: sendBody };
 
       const message: Record<string, unknown> = {
         subject,
@@ -261,14 +310,7 @@ export default function EmailModal({
           { emailAddress: { address: toEmail.trim(), name: toName.trim() || undefined } },
         ],
         ...(ccEmail.trim() ? { ccRecipients: [{ emailAddress: { address: ccEmail.trim() } }] } : {}),
-        attachments: [
-          {
-            "@odata.type": "#microsoft.graph.fileAttachment",
-            name: fileName,
-            contentType: "application/pdf",
-            contentBytes: base64Pdf,
-          },
-        ],
+        attachments,
       };
 
       const res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -377,7 +419,7 @@ export default function EmailModal({
                 <div className="text-2xl mb-1">✓</div>
                 <p className="text-base font-medium text-emerald-800">Email sent successfully!</p>
                 <p className="text-sm text-emerald-600 mt-0.5">
-                  Sent to {toEmail}{ccEmail.trim() ? ` (CC: ${ccEmail.trim()})` : ""}{sentWithSig ? " — with your signature attached" : ""}.
+                  Sent to {toEmail}{ccEmail.trim() ? ` (CC: ${ccEmail.trim()})` : ""}{sentWithSig ? " — with your signature attached" : ""}. {sentFlyer}
                 </p>
                 <button
                   onClick={onClose}
@@ -523,13 +565,24 @@ export default function EmailModal({
                   </div>
                 )}
 
-                {/* Attachment indicator */}
-                <div className="flex items-center gap-2 rounded-md border border-gray-100 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-500">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 2h10v12H3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                    <path d="M5 6h6M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <span>{productId}-flyer.pdf will be attached</span>
+                {/* How the flyer goes out */}
+                <div className="rounded-md border border-gray-100 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-600">
+                  <div className="mb-1.5 font-medium text-gray-700">Flyer</div>
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-5">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="radio" name="flyer-mode" checked={flyerMode === "embed"} onChange={() => setFlyerMode("embed")} className="accent-red-600" />
+                      Show in the email
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="radio" name="flyer-mode" checked={flyerMode === "attach"} onChange={() => setFlyerMode("attach")} className="accent-red-600" />
+                      Attach as PDF
+                    </label>
+                  </div>
+                  {flyerMode === "embed" && mentionsAttachment(body) && (
+                    <p className="mt-1.5 text-xs text-amber-700">
+                      Your message says &ldquo;attached&rdquo;, but the flyer will be shown in the email. You may want to reword it.
+                    </p>
+                  )}
                 </div>
 
                 {/* Signature status */}

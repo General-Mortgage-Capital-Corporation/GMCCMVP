@@ -17,6 +17,7 @@
 
 import { randomBytes } from "crypto";
 import { getAgentArtifact, setAgentArtifact } from "@/lib/redis-cache";
+import type { FlyerImage } from "@/lib/email/flyer-embed";
 
 export type StoredKind = "pdf" | "csv";
 
@@ -27,6 +28,7 @@ interface StoreEntry {
   base64: string;
   filename?: string;
   productId?: string;
+  image?: FlyerImage;
 }
 
 /** Store a binary artifact and return its reference ID. */
@@ -34,7 +36,7 @@ export async function storeArtifact(
   kind: StoredKind,
   base64: string,
   filename?: string,
-  meta: { productId?: string } = {},
+  meta: { productId?: string; image?: FlyerImage } = {},
 ): Promise<string> {
   // ~75% of base64 length = actual byte size
   if (base64.length > MAX_ENTRY_BYTES) {

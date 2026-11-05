@@ -100,6 +100,8 @@ export function isSignatureContentEmpty(html: string): boolean {
 export function buildHtmlBodyWithSignature(
   plainBody: string,
   signatureHtml: string,
+  /** Embedded flyers (flyerImagesHtml), shown between the message and the signature. */
+  flyersHtml = "",
 ): string {
   // Convert plain text body to HTML paragraphs
   const bodyHtml = plainBody
@@ -115,10 +117,11 @@ export function buildHtmlBodyWithSignature(
 
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#333">
 ${bodyHtml}
-<br><br>
+${flyersHtml}
+${signatureHtml ? `<br><br>
 <div style="border-top:1px solid #ccc;padding-top:12px;margin-top:12px">
 ${signatureHtml}
-</div>
+</div>` : ""}
 ${COMPANY_DISCLAIMER_HTML}
 </div>`;
 }

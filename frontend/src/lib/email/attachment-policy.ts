@@ -26,7 +26,7 @@ export const RECIPIENT_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const PORTAL_BASE = "https://mlo.joingmcc.com";
 
-export type FlyerDelivery = "attached" | "linked" | "none";
+export type FlyerDelivery = "embedded" | "attached" | "linked" | "none";
 
 const ATTACH_RE = /\b(?:attach(?:ed|ing|ment|ments)?|enclosed|enclosure)\b/i;
 
@@ -65,6 +65,7 @@ export function kb(base64Length: number): number {
 
 /** One phrase for tool results and status reports. */
 export function describeFlyerDelivery(delivery: FlyerDelivery, opts: { sizeKB?: number; reason?: string } = {}): string {
+  if (delivery === "embedded") return "shown in the email";
   if (delivery === "attached") return `attached${opts.sizeKB ? ` (${Math.round(opts.sizeKB / 102.4) / 10} MB PDF)` : ""}`;
   if (delivery === "linked") return `linked, not attached${opts.reason ? ` (${opts.reason})` : ""}`;
   return `no flyer${opts.reason ? ` (${opts.reason})` : ""}`;
