@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
 import { getPartnerContext, mintIdTokenForEmail } from "@/lib/partner-server";
 import { renderFlyerImage } from "@/lib/email/flyer-image";
+import { attachableFlyerPdf } from "@/lib/email/flyer-pdf-compact";
 import { fetchWithRetry } from "@/lib/email/retry-flyer-fetch";
 
 export const runtime = "nodejs";
@@ -127,8 +128,21 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-    return new Response(pdfBytes, {
+    // maxBytes = the PDF is going to be attached to an email: shrink it to fit
+    // instead of the sender having to link it (X-Flyer-Compacted says so).
+    const maxBytes = Number(body.maxBytes);
+    let pdfOut: Uint8Array = new Uint8Array(pdfBytes);
+    let compacted = false;
+    if (Number.isFinite(maxBytes) && maxBytes > 0 && pdfOut.byteLength > maxBytes) {
+      try {
+        ({ pdf: pdfOut, compacted } = await attachableFlyerPdf(pdfOut, maxBytes));
+      } catch (err) {
+        console.error("[generate-flier] could not shrink the flyer:", productId, err);
+      }
+    }
+    return new Response(Buffer.from(pdfOut), {
       headers: {
+        ...(compacted ? { "X-Flyer-Compacted": "1" } : {}),
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${safeProductId}-flier.pdf"`,
       },

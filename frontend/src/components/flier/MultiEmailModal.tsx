@@ -23,6 +23,7 @@ import {
   flyerImageFromBlob,
   flyerImagesHtml,
   inlineFlyerAttachment,
+  pdfShareBytes,
   splitByBudget,
   toggleEmbedId,
   type EmbeddedFlyer,
@@ -50,7 +51,8 @@ interface MultiEmailModalProps {
   /** Go back to the summary modal */
   onBackToSummary?: () => void;
   /** Fetch a PDF for a given productId. Returns null if unavailable. */
-  fetchPdf: (productId: string, format?: "pdf" | "jpeg") => Promise<Blob | null>;
+  /** maxBytes: shrink the PDF to fit when it is bigger (it is being attached). */
+  fetchPdf: (productId: string, format?: "pdf" | "jpeg", maxBytes?: number) => Promise<Blob | null>;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -328,6 +330,12 @@ export default function MultiEmailModal({
       const embedded: EmbeddedFlyer[] = [];
       const pdfs: { id: string; name: string; base64: string }[] = [];
       let failed = 0;
+      // What each PDF may weigh so they all fit next to the shown flyers; a
+      // bigger one comes back shrunk rather than becoming a link.
+      const pdfMaxBytes = pdfShareBytes(
+        programsWithFlyer.length,
+        programsWithFlyer.filter((p) => embedIds.includes(p.product_id!)).length,
+      );
       if (programsWithFlyer.length > 0) {
         setSendProgress(`Generating ${programsWithFlyer.length} flyer(s)...`);
         const results = await Promise.allSettled(
@@ -347,7 +355,7 @@ export default function MultiEmailModal({
                 };
               }
             }
-            const blob = await fetchPdf(id);
+            const blob = await fetchPdf(id, "pdf", pdfMaxBytes);
             if (!blob) throw new Error(`Failed to generate ${id} flyer`);
             return { kind: "pdf" as const, pdf: { id, name: `${id}-flyer.pdf`, base64: await blobToBase64(blob) } };
           }),

@@ -15,7 +15,7 @@ import { verifyEmailForSend, isSendAllowed } from "@/lib/use-email-validation";
 import { SendBlockedNotice } from "@/components/EmailValidationIndicator";
 import type { DeliverabilityResult } from "@/lib/email-deliverability";
 import { getLOInfo } from "@/lib/lo-info-store";
-import { appendFlyerLink, mentionsAttachment, portalFlyerUrl } from "@/lib/email/attachment-policy";
+import { MAX_ATTACH_BYTES, appendFlyerLink, mentionsAttachment, portalFlyerUrl } from "@/lib/email/attachment-policy";
 import {
   flyerImageFromBlob,
   flyerImagesHtml,
@@ -34,7 +34,8 @@ interface EmailModalProps {
   realtorInfo: RealtorInfo;
   onClose: () => void;
   /** Resolves to a PDF blob — called lazily on Send */
-  fetchPdf: (format?: "pdf" | "jpeg") => Promise<Blob | null>;
+  /** maxBytes: shrink the PDF to fit when it is bigger (it is being attached). */
+  fetchPdf: (format?: "pdf" | "jpeg", maxBytes?: number) => Promise<Blob | null>;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -267,7 +268,7 @@ export default function EmailModal({
         attachments = [inlineFlyerAttachment(embedded)];
         setSentFlyer("The flyer is shown in the email.");
       } else {
-        const pdfBlob = await fetchPdf();
+        const pdfBlob = await fetchPdf("pdf", MAX_ATTACH_BYTES);
         if (!pdfBlob) return; // fetchPdf sets its own error
         const base64Pdf = await blobToBase64(pdfBlob);
         const fellBack = flyerMode === "embed" ? "It couldn't be shown in the email, so " : "";
