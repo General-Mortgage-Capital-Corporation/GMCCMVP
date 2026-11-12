@@ -223,7 +223,7 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
 
   /** Fetch a flyer PDF for a specific productId (used by MultiEmailModal). */
   const fetchPdfForProduct = useCallback(
-    async (productId: string): Promise<Blob | null> => {
+    async (productId: string, format: "pdf" | "jpeg" = "pdf", maxBytes?: number): Promise<Blob | null> => {
       try {
         let email = user?.email;
         let idToken: string | null = null;
@@ -245,6 +245,8 @@ export default function PropertyModal({ listing, onClose }: PropertyModalProps) 
           body: JSON.stringify({
             productId,
             userId: email,
+            ...(format === "jpeg" ? { format } : {}),
+            ...(maxBytes ? { maxBytes } : {}),
             ...(getLOInfo().title ? { title: getLOInfo().title } : {}),
             ...(listing?.formattedAddress ? { address: listing.formattedAddress } : {}),
             ...(effectivePrice ? { listingPrice: String(effectivePrice) } : {}),

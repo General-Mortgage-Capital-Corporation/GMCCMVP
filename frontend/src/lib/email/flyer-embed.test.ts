@@ -1,7 +1,7 @@
 // node --test src/lib/email/flyer-embed.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAX_INLINE_ATTACHMENT_BASE64 } from "./attachment-policy.ts";
+import { MAX_ATTACH_BYTES, MAX_INLINE_ATTACHMENT_BASE64 } from "./attachment-policy.ts";
 import {
   EMBED_DISPLAY_WIDTH,
   defaultEmbedIds,
@@ -9,6 +9,8 @@ import {
   flyerContentId,
   flyerImagesHtml,
   inlineFlyerAttachment,
+  PAIR_DISPLAY_WIDTH,
+  pdfShareBytes,
   splitByBudget,
   toggleEmbedId,
 } from "./flyer-embed.ts";
@@ -62,4 +64,27 @@ test("PDFs past the size limit are split off, counting what is already on the me
 test("counts read plainly", () => {
   assert.equal(describeFlyerCounts({ embedded: 2, attached: 1, linked: 0 }), "2 flyers shown in the email, 1 attached as PDF");
   assert.equal(describeFlyerCounts({ embedded: 0, attached: 0, linked: 0 }), "no flyers");
+});
+
+test("two flyers sit side by side, each half the width, kept in one row on Outlook", () => {
+  const html = flyerImagesHtml([flyer, { ...flyer, id: "universe", title: "Universe" }]);
+  assert.equal((html.match(/<img /g) ?? []).length, 2);
+  assert.equal((html.match(/display:inline-block/g) ?? []).length, 2);
+  assert.ok(html.includes(`width="${PAIR_DISPLAY_WIDTH}" height="${Math.round((1554 * PAIR_DISPLAY_WIDTH) / 1200)}"`));
+  assert.ok(html.includes("<!--[if mso]><table"));
+  assert.ok(html.includes(`<td width="${EMBED_DISPLAY_WIDTH / 2}" valign="top">`));
+  assert.ok(html.includes(`src="cid:${flyerContentId("universe")}"`));
+});
+
+test("one flyer still fills the column", () => {
+  const html = flyerImagesHtml([flyer]);
+  assert.ok(!html.includes("inline-block"));
+  assert.equal(flyerImagesHtml([]), "");
+});
+
+test("attached PDFs share what is left after the shown flyers", () => {
+  assert.equal(pdfShareBytes(1, 0), MAX_ATTACH_BYTES - 64 * 1024);
+  assert.ok(pdfShareBytes(4, 2) < pdfShareBytes(3, 2));
+  assert.ok(pdfShareBytes(4, 2) * 2 + 2 * 600 * 1024 <= MAX_ATTACH_BYTES);
+  assert.equal(pdfShareBytes(20, 0), 300 * 1024);
 });

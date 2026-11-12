@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendMailAs, type GraphFileAttachment, type GraphMessage } from "@/lib/graph-client";
+import { attachableFlyerBase64 } from "@/lib/email/flyer-pdf-compact";
 import { getArtifact } from "@/lib/tools/flyer-store";
 import { getDb, verifyIdToken } from "@/lib/firestore-admin";
 import { lastSentTo } from "@/lib/campaigns/engine";
@@ -224,7 +225,13 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
             ...(entry.productId ? { url: portalFlyerUrl(entry.productId, auth.loNmls) } : {}),
           });
         } else if (f.flyerDelivery === "attach") {
-          if (usedBase64 + entry.base64.length > MAX_INLINE_ATTACHMENT_BASE64) {
+          let pdfBase64 = entry.base64;
+          if (usedBase64 + pdfBase64.length > MAX_INLINE_ATTACHMENT_BASE64) {
+            // Shrink it to the room left before giving up on attaching it.
+            const roomBytes = Math.floor(((MAX_INLINE_ATTACHMENT_BASE64 - usedBase64) * 3) / 4);
+            if (roomBytes > 0) pdfBase64 = await attachableFlyerBase64(pdfBase64, roomBytes);
+          }
+          if (usedBase64 + pdfBase64.length > MAX_INLINE_ATTACHMENT_BASE64) {
             return {
               error:
                 `Not sent: this flyer is ${mb(sizeKB)}, which puts the email over Outlook's size limit. ` +
@@ -236,10 +243,10 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
             "@odata.type": "#microsoft.graph.fileAttachment",
             name,
             contentType: "application/pdf",
-            contentBytes: entry.base64,
+            contentBytes: pdfBase64,
           });
-          usedBase64 += entry.base64.length;
-          sentFlyers.push({ delivery: "attached", name, sizeKB, productId: entry.productId });
+          usedBase64 += pdfBase64.length;
+          sentFlyers.push({ delivery: "attached", name, sizeKB: kb(pdfBase64.length), productId: entry.productId });
         } else {
           if (!entry.productId) {
             return { error: "This flyer can't be linked (unknown program). Regenerate it with generateFlyer, then send again." };

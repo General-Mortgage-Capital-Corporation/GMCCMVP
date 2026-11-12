@@ -8,8 +8,10 @@
  *    draft + upload session, which requires the Mail.ReadWrite application
  *    permission — the GMCC app registration only has Mail.Read + Mail.Send.
  *    Program flyers from fillPdfFlier run 1.8–3.9 MB, so some of them can
- *    never be attached this way. They are LINKED instead (the portal serves a
- *    personalized copy), and the email says so.
+ *    never be attached as they are. They are SHRUNK first (each page redrawn
+ *    as a print-resolution image, flyer-pdf-compact.ts); only a flyer that
+ *    still doesn't fit is LINKED (the portal serves a personalized copy), and
+ *    the email says so.
  *
  * 2. The email body is written before the send. If the body says "attached"
  *    and nothing is attached, the LO has promised a realtor something that
@@ -20,6 +22,9 @@
 
 /** Largest base64 payload we put inline in a sendMail body. */
 export const MAX_INLINE_ATTACHMENT_BASE64 = 3_600_000;
+
+/** Largest raw PDF that fits on its own; bigger flyers are shrunk (flyer-pdf-compact.ts). */
+export const MAX_ATTACH_BYTES = Math.floor((MAX_INLINE_ATTACHMENT_BASE64 * 3) / 4);
 
 /** No automated email to the same address twice within this window. */
 export const RECIPIENT_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;

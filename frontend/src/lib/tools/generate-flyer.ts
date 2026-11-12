@@ -1,9 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { storeArtifact } from "@/lib/tools/flyer-store";
-import { MAX_INLINE_ATTACHMENT_BASE64 } from "@/lib/email/attachment-policy";
+import { MAX_INLINE_ATTACHMENT_BASE64, kb } from "@/lib/email/attachment-policy";
 import type { FlyerImage } from "@/lib/email/flyer-embed";
 import { renderFlyerImage } from "@/lib/email/flyer-image";
+import { attachableFlyerBase64 } from "@/lib/email/flyer-pdf-compact";
 
 const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 
@@ -97,7 +98,8 @@ export async function generateProgramFlyerBase64(
         return { error: `Flyer generation failed (${res.status})` };
       }
       const pdfBytes = await res.arrayBuffer();
-      return { base64: Buffer.from(pdfBytes).toString("base64"), productId };
+      // Shrunk when too big to attach, so campaign emails carry the PDF instead of a link.
+      return { base64: await attachableFlyerBase64(Buffer.from(pdfBytes).toString("base64")), productId };
     } catch {
       if (attempt < 2) continue;
       return { error: "Flyer generation failed." };
@@ -196,7 +198,9 @@ export function createGenerateFlyerTool(auth: AuthContext) {
           }
 
           const pdfBytes = await res.arrayBuffer();
-          const base64 = Buffer.from(pdfBytes).toString("base64");
+          // A flyer too big to attach is shrunk (pages as print-resolution
+          // images) so it can still go as a PDF instead of a link.
+          const base64 = await attachableFlyerBase64(Buffer.from(pdfBytes).toString("base64"));
 
           // Store PDF server-side to avoid bloating conversation context
           let image: FlyerImage | undefined;
@@ -207,7 +211,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
           }
           const flyerRef = await storeArtifact("pdf", base64, `GMCC-${productId}-flyer.pdf`, { productId, image });
           const canAttach = base64.length <= MAX_INLINE_ATTACHMENT_BASE64;
-          const sizeKB = Math.round(pdfBytes.byteLength / 1024);
+          const sizeKB = kb(base64.length);
 
           return {
             success: true,
