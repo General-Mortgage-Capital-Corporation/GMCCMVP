@@ -434,7 +434,7 @@ function createProgramCard(program, listing) {
     body.className = 'program-card-body';
     body.style.display = 'none';
     const betaNotice = program.program_name === 'GMCC Celebrity CRA: $15k DPA'
-        ? `<div class="diamond-beta-notice">Beta — Tract eligibility list may be outdated. Please verify at <a href="https://hub.collateralanalytics.com/correspondentsearch" target="_blank" rel="noopener">Collateral Analytics</a> before proceeding.</div>`
+        ? `<div class="diamond-beta-notice">Beta — Tract eligibility list may be outdated. Please verify at <a href="https://chase.homestory.co/clp/homestoryca/search-results/san_jose,ca?clp_tier=1,2,3&page=1" target="_blank" rel="noopener">the Chase Community Lending map</a> before proceeding.</div>`
         : '';
 
     body.innerHTML = `

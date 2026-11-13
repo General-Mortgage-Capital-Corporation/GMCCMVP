@@ -9,6 +9,7 @@ import { getExplanation } from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import FlierButton, { type RealtorInfo } from "@/components/flier/FlierButton";
 import { StatusIcon, CriteriaGrid } from "./PropertyPanels";
+import { diamondEligibilityUrl } from "@/lib/diamond-eligibility";
 
 // ---------------------------------------------------------------------------
 // Talking points
@@ -172,7 +173,7 @@ export function ProgramCard({
             <div className="mb-3 rounded-md border border-violet-200 bg-violet-50 p-2.5 text-xs text-violet-700">
               Beta — Tract eligibility list may be outdated.{" "}
               <a
-                href="https://hub.collateralanalytics.com/correspondentsearch"
+                href={diamondEligibilityUrl(listing.city, listing.state)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold underline hover:text-violet-900"

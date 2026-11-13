@@ -52,6 +52,6 @@
     "Max 97% LTV (MI required for LTV > 80%). Max DTI 50% per AUS findings.",
     "Non-occupant co-borrower allowed. FTHB not required. EAD not eligible.",
     "CLP incentive: up to $4,500 cap, 2.0 points on purchase and refinance.",
-    "Eligible areas can be verified at https://hub.collateralanalytics.com/correspondentsearch"
+    "Eligible properties can be verified on the Chase Community Lending (Homestory) map: https://chase.homestory.co/clp/homestoryca/search-results/<city>,<state>?clp_tier=1,2,3 (e.g. san_jose,ca)"
   ]
 }
