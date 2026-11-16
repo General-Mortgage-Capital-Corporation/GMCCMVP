@@ -28,7 +28,7 @@ import {
   weekStats,
   type DeskCaller,
 } from "@/lib/daily-desk/server";
-import { DEFAULT_BATCH_SIZE, MAX_AREAS, MAX_BATCH_SIZE } from "@/lib/daily-desk/select";
+import { DEFAULT_BATCH_SIZE, MAX_AREAS, MAX_BATCH_SIZE, RADIUS_OPTIONS, type DeskArea } from "@/lib/daily-desk/select";
 import { getStoredSignature } from "@/lib/signature-server";
 import { findSignaturePlaceholder, isSignatureContentEmpty } from "@/lib/signature-store";
 
@@ -55,7 +55,16 @@ async function caller(req: NextRequest): Promise<DeskCaller | null> {
   return { uid: auth.uid, email: auth.email, idToken: token, loName: lo.name, loNmls: lo.nmls, loTitle: lo.title };
 }
 
-const LIMITS = { defaultBatch: DEFAULT_BATCH_SIZE, maxBatch: MAX_BATCH_SIZE, maxAreas: MAX_AREAS };
+/** A typed area ("95112", "San Jose, CA") or a "near me" point {lat, lng, radiusMi, place}. */
+function areaInput(v: unknown): string | DeskArea {
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return { lat: Number(o.lat), lng: Number(o.lng), radiusMi: Number(o.radiusMi), place: typeof o.place === "string" ? o.place.slice(0, 60) : undefined, label: "" };
+  }
+  return String(v ?? "");
+}
+
+const LIMITS = { defaultBatch: DEFAULT_BATCH_SIZE, maxBatch: MAX_BATCH_SIZE, maxAreas: MAX_AREAS, radiusOptions: RADIUS_OPTIONS };
 
 export async function GET(req: NextRequest) {
   const c = await caller(req);
@@ -99,7 +108,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ day: await retryItem(c, str(body.itemId)) });
       case "settings": {
         const settings = await saveSettings(c, {
-          ...(Array.isArray(body.areaInputs) ? { areaInputs: body.areaInputs.map(String) } : {}),
+          ...(Array.isArray(body.areaInputs) ? { areaInputs: body.areaInputs.slice(0, 6).map(areaInput) } : {}),
           ...(body.batchSize !== undefined ? { batchSize: Number(body.batchSize) } : {}),
           ...(body.priceMin !== undefined ? { priceMin: body.priceMin as number | null } : {}),
           ...(body.priceMax !== undefined ? { priceMax: body.priceMax as number | null } : {}),

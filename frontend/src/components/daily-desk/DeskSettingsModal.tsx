@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { DeskSettings } from "./api";
+import { locateMe, toAreaInput, type AreaInput, type DeskSettings } from "./api";
+
+type AreaChip = { input: AreaInput; label: string };
+const geoLabel = (r: number, place?: string) => `Within ${r} mi of ${place || "my location"}`;
 
 export default function DeskSettingsModal({
   settings,
   programs,
   maxBatch,
   maxAreas,
+  radiusOptions,
   canRebuild,
   onClose,
   onSave,
@@ -16,12 +20,14 @@ export default function DeskSettingsModal({
   programs: string[];
   maxBatch: number;
   maxAreas: number;
+  radiusOptions: number[];
   /** Nothing sent yet today, so today's list can be rebuilt with the new settings. */
   canRebuild: boolean;
   onClose: () => void;
-  onSave: (s: { areaInputs: string[]; batchSize: number; priceMin: number | null; priceMax: number | null; preferredPrograms: string[]; instructions: string; rebuild: boolean }) => Promise<void>;
+  onSave: (s: { areaInputs: AreaInput[]; batchSize: number; priceMin: number | null; priceMax: number | null; preferredPrograms: string[]; instructions: string; rebuild: boolean }) => Promise<void>;
 }) {
-  const [areas, setAreas] = useState<string[]>(settings.areas.map((a) => a.label));
+  const [areas, setAreas] = useState<AreaChip[]>(settings.areas.map((a) => ({ input: toAreaInput(a), label: a.label })));
+  const [locating, setLocating] = useState(false);
   const [draftArea, setDraftArea] = useState("");
   const [batchSize, setBatchSize] = useState(settings.batchSize);
   const [priceMin, setPriceMin] = useState(settings.priceMin ? String(settings.priceMin) : "");
@@ -40,7 +46,7 @@ export default function DeskSettingsModal({
       return;
     }
     if (areas.length >= maxAreas) return;
-    setAreas([...areas, v]);
+    setAreas([...areas, { input: v, label: v }]);
     setDraftArea("");
     setError(null);
   };
@@ -62,16 +68,62 @@ export default function DeskSettingsModal({
         <div className="space-y-5 px-5 py-4">
           <section>
             <label className="text-sm font-medium text-gray-800">Your areas</label>
-            <p className="text-xs text-gray-500">Up to {maxAreas} ZIP codes or cities. New listings come from here.</p>
+            <p className="text-xs text-gray-500">Up to {maxAreas}: your location, ZIP codes or cities. Saved — new listings come from here every day.</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {areas.map((a) => (
-                <span key={a} className="inline-flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1.5 text-sm text-gray-700">
-                  {a}
-                  <button type="button" onClick={() => setAreas(areas.filter((x) => x !== a))} className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600" aria-label={`Remove ${a}`}>
+              {areas.map((a, idx) => (
+                <span key={`${a.label}-${idx}`} className="inline-flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1.5 text-sm text-gray-700">
+                  {typeof a.input === "string" ? (
+                    a.label
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="text-red-500" aria-hidden>
+                        <path fillRule="evenodd" d="M10 18s6-5.33 6-10A6 6 0 004 8c0 4.67 6 10 6 10zm0-7.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" clipRule="evenodd" />
+                      </svg>
+                      Within
+                      <select
+                        value={a.input.radiusMi}
+                        onChange={(e) => {
+                          const r = Number(e.target.value);
+                          const input = a.input as Exclude<AreaInput, string>;
+                          setAreas(areas.map((x, j) => (j === idx ? { input: { ...input, radiusMi: r }, label: geoLabel(r, input.place) } : x)));
+                        }}
+                        className="rounded border-0 bg-transparent py-0 pl-0.5 pr-5 text-sm font-medium text-gray-800 focus:ring-0"
+                        aria-label="Distance"
+                      >
+                        {radiusOptions.map((r) => <option key={r} value={r}>{r} mi</option>)}
+                      </select>
+                      of {a.input.place || "my location"}
+                    </>
+                  )}
+                  <button type="button" onClick={() => setAreas(areas.filter((_, j) => j !== idx))} className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600" aria-label={`Remove ${a.label}`}>
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                   </button>
                 </span>
               ))}
+              {areas.length < maxAreas && (
+                <button
+                  type="button"
+                  disabled={locating}
+                  onClick={async () => {
+                    setLocating(true);
+                    setError(null);
+                    try {
+                      const here = await locateMe(5);
+                      setAreas([...areas, { input: here, label: geoLabel(here.radiusMi, here.place) }]);
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Couldn't get your location.");
+                    } finally {
+                      setLocating(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path fillRule="evenodd" d="M10 18s6-5.33 6-10A6 6 0 004 8c0 4.67 6 10 6 10zm0-7.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" clipRule="evenodd" />
+                  </svg>
+                  {locating ? "Finding you…" : "Near me"}
+                </button>
+              )}
               {areas.length < maxAreas && (
                 <input
                   value={draftArea}
@@ -158,7 +210,7 @@ export default function DeskSettingsModal({
               setSaving(true);
               setError(null);
               try {
-                await onSave({ areaInputs: areas, batchSize, priceMin: num(priceMin), priceMax: num(priceMax), preferredPrograms: preferred, instructions: instructions.trim(), rebuild: canRebuild && rebuild });
+                await onSave({ areaInputs: areas.map((a) => a.input), batchSize, priceMin: num(priceMin), priceMax: num(priceMax), preferredPrograms: preferred, instructions: instructions.trim(), rebuild: canRebuild && rebuild });
                 onClose();
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Couldn't save.");

@@ -111,3 +111,14 @@ test("a program already used today loses to a fresh one", () => {
   assert.equal(chooseProgram(programs, null, prefs)?.program, "GMCC Hermes");
   assert.equal(chooseProgram(programs, null, { ...prefs, usedToday: new Map([["GMCC Hermes", 1]]) })?.program, "GMCC Ocean");
 });
+
+test("near-me areas keep city/ZIP (never the street) and a clamped radius", async () => {
+  const { geoArea } = await import("./select.ts");
+  const a = geoArea(37.3421567, -121.8897734, 5, "285 N 5th St, San Jose, CA 95112")!;
+  assert.deepEqual(a, { lat: 37.3422, lng: -121.8898, radiusMi: 5, state: "CA", place: "San Jose, CA 95112", label: "Within 5 mi of San Jose, CA 95112" });
+  assert.equal(geoArea(37, -121, 99, "")?.radiusMi, 25);
+  assert.equal(geoArea("x", 1, 5), null);
+  // Round-trips through normalizeAreas (settings save) unchanged.
+  assert.deepEqual(normalizeAreas([a, "95112"]).map((x) => x.label), ["Within 5 mi of San Jose, CA 95112", "95112"]);
+  assert.equal(normalizeAreas([{ ...a, radiusMi: 10 }])[0].label, "Within 10 mi of San Jose, CA 95112");
+});

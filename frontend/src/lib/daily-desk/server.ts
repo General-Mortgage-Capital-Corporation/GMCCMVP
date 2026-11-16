@@ -171,7 +171,7 @@ export async function getSettings(caller: Pick<DeskCaller, "uid" | "email">, rec
   return settings;
 }
 
-export async function saveSettings(caller: Pick<DeskCaller, "email">, input: Partial<DeskSettings> & { areaInputs?: string[] }): Promise<DeskSettings> {
+export async function saveSettings(caller: Pick<DeskCaller, "email">, input: Partial<DeskSettings> & { areaInputs?: (string | DeskArea)[] }): Promise<DeskSettings> {
   const ref = db().collection(SETTINGS).doc(caller.email);
   const cur = ((await ref.get()).data() as DeskSettings | undefined) ?? null;
   const areas = input.areaInputs ? normalizeAreas(input.areaInputs) : cur?.areas ?? [];
@@ -264,7 +264,12 @@ async function releaseHold(email: string, callerEmail: string) {
 
 async function listingsForArea(area: DeskArea): Promise<{ listings: Record<string, unknown>[]; fromCache: boolean; budgetHit: boolean }> {
   const params = new URLSearchParams({ status: "Active", limit: "500" });
-  if (area.zip) params.set("zipCode", area.zip);
+  if (area.lat != null && area.lng != null) {
+    // Rounded so LOs in the same spot share the 12h cache.
+    params.set("latitude", area.lat.toFixed(3));
+    params.set("longitude", area.lng.toFixed(3));
+    params.set("radius", String(area.radiusMi ?? 5));
+  } else if (area.zip) params.set("zipCode", area.zip);
   else {
     params.set("city", area.city ?? "");
     params.set("state", area.state ?? "");

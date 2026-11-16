@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/lib/posthog";
 import DeskCard from "./DeskCard";
 import DeskSettingsModal from "./DeskSettingsModal";
-import { deskApi, type DeskDay, type DeskState } from "./api";
+import { deskApi, locateMe, type AreaInput, type DeskDay, type DeskState } from "./api";
 
 const BUILD_STEPS = ["Finding new listings in your areas", "Matching each one to GMCC programs", "Checking realtor emails", "Writing your emails"];
 
@@ -40,6 +40,8 @@ export default function DailyDeskTab({
   const [sendingAll, setSendingAll] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [setupAreas, setSetupAreas] = useState("");
+  const [setupRadius, setSetupRadius] = useState(5);
+  const [locating, setLocating] = useState(false);
   const started = useRef(false);
 
   const setDay = (day: DeskDay | null) => setState((s) => (s ? { ...s, day } : s));
@@ -152,31 +154,86 @@ export default function DailyDeskTab({
   const ready = items.filter((i) => i.status === "ready");
   const sentCount = items.filter((i) => i.status === "sent").length;
   const skippedCount = items.filter((i) => i.status === "skipped").length;
-  const areasLabel = state?.settings.areas.map((a) => a.label).join(" · ");
+  const areasLabel = state?.settings.areas
+    .map((a) => (a.lat != null ? a.label.replace(/^Within/, "within") : `in ${a.label}`))
+    .join(" · ");
   const popular = Object.entries(state?.popular ?? {}).slice(0, 2);
   const replyRate = state && state.stats.sent ? Math.round((state.stats.replies / state.stats.sent) * 100) : null;
   const busy = sending.size > 0 || building;
 
+  const startWith = async (inputs: AreaInput[]) => {
+    setError(null);
+    const r = await deskApi.saveSettings({ areaInputs: inputs, rebuild: true });
+    if (!r.settings.areas.length) {
+      setError('Use ZIP codes (95112) or "City, ST" (San Jose, CA).');
+      return;
+    }
+    setState((s) => (s ? { ...s, settings: r.settings, day: null } : s));
+    await build();
+  };
+
   // ── First run: no areas yet ──
   if (!loading && !building && day?.status === "needs_setup") {
+    const radii = state?.limits.radiusOptions ?? [2, 5, 10, 25];
     return (
       <div className="mx-auto max-w-xl px-2 py-8 text-center">
         <h2 className="text-lg font-semibold text-gray-900">Where do you look for buyers?</h2>
-        <p className="mt-1 text-sm text-gray-500">Add up to 3 ZIP codes or cities. Every day we&apos;ll line up new listings there, matched to GMCC programs, with the emails written.</p>
+        <p className="mt-1 text-sm text-gray-500">Every day we&apos;ll line up new listings there, matched to GMCC programs, with the emails written. We save this — you only do it once.</p>
+
+        <div className="mt-6 rounded-xl border border-gray-200 p-4">
+          <button
+            type="button"
+            disabled={locating}
+            onClick={async () => {
+              setLocating(true);
+              try {
+                const here = await locateMe(setupRadius);
+                trackEvent("daily_desk_location_used", { radius: setupRadius });
+                await startWith([here]);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Couldn't get your location.");
+              } finally {
+                setLocating(false);
+              }
+            }}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:bg-red-300"
+          >
+            {locating ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                <path fillRule="evenodd" d="M10 18s6-5.33 6-10A6 6 0 004 8c0 4.67 6 10 6 10zm0-7.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" clipRule="evenodd" />
+              </svg>
+            )}
+            {locating ? "Finding you…" : "Use my current location"}
+          </button>
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-sm text-gray-500">
+            <span>Within</span>
+            {radii.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setSetupRadius(r)}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${setupRadius === r ? "bg-red-50 text-red-700 ring-1 ring-red-200" : "text-gray-600 hover:bg-gray-100"}`}
+              >
+                {r} mi
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+          <span className="h-px flex-1 bg-gray-200" />or type them<span className="h-px flex-1 bg-gray-200" />
+        </div>
+
         <form
-          className="mt-5 flex flex-col gap-2 sm:flex-row"
+          className="flex flex-col gap-2 sm:flex-row"
           onSubmit={async (e) => {
             e.preventDefault();
-            const inputs = setupAreas.split(/;|\n|(?<=\d{5})\s*,\s*/).map((s) => s.trim()).filter(Boolean);
+            const inputs = setupAreas.split(/;|\n|(?<=\d{5})\s*,\s*/).map((x) => x.trim()).filter(Boolean);
             if (!inputs.length) return;
             try {
-              const r = await deskApi.saveSettings({ areaInputs: inputs, rebuild: true });
-              if (!r.settings.areas.length) {
-                setError('Use ZIP codes (95112) or "City, ST" (San Jose, CA).');
-                return;
-              }
-              setState((s) => (s ? { ...s, settings: r.settings, day: null } : s));
-              await build();
+              await startWith(inputs);
             } catch (err) {
               setError(err instanceof Error ? err.message : "Couldn't save.");
             }
@@ -187,9 +244,8 @@ export default function DailyDeskTab({
             onChange={(e) => setSetupAreas(e.target.value)}
             placeholder="95112, 95125  or  San Jose, CA"
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
-            autoFocus
           />
-          <button type="submit" className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700">Start</button>
+          <button type="submit" className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Start</button>
         </form>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </div>
@@ -213,7 +269,7 @@ export default function DailyDeskTab({
           </h2>
           {areasLabel && (
             <p className="mt-0.5 text-sm text-gray-500">
-              New listings in {areasLabel}
+              New listings {areasLabel}
               {state?.settings.autoSeeded ? <span className="text-gray-400"> · picked from your recent activity</span> : null}
             </p>
           )}
@@ -341,6 +397,7 @@ export default function DailyDeskTab({
           programs={programs}
           maxBatch={state.limits.maxBatch}
           maxAreas={state.limits.maxAreas}
+          radiusOptions={state.limits.radiusOptions ?? [2, 5, 10, 25]}
           canRebuild={sentCount === 0}
           onClose={() => setSettingsOpen(false)}
           onSave={async (s) => {

@@ -5,7 +5,9 @@ import { getLOInfo } from "@/lib/lo-info-store";
 import { getRecentSearches } from "@/lib/recent-searches";
 
 /** Mirrors lib/daily-desk/server.ts (client-safe copy of the shapes). */
-export interface DeskArea { zip?: string; city?: string; state?: string; label: string }
+export interface DeskArea { zip?: string; city?: string; state?: string; lat?: number; lng?: number; radiusMi?: number; place?: string; label: string }
+/** What the settings call accepts per area: typed text, or a "near me" point. */
+export type AreaInput = string | { lat: number; lng: number; radiusMi: number; place?: string };
 export interface DeskListing {
   id: string; address: string; city: string; state: string; zip: string;
   price: number | null; beds: number | null; baths: number | null; sqft: number | null;
@@ -28,7 +30,7 @@ export interface DeskState {
   stats: { sent: number; replies: number };
   popular: Record<string, string[]>;
   signatureOk: boolean;
-  limits: { defaultBatch: number; maxBatch: number; maxAreas: number };
+  limits: { defaultBatch: number; maxBatch: number; maxAreas: number; radiusOptions: number[] };
 }
 
 function headers(): HeadersInit {
@@ -69,6 +71,35 @@ export const deskApi = {
   skip: (itemId: string, reason: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "skip", itemId, reason } }),
   edit: (itemId: string, subject: string, body: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "edit", itemId, subject, body } }),
   retry: (itemId: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "retry", itemId } }),
-  saveSettings: (s: Partial<Omit<DeskSettings, "areas">> & { areaInputs?: string[]; rebuild?: boolean }) =>
+  saveSettings: (s: Partial<Omit<DeskSettings, "areas">> & { areaInputs?: AreaInput[]; rebuild?: boolean }) =>
     call<{ settings: DeskSettings; day: DeskDay | null }>({ method: "POST", body: { action: "settings", ...s } }),
 };
+
+/** Stored area → the input shape the settings call takes (keeps "near me" points). */
+export function toAreaInput(a: DeskArea): AreaInput {
+  return a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng, radiusMi: a.radiusMi ?? 5, place: a.place } : a.label;
+}
+
+/**
+ * The browser's current location as a "near me" area. Only the city, state and
+ * ZIP are kept (the street from reverse-geocoding is dropped).
+ */
+export async function locateMe(radiusMi: number): Promise<{ lat: number; lng: number; radiusMi: number; place?: string }> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) throw new Error("Your browser can't share your location — type a ZIP or city instead.");
+  const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 }),
+  ).catch((e: GeolocationPositionError) => {
+    throw new Error(e?.code === 1 ? "Location is blocked for this site — allow it in your browser, or type a ZIP or city." : "Couldn't get your location — type a ZIP or city instead.");
+  });
+  const { latitude: lat, longitude: lng } = pos.coords;
+  let place: string | undefined;
+  try {
+    const r = await authedFetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+    const j = (await r.json()) as { address?: string | null };
+    const parts = String(j.address ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) place = parts.slice(-2).join(", ");
+  } catch {
+    /* label falls back to "my location" */
+  }
+  return { lat, lng, radiusMi, place };
+}

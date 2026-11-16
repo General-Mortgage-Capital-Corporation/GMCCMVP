@@ -21,8 +21,43 @@ export interface DeskArea {
   zip?: string;
   city?: string;
   state?: string;
-  /** Display label, e.g. "95112" or "San Jose, CA". */
+  /** "Near me" areas: a point and a radius in miles. */
+  lat?: number;
+  lng?: number;
+  radiusMi?: number;
+  /** "Near me" areas: "San Jose, CA 95112" (no street). */
+  place?: string;
+  /** Display label, e.g. "95112", "San Jose, CA" or "Within 5 mi of San Jose, CA 95112". */
   label: string;
+}
+
+/** Distances offered for "Use my current location". */
+export const RADIUS_OPTIONS = [2, 5, 10, 25] as const;
+export const DEFAULT_RADIUS_MI = 5;
+
+/**
+ * A "near me" area from the browser's location. `place` is the reverse-geocoded
+ * address ("123 Main St, San Jose, CA 95112"); only the city/state/ZIP are kept
+ * in the label, never the street.
+ */
+export function geoArea(lat: unknown, lng: unknown, radiusMi: unknown, place = ""): DeskArea | null {
+  const la = Number(lat), lo = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(lo) || Math.abs(la) > 90 || Math.abs(lo) > 180) return null;
+  const r = Math.round(Number(radiusMi));
+  const radius = Number.isFinite(r) && r >= 1 ? Math.min(25, r) : DEFAULT_RADIUS_MI;
+  const parts = String(place).split(",").map((p) => p.trim()).filter(Boolean);
+  // "street, city, ST 12345" → "city, ST 12345"
+  const where = parts.length >= 2 ? parts.slice(-2).join(", ") : parts[0] ?? "";
+  const label = where ? `Within ${radius} mi of ${where}` : `Within ${radius} mi of my location`;
+  const st = extractState(place) ?? undefined;
+  return {
+    lat: Math.round(la * 1e4) / 1e4,
+    lng: Math.round(lo * 1e4) / 1e4,
+    radiusMi: radius,
+    ...(st ? { state: st } : {}),
+    ...(where ? { place: where.slice(0, 60) } : {}),
+    label: label.slice(0, 80),
+  };
 }
 
 export interface DeskListing {
@@ -94,6 +129,7 @@ export function parseArea(input: string): DeskArea | null {
 }
 
 export function areaKey(a: DeskArea): string {
+  if (a.lat != null && a.lng != null) return `geo|${a.lat.toFixed(3)}|${a.lng.toFixed(3)}|${a.radiusMi ?? DEFAULT_RADIUS_MI}`;
   return a.zip ? a.zip : `${(a.city ?? "").toLowerCase()}|${(a.state ?? "").toUpperCase()}`;
 }
 
@@ -101,7 +137,14 @@ export function normalizeAreas(inputs: (string | DeskArea)[]): DeskArea[] {
   const out: DeskArea[] = [];
   const seen = new Set<string>();
   for (const i of inputs) {
-    const a = typeof i === "string" ? parseArea(i) : i?.zip || (i?.city && i?.state) ? parseArea(i.zip ?? `${i.city}, ${i.state}`) : null;
+    const a =
+      typeof i === "string"
+        ? parseArea(i)
+        : i?.lat != null && i?.lng != null
+          ? geoArea(i.lat, i.lng, i.radiusMi, i.place ? `x, ${i.place}` : "")
+          : i?.zip || (i?.city && i?.state)
+            ? parseArea(i.zip ?? `${i.city}, ${i.state}`)
+            : null;
     if (!a) continue;
     const k = areaKey(a);
     if (seen.has(k)) continue;
