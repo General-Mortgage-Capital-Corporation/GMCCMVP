@@ -123,6 +123,33 @@ export async function GET(req: NextRequest) {
         }
       } catch { /* continue */ }
     }
+
+    // Step 1b: Daily Desk sends keep being checked for 14 days (the step above
+    // only sees the newest 100 company-wide, i.e. about a day). Reply rate is
+    // the Daily Desk's success metric, so it has to be complete. Oldest-checked
+    // first, capped per run.
+    try {
+      const deskSince = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      const recent = await db.collection("sentEmails")
+        .where("sentAt", ">=", deskSince)
+        .select("source", "hasReply", "userEmail", "recipientEmail", "subject", "sentAt", "replyCheckedAt")
+        .get();
+      const seen = new Set(allEmails.docs.map((d) => d.id));
+      const desk = recent.docs
+        .filter((d) => !seen.has(d.id) && d.get("source") === "daily-desk" && d.get("hasReply") !== true)
+        .sort((a, b) => Number(a.get("replyCheckedAt") ?? 0) - Number(b.get("replyCheckedAt") ?? 0))
+        .slice(0, 120);
+      for (const doc of desk) {
+        const d = doc.data();
+        try {
+          const hasReply = await checkForReply(d.userEmail, d.subject, d.recipientEmail, d.sentAt);
+          await doc.ref.update(hasReply ? { hasReply: true, replyCheckedAt: Date.now() } : { replyCheckedAt: Date.now() });
+          if (hasReply) replied++;
+        } catch { /* continue */ }
+      }
+    } catch (err) {
+      console.warn("[follow-ups] daily-desk reply pass failed:", err);
+    }
   }
 
   // Step 2: Re-query pending follow-ups FRESH (excludes items marked replied in Step 1).
