@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "
 import { formatPrice, formatPhone } from "@/lib/utils";
 import ScrollFadeWrapper from "@/components/shared/ScrollFadeWrapper";
 import type { RentCastListing } from "@/types";
+import { DIAMOND_ELIGIBILITY_DEFAULT_URL } from "@/lib/diamond-eligibility";
 
 // ---------------------------------------------------------------------------
 // Mobile detection hook using useSyncExternalStore for SSR safety
@@ -59,7 +60,7 @@ const PER_PAGE = 20;
 
 const FLYER_URL = "https://mlo.joingmcc.com/marketing/flyers";
 const DIAMOND_DISCLAIMER =
-  "IMPORTANT: GMCC Celebrity CRA: $15k DPA eligibility shown is preliminary. Census tract and property eligibility must be verified. Verify at: https://hub.collateralanalytics.com/correspondentsearch";
+  "IMPORTANT: GMCC Celebrity CRA: $15k DPA eligibility shown is preliminary. Census tract and property eligibility must be verified. Verify on the Chase Community Lending map: " + DIAMOND_ELIGIBILITY_DEFAULT_URL;
 
 function escCsv(val: string): string {
   if (val.includes(",") || val.includes('"') || val.includes("\n")) {
