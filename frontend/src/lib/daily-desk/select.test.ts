@@ -122,3 +122,36 @@ test("near-me areas keep city/ZIP (never the street) and a clamped radius", asyn
   assert.deepEqual(normalizeAreas([a, "95112"]).map((x) => x.label), ["Within 5 mi of San Jose, CA 95112", "95112"]);
   assert.equal(normalizeAreas([{ ...a, radiusMi: 10 }])[0].label, "Within 10 mi of San Jose, CA 95112");
 });
+
+test("listing filters: days on market, home type, beds", () => {
+  const ls = [
+    listing({ id: "new", daysOnMarket: 2, agentEmail: "a@x.com", propertyType: "Condo", beds: 2 }),
+    listing({ id: "stale", daysOnMarket: 60, agentEmail: "b@x.com", propertyType: "Single Family", beds: 4 }),
+    listing({ id: "mid", daysOnMarket: 20, agentEmail: "c@x.com", propertyType: "Single Family", beds: 3 }),
+  ];
+  const ids = (o: Partial<Parameters<typeof pickCandidates>[1]>) => pickCandidates(ls, { blockedEmails: new Set(), limit: 9, ...o }).map((l) => l.id);
+  assert.deepEqual(ids({ domMax: 7 }), ["new"]);
+  assert.deepEqual(ids({ domMin: 30 }), ["stale"]);
+  assert.deepEqual(ids({ propertyTypes: ["Single Family"], bedsMin: 4 }), ["stale"]);
+});
+
+test("'only' mode never picks outside the LO's programs; alternatives are offered", () => {
+  const programs = [
+    { program_name: "GMCC Ocean", status: "Eligible" },
+    { program_name: "GMCC Universe", status: "Eligible" },
+  ];
+  const base = { hasFlyer: () => true, popularInState: [] as string[] };
+  assert.equal(chooseProgram(programs, null, { ...base, preferred: ["GMCC Radiant"], mode: "only" }), null);
+  const c = chooseProgram(programs, null, { ...base, preferred: ["GMCC Universe"], mode: "only" })!;
+  assert.equal(c.program, "GMCC Universe");
+  assert.deepEqual(chooseProgram(programs, null, { ...base, preferred: [] })!.alternatives?.length, 1);
+});
+
+test("draft instructions carry tone, language and the LO's own words", async () => {
+  const { draftInstructions } = await import("./select.ts");
+  const t = draftInstructions({ tone: "brief", language: "Spanish", instructions: "Mention I speak Spanish." });
+  assert.match(t, /under 70 words/);
+  assert.match(t, /in Spanish/);
+  assert.match(t, /Mention I speak Spanish/);
+  assert.doesNotMatch(draftInstructions({ language: "Klingon" }), /Klingon/);
+});

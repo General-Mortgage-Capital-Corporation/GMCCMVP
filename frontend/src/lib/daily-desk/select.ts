@@ -83,6 +83,19 @@ export interface DeskListing {
   officeName: string | null;
   /** Which of the LO's areas it came from (areas take turns in the batch). */
   area?: string;
+  // Extra detail for the card's "Details" panel / full property view.
+  addressLine1?: string;
+  yearBuilt?: number | null;
+  lotSize?: number | null;
+  hoaFee?: number | null;
+  listedDate?: string | null;
+  mlsNumber?: string | null;
+  lastSalePrice?: number | null;
+  lastSaleDate?: string | null;
+  officePhone?: string | null;
+  /** From the program matcher. */
+  tractIncome?: string | null;
+  msaName?: string | null;
 }
 
 export interface MatchedProgram {
@@ -95,6 +108,8 @@ export interface ProgramChoice {
   program: string;
   /** Short plain-English "why this listing" line for the card. */
   reason: string;
+  /** Other eligible programs the LO can switch the card to. */
+  alternatives?: string[];
 }
 
 /** Calendar day in Pacific time — the desk "day" for everyone. */
@@ -224,6 +239,15 @@ export function toDeskListing(raw: Record<string, unknown>): DeskListing | null 
     agentEmail: email,
     agentPhone: str(agent.phone),
     officeName: str(office.name),
+    addressLine1: str(raw.addressLine1) ?? undefined,
+    yearBuilt: num(raw.yearBuilt),
+    lotSize: num(raw.lotSize),
+    hoaFee: num((raw.hoa as Record<string, unknown> | undefined)?.fee),
+    listedDate: str(raw.listedDate),
+    mlsNumber: str(raw.mlsNumber),
+    lastSalePrice: num(raw.lastSalePrice),
+    lastSaleDate: str(raw.lastSaleDate),
+    officePhone: str(office.phone),
   };
 }
 
@@ -232,6 +256,12 @@ export interface CandidateOptions {
   blockedEmails: Set<string>;
   priceMin?: number | null;
   priceMax?: number | null;
+  /** Days on market window (null = no limit). */
+  domMin?: number | null;
+  domMax?: number | null;
+  /** RentCast property types to keep (empty = all). */
+  propertyTypes?: string[];
+  bedsMin?: number | null;
   /** How many to return (we match more than we need: some won't fit a program). */
   limit: number;
 }
@@ -247,6 +277,10 @@ export function pickCandidates(listings: DeskListing[], opts: CandidateOptions):
     if (opts.blockedEmails.has(l.agentEmail)) return false;
     if (opts.priceMin && (l.price ?? 0) < opts.priceMin) return false;
     if (opts.priceMax && (l.price ?? Infinity) > opts.priceMax) return false;
+    if (opts.domMin != null && (l.daysOnMarket ?? 0) < opts.domMin) return false;
+    if (opts.domMax != null && (l.daysOnMarket ?? Infinity) > opts.domMax) return false;
+    if (opts.propertyTypes?.length && !opts.propertyTypes.includes(l.propertyType ?? "")) return false;
+    if (opts.bedsMin && (l.beds ?? 0) < opts.bedsMin) return false;
     return true;
   });
   ok.sort((a, b) => (a.daysOnMarket ?? 999) - (b.daysOnMarket ?? 999) || (b.price ?? 0) - (a.price ?? 0));
@@ -276,6 +310,8 @@ const COMMUNITY_RE = /\b(CRA|Celebrity|Grand Slam|Community)\b/i;
 export interface ProgramPrefs {
   /** Programs the LO wants to push (empty = let the desk decide). */
   preferred: string[];
+  /** "only": never pick a program outside `preferred` (when it's non-empty). */
+  mode?: "prefer" | "only";
   /** Programs that have a flyer template. */
   hasFlyer: (program: string) => boolean;
   /** Most-sent programs in this listing's state, best first. */
@@ -285,9 +321,11 @@ export interface ProgramPrefs {
 }
 
 export function chooseProgram(programs: MatchedProgram[], census: { tract_income_level?: string } | null, prefs: ProgramPrefs): ProgramChoice | null {
-  const eligible = programs.filter((p) => p.status === "Eligible");
-  if (!eligible.length) return null;
   const preferred = new Set(prefs.preferred.map((p) => p.toLowerCase()));
+  const eligible = programs.filter(
+    (p) => p.status === "Eligible" && (prefs.mode !== "only" || !preferred.size || preferred.has(p.program_name.toLowerCase())),
+  );
+  if (!eligible.length) return null;
   const score = (p: MatchedProgram) => {
     let s = 0;
     if (preferred.has(p.program_name.toLowerCase())) s += 100;
@@ -300,8 +338,13 @@ export function chooseProgram(programs: MatchedProgram[], census: { tract_income
     s -= 30 * (prefs.usedToday?.get(p.program_name) ?? 0);
     return s;
   };
-  const best = [...eligible].sort((a, b) => score(b) - score(a))[0];
-  return { program: best.program_name, reason: programReason(best.program_name, census, eligible.length) };
+  const ranked = [...eligible].sort((a, b) => score(b) - score(a));
+  const best = ranked[0];
+  return {
+    program: best.program_name,
+    reason: programReason(best.program_name, census, eligible.length),
+    alternatives: ranked.slice(1, 7).map((p) => p.program_name),
+  };
 }
 
 export function programReason(program: string, census: { tract_income_level?: string } | null, eligibleCount: number): string {
@@ -325,6 +368,25 @@ export function popularByState(rows: { propertyAddress?: string; programNames?: 
   const out: Record<string, string[]> = {};
   for (const [st, m] of counts) out[st] = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, topN).map(([p]) => p);
   return out;
+}
+
+export type DeskTone = "friendly" | "professional" | "brief";
+export type DeskFlyerMode = "embed" | "attach" | "link" | "none";
+export const DESK_LANGUAGES = ["English", "Spanish", "Chinese (Simplified)", "Chinese (Traditional)", "Korean", "Vietnamese", "Tagalog", "Hindi", "Russian", "Arabic"] as const;
+
+const TONE_TEXT: Record<DeskTone, string> = {
+  friendly: "Warm and conversational.",
+  professional: "Polished and professional.",
+  brief: "Very brief: 3-4 short sentences, under 70 words.",
+};
+
+/** Full drafting instruction from the LO's style settings. */
+export function draftInstructions(opts: { tone?: DeskTone; language?: string; instructions?: string }): string {
+  const parts = [DEFAULT_DESK_INSTRUCTIONS, TONE_TEXT[opts.tone ?? "friendly"]];
+  const lang = opts.language && opts.language !== "English" && (DESK_LANGUAGES as readonly string[]).includes(opts.language) ? opts.language : null;
+  if (lang) parts.push(`Write the subject and the whole email in ${lang}.`);
+  if (opts.instructions?.trim()) parts.push(`The loan officer's own instructions (follow them): ${opts.instructions.trim()}`);
+  return parts.join(" ");
 }
 
 /** Default drafting instruction; the LO can replace it in Settings. */

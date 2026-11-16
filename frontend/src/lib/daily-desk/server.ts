@@ -40,7 +40,7 @@ import { generateEmailDraft } from "@/lib/services/email-draft";
 import { resolveProductId, generateProgramFlyerBase64 } from "@/lib/tools/generate-flyer";
 import { renderFlyerImage } from "@/lib/email/flyer-image";
 import { flyerImagesHtml, inlineFlyerAttachment, type EmbeddedFlyer } from "@/lib/email/flyer-embed";
-import { appendFlyerLink, portalFlyerUrl } from "@/lib/email/attachment-policy";
+import { MAX_INLINE_ATTACHMENT_BASE64, appendFlyerLink, portalFlyerUrl } from "@/lib/email/attachment-policy";
 import { buildHtmlBodyWithSignature, findSignaturePlaceholder, isSignatureContentEmpty } from "@/lib/signature-store";
 import { getStoredSignature } from "@/lib/signature-server";
 import { sendMailAs, type GraphMessage } from "@/lib/graph-client";
@@ -50,7 +50,6 @@ import {
   CLAIM_HOLD_MS,
   COMPANY_REALTOR_COOLDOWN_MS,
   DEFAULT_BATCH_SIZE,
-  DEFAULT_DESK_INSTRUCTIONS,
   MAX_BATCH_SIZE,
   chooseProgram,
   clampBatchSize,
@@ -60,8 +59,12 @@ import {
   popularByState,
   seedAreas,
   toDeskListing,
+  draftInstructions,
+  DESK_LANGUAGES,
   type DeskArea,
+  type DeskFlyerMode,
   type DeskListing,
+  type DeskTone,
 } from "./select";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -73,7 +76,20 @@ export interface DeskSettings {
   priceMax: number | null;
   /** Programs the LO wants to push; empty = desk decides. */
   preferredPrograms: string[];
-  /** Drafting instructions ("" = default). */
+  /** "only" = never feature a program outside preferredPrograms. */
+  programMode: "prefer" | "only";
+  /** Days-on-market window (null = no limit). */
+  domMin: number | null;
+  domMax: number | null;
+  /** RentCast property types (empty = all). */
+  propertyTypes: string[];
+  bedsMin: number | null;
+  tone: DeskTone;
+  language: string;
+  flyerMode: DeskFlyerMode;
+  /** Remind the LO to follow up after N days if there's no reply (null = off). */
+  followUpDays: number | null;
+  /** Extra drafting instructions ("" = none). */
   instructions: string;
   /** True while the areas are the auto-picked ones (LO hasn't edited them). */
   autoSeeded: boolean;
@@ -87,6 +103,8 @@ export interface DeskItem {
   listing: DeskListing;
   program: string;
   reason: string;
+  /** Other eligible programs the LO can switch this card to. */
+  alternatives?: string[];
   productId: string | null;
   subject: string;
   body: string;
@@ -95,7 +113,7 @@ export interface DeskItem {
   skipReason?: string;
   error?: string;
   sentAt?: number;
-  flyer?: "embedded" | "linked" | "none";
+  flyer?: "embedded" | "attached" | "linked" | "none";
 }
 
 export interface DeskDay {
@@ -120,6 +138,7 @@ export interface DeskCaller {
 }
 
 const SETTINGS = "dailyDesk";
+export const PROPERTY_TYPES = ["Single Family", "Condo", "Townhouse", "Multi-Family"];
 const OUTREACH = "realtorOutreach";
 const STATS = "dailyDeskStats";
 /** Daily Desk's share of the 5,000/month RentCast plan. */
@@ -143,11 +162,33 @@ async function bumpStats(day: string, fields: Record<string, number>) {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
+export const SETTINGS_DEFAULTS = {
+  batchSize: DEFAULT_BATCH_SIZE,
+  priceMin: null,
+  priceMax: null,
+  preferredPrograms: [] as string[],
+  programMode: "prefer" as const,
+  domMin: null,
+  domMax: null,
+  propertyTypes: [] as string[],
+  bedsMin: null,
+  tone: "friendly" as DeskTone,
+  language: "English",
+  flyerMode: "embed" as DeskFlyerMode,
+  followUpDays: null,
+  instructions: "",
+};
+
+/** Older settings docs predate some fields: fill them with defaults. */
+function withDefaults(s: Partial<DeskSettings>): DeskSettings {
+  return { ...SETTINGS_DEFAULTS, areas: [], autoSeeded: false, updatedAt: 0, ...s } as DeskSettings;
+}
+
 /** Settings, creating them (auto-picked areas) on first use. */
 export async function getSettings(caller: Pick<DeskCaller, "uid" | "email">, recentSearches: string[] = []): Promise<DeskSettings> {
   const ref = db().collection(SETTINGS).doc(caller.email);
   const snap = await ref.get();
-  if (snap.exists) return snap.data() as DeskSettings;
+  if (snap.exists) return withDefaults(snap.data() as Partial<DeskSettings>);
 
   let pastAddresses: string[] = [];
   try {
@@ -156,16 +197,7 @@ export async function getSettings(caller: Pick<DeskCaller, "uid" | "email">, rec
   } catch {
     /* no history is fine */
   }
-  const settings: DeskSettings = {
-    areas: seedAreas(pastAddresses, recentSearches),
-    batchSize: DEFAULT_BATCH_SIZE,
-    priceMin: null,
-    priceMax: null,
-    preferredPrograms: [],
-    instructions: "",
-    autoSeeded: true,
-    updatedAt: Date.now(),
-  };
+  const settings: DeskSettings = withDefaults({ areas: seedAreas(pastAddresses, recentSearches), autoSeeded: true, updatedAt: Date.now() });
   // Only persist once we found something; otherwise the LO is asked for an area.
   if (settings.areas.length) await ref.set(settings);
   return settings;
@@ -173,18 +205,38 @@ export async function getSettings(caller: Pick<DeskCaller, "uid" | "email">, rec
 
 export async function saveSettings(caller: Pick<DeskCaller, "email">, input: Partial<DeskSettings> & { areaInputs?: (string | DeskArea)[] }): Promise<DeskSettings> {
   const ref = db().collection(SETTINGS).doc(caller.email);
-  const cur = ((await ref.get()).data() as DeskSettings | undefined) ?? null;
+  const raw = (await ref.get()).data() as Partial<DeskSettings> | undefined;
+  const cur = raw ? withDefaults(raw) : null;
   const areas = input.areaInputs ? normalizeAreas(input.areaInputs) : cur?.areas ?? [];
   const money = (v: unknown) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) && n > 0 ? n : null;
   };
+  const days = (v: unknown) => {
+    if (v === null || v === "" || v === undefined) return null;
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 365) : null;
+  };
+  const pick = <K extends keyof DeskSettings>(k: K): DeskSettings[K] | undefined => (input[k] !== undefined ? (input[k] as DeskSettings[K]) : cur?.[k]);
+  const tone = pick("tone");
+  const flyerMode = pick("flyerMode");
+  const language = String(pick("language") ?? "English");
+  const followUp = pick("followUpDays");
   const next: DeskSettings = {
     areas,
     batchSize: clampBatchSize(input.batchSize ?? cur?.batchSize),
     priceMin: input.priceMin !== undefined ? money(input.priceMin) : cur?.priceMin ?? null,
     priceMax: input.priceMax !== undefined ? money(input.priceMax) : cur?.priceMax ?? null,
     preferredPrograms: (input.preferredPrograms ?? cur?.preferredPrograms ?? []).map(String).slice(0, 10),
+    programMode: pick("programMode") === "only" ? "only" : "prefer",
+    domMin: input.domMin !== undefined ? days(input.domMin) : cur?.domMin ?? null,
+    domMax: input.domMax !== undefined ? days(input.domMax) : cur?.domMax ?? null,
+    propertyTypes: (input.propertyTypes ?? cur?.propertyTypes ?? []).map(String).filter((t) => PROPERTY_TYPES.includes(t)).slice(0, 6),
+    bedsMin: input.bedsMin !== undefined ? days(input.bedsMin) : cur?.bedsMin ?? null,
+    tone: tone === "professional" || tone === "brief" ? tone : "friendly",
+    language: (DESK_LANGUAGES as readonly string[]).includes(language) ? language : "English",
+    flyerMode: flyerMode === "attach" || flyerMode === "link" || flyerMode === "none" ? flyerMode : "embed",
+    followUpDays: followUp && [3, 5, 7, 14].includes(Number(followUp)) ? Number(followUp) : null,
     instructions: String(input.instructions ?? cur?.instructions ?? "").slice(0, 600),
     autoSeeded: input.areaInputs ? false : cur?.autoSeeded ?? false,
     updatedAt: Date.now(),
@@ -389,7 +441,17 @@ async function buildItems(
   if (!all.length) return { items: [], note: notes.join(" ") || "No active listings with an agent email in your areas right now." };
 
   // 2) Who we may not email: this LO's own 30-day history + company-wide guard.
-  const pre = pickCandidates(all, { blockedEmails: exclude, priceMin: settings.priceMin, priceMax: settings.priceMax, limit: 80 });
+  const pre = pickCandidates(all, {
+    blockedEmails: exclude,
+    priceMin: settings.priceMin,
+    priceMax: settings.priceMax,
+    domMin: settings.domMin,
+    domMax: settings.domMax,
+    propertyTypes: settings.propertyTypes,
+    bedsMin: settings.bedsMin,
+    limit: 80,
+  });
+  if (!pre.length) return { items: [], note: "No listings in your areas match your filters (days on market, home type, beds, price). Loosen them in Settings." };
   const own = await fetchAlreadyEmailed(caller.uid);
   const { blocked } = await blockedRealtors(pre.map((l) => l.agentEmail), caller.email);
   for (const [e, at] of own) if (Date.now() - at < COMPANY_REALTOR_COOLDOWN_MS) blocked.add(e);
@@ -423,7 +485,7 @@ async function buildItems(
   //    realtor (first come, first served across LOs).
   const popular = await popularPrograms();
   const usedToday = new Map<string, number>();
-  const picked: { listing: DeskListing; program: string; reason: string }[] = [];
+  const picked: { listing: DeskListing; program: string; reason: string; alternatives?: string[] }[] = [];
   let checks = 0;
   for (let i = 0; i < candidates.length; i++) {
     if (picked.length >= target || checks >= target * 3) break;
@@ -432,12 +494,14 @@ async function buildItems(
     if (!m) continue;
     const choice = chooseProgram(m.programs, m.census_data as { tract_income_level?: string } | null, {
       preferred: settings.preferredPrograms,
+      mode: settings.programMode,
       hasFlyer: (p) => !!resolveProductId(p),
       popularInState: popular[l.state] ?? [],
       usedToday,
     });
     if (!choice) continue;
-    const c = { listing: l, ...choice };
+    const census = (m.census_data ?? {}) as { tract_income_level?: string; msa_name?: string };
+    const c = { listing: { ...l, tractIncome: census.tract_income_level ?? null, msaName: census.msa_name ?? null }, ...choice };
     checks++;
     const v = await verifyDeliverability(c.listing.agentEmail, caller.email).catch(() => null);
     if (v?.status !== "deliverable") continue;
@@ -448,43 +512,75 @@ async function buildItems(
   if (picked.length < target) notes.push(picked.length ? `Found ${picked.length} good match${picked.length === 1 ? "" : "es"} today.` : "No new listings matched a GMCC program with a reachable agent today.");
 
   // 5) Drafts.
-  const instructions = settings.instructions?.trim() || DEFAULT_DESK_INSTRUCTIONS;
   const items = await Promise.all(
     picked.map(async (c): Promise<DeskItem> => {
       const productId = resolveProductId(c.program);
-      let subject = `${c.program} for buyers of ${c.listing.address.split(",")[0]}`;
-      let body = "";
-      try {
-        const d = await generateEmailDraft({
-          recipientType: "realtor",
-          recipientName: c.listing.agentName || undefined,
-          recipientEmail: c.listing.agentEmail,
-          programName: c.program,
-          propertyAddress: c.listing.address,
-          listingPrice: c.listing.price != null ? String(c.listing.price) : undefined,
-          loName: caller.loName,
-          userPrompt: instructions,
-          hasSignature: true,
-          flyerDelivery: productId ? "embedded" : "none",
-        });
-        subject = d.subject || subject;
-        body = d.body;
-      } catch {
-        body = `Hi ${c.listing.agentName?.split(" ")[0] || "there"},\n\nI saw your listing at ${c.listing.address.split(",")[0]}. Buyers for it may qualify for ${c.program}, and I'd be glad to help them get pre-approved quickly.\n\nWould it be helpful if I sent over the details?`;
-      }
+      const d = await draftFor(caller, settings, c.listing, c.program, productId);
       return {
         id: `it-${randomBytes(5).toString("hex")}`,
         listing: c.listing,
         program: c.program,
         reason: c.reason,
+        ...(c.alternatives?.length ? { alternatives: c.alternatives } : {}),
         productId,
-        subject,
-        body,
+        subject: d.subject,
+        body: d.body,
         status: "ready",
       };
     }),
   );
   return { items, note: notes.join(" ") || undefined };
+}
+
+/** What the draft may say about the flyer, given the LO's flyer setting. */
+function draftFlyerDelivery(mode: DeskFlyerMode, productId: string | null): "embedded" | "attached" | "linked" | "none" {
+  if (!productId || mode === "none") return "none";
+  return mode === "attach" ? "attached" : mode === "link" ? "linked" : "embedded";
+}
+
+async function draftFor(caller: DeskCaller, settings: DeskSettings, listing: DeskListing, program: string, productId: string | null): Promise<{ subject: string; body: string }> {
+  const fallback = {
+    subject: `${program} for buyers of ${listing.address.split(",")[0]}`,
+    body: `Hi ${listing.agentName?.split(" ")[0] || "there"},\n\nI saw your listing at ${listing.address.split(",")[0]}. Buyers for it may qualify for ${program}, and I'd be glad to help them get pre-approved quickly.\n\nWould it be helpful if I sent over the details?`,
+  };
+  try {
+    const d = await generateEmailDraft({
+      recipientType: "realtor",
+      recipientName: listing.agentName || undefined,
+      recipientEmail: listing.agentEmail,
+      programName: program,
+      propertyAddress: listing.address,
+      listingPrice: listing.price != null ? String(listing.price) : undefined,
+      loName: caller.loName,
+      userPrompt: draftInstructions(settings),
+      hasSignature: true,
+      flyerDelivery: draftFlyerDelivery(settings.flyerMode, productId),
+    });
+    return { subject: d.subject || fallback.subject, body: d.body || fallback.body };
+  } catch {
+    return fallback;
+  }
+}
+
+/** Switch a ready card to another eligible program and rewrite its email. */
+export async function reprogramItem(caller: DeskCaller, itemId: string, program: string): Promise<DeskDay> {
+  const cur = await getDay(caller.email);
+  const it = cur?.items.find((i) => i.id === itemId);
+  if (!cur || !it) throw new Error("That email isn't in today's list.");
+  if (it.status !== "ready") throw new Error("Only unsent emails can be edited.");
+  if (program !== it.program && !(it.alternatives ?? []).includes(program)) throw new Error("That program isn't eligible for this listing.");
+  const settings = await getSettings(caller);
+  const productId = resolveProductId(program);
+  const d = await draftFor(caller, settings, it.listing, program, productId);
+  return mutateItem(caller.email, itemId, (x) => {
+    if (x.status !== "ready") throw new Error("Only unsent emails can be edited.");
+    x.alternatives = [x.program, ...(x.alternatives ?? []).filter((p) => p !== program)].slice(0, 6);
+    x.program = program;
+    x.productId = productId;
+    x.subject = d.subject;
+    x.body = d.body;
+    x.edited = false;
+  });
 }
 
 /** Build a batch without saving it or holding any realtor (scripts / QA only). */
@@ -583,21 +679,32 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
   if (!cur) throw new DeskSendError("Today's list wasn't found — refresh the page.");
   const targets = cur.items.filter((i) => i.status === "ready" && (itemIds === "all" || itemIds.includes(i.id)));
 
-  const flyers = new Map<string, EmbeddedFlyer | null>();
-  const flyerFor = async (program: string, productId: string): Promise<EmbeddedFlyer | null> => {
-    if (flyers.has(productId)) return flyers.get(productId) ?? null;
-    let f: EmbeddedFlyer | null = null;
-    try {
-      const r = await generateProgramFlyerBase64(program, { firebaseToken: caller.idToken, userEmail: caller.email, loTitle: caller.loTitle });
-      if (!("error" in r)) {
-        const img = await renderFlyerImage(Buffer.from(r.base64, "base64"));
-        f = { ...img, id: productId, title: program, pdfUrl: portalFlyerUrl(productId, caller.loNmls) };
-      }
-    } catch {
-      f = null;
+  const settings = await getSettings(caller);
+  const pdfs = new Map<string, string | null>();
+  const images = new Map<string, EmbeddedFlyer | null>();
+  /** The flyer PDF (base64, already shrunk to fit when possible), once per program. */
+  const pdfFor = async (program: string, productId: string): Promise<string | null> => {
+    if (!pdfs.has(productId)) {
+      const r = await generateProgramFlyerBase64(program, { firebaseToken: caller.idToken, userEmail: caller.email, loTitle: caller.loTitle }).catch(() => ({ error: "failed" }));
+      pdfs.set(productId, "error" in r ? null : r.base64);
     }
-    flyers.set(productId, f);
-    return f;
+    return pdfs.get(productId) ?? null;
+  };
+  const imageFor = async (program: string, productId: string): Promise<EmbeddedFlyer | null> => {
+    if (!images.has(productId)) {
+      let f: EmbeddedFlyer | null = null;
+      const pdf = await pdfFor(program, productId);
+      if (pdf) {
+        try {
+          const img = await renderFlyerImage(Buffer.from(pdf, "base64"));
+          f = { ...img, id: productId, title: program, pdfUrl: portalFlyerUrl(productId, caller.loNmls) };
+        } catch {
+          f = null;
+        }
+      }
+      images.set(productId, f);
+    }
+    return images.get(productId) ?? null;
   };
 
   const results = new Map<string, Partial<DeskItem>>();
@@ -620,13 +727,23 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
         continue;
       }
 
-      let delivery: "embedded" | "linked" | "none" = "none";
+      // Flyer per the LO's setting; anything that can't be made falls back to a link.
+      let delivery: "embedded" | "attached" | "linked" | "none" = "none";
       let embedded: EmbeddedFlyer | null = null;
+      let attachment: string | null = null;
       let body = it.body;
-      if (it.productId) {
-        embedded = await flyerFor(it.program, it.productId);
-        if (embedded) delivery = "embedded";
-        else {
+      if (it.productId && settings.flyerMode !== "none") {
+        if (settings.flyerMode === "embed") {
+          embedded = await imageFor(it.program, it.productId);
+          if (embedded) delivery = "embedded";
+        } else if (settings.flyerMode === "attach") {
+          const pdf = await pdfFor(it.program, it.productId);
+          if (pdf && pdf.length <= MAX_INLINE_ATTACHMENT_BASE64) {
+            attachment = pdf;
+            delivery = "attached";
+          }
+        }
+        if (delivery === "none") {
           delivery = "linked";
           body = appendFlyerLink(body, portalFlyerUrl(it.productId, caller.loNmls));
         }
@@ -635,7 +752,20 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
         subject: it.subject,
         body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml, embedded ? flyerImagesHtml([embedded]) : "") },
         toRecipients: [{ emailAddress: { address: agent, ...(it.listing.agentName ? { name: it.listing.agentName } : {}) } }],
-        ...(embedded ? { attachments: [inlineFlyerAttachment(embedded)] } : {}),
+        ...(embedded
+          ? { attachments: [inlineFlyerAttachment(embedded)] }
+          : attachment
+            ? {
+                attachments: [
+                  {
+                    "@odata.type": "#microsoft.graph.fileAttachment" as const,
+                    name: `GMCC-${it.program.replace(/[^a-zA-Z0-9]+/g, "-")}.pdf`,
+                    contentType: "application/pdf",
+                    contentBytes: attachment,
+                  },
+                ],
+              }
+            : {}),
       };
       const r = await sendMailAs(caller.email, message);
       if (!r.ok) throw new Error(r.error ?? "Outlook refused the message.");
@@ -657,7 +787,10 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
           deskItemId: it.id,
           deskEdited: !!it.edited,
           flyer: { delivery, productId: it.productId ?? undefined },
-          followUp: null,
+          // Optional reminder to the LO (the existing follow-up cron sends it; a reply cancels it).
+          followUp: settings.followUpDays
+            ? { mode: "remind", scheduledAt: now + settings.followUpDays * 86_400_000, status: "pending", reminderCount: 0, lastReminderAt: null, draftSubject: null, draftBody: null }
+            : null,
         }),
       );
       await db().collection(OUTREACH).doc(realtorDocId(agent)).set({ email: agent, lastContactAt: now, lastLoEmail: caller.email, holdBy: null, holdUntil: 0 }, { merge: true });

@@ -21,6 +21,8 @@ import {
   popularForStates,
   resetToday,
   retryItem,
+  reprogramItem,
+  PROPERTY_TYPES,
   saveSettings,
   sendItems,
   skipItem,
@@ -28,7 +30,7 @@ import {
   weekStats,
   type DeskCaller,
 } from "@/lib/daily-desk/server";
-import { DEFAULT_BATCH_SIZE, MAX_AREAS, MAX_BATCH_SIZE, RADIUS_OPTIONS, type DeskArea } from "@/lib/daily-desk/select";
+import { DEFAULT_BATCH_SIZE, DESK_LANGUAGES, MAX_AREAS, MAX_BATCH_SIZE, RADIUS_OPTIONS, type DeskArea, type DeskFlyerMode, type DeskTone } from "@/lib/daily-desk/select";
 import { getStoredSignature } from "@/lib/signature-server";
 import { findSignaturePlaceholder, isSignatureContentEmpty } from "@/lib/signature-store";
 
@@ -64,7 +66,7 @@ function areaInput(v: unknown): string | DeskArea {
   return String(v ?? "");
 }
 
-const LIMITS = { defaultBatch: DEFAULT_BATCH_SIZE, maxBatch: MAX_BATCH_SIZE, maxAreas: MAX_AREAS, radiusOptions: RADIUS_OPTIONS };
+const LIMITS = { defaultBatch: DEFAULT_BATCH_SIZE, maxBatch: MAX_BATCH_SIZE, maxAreas: MAX_AREAS, radiusOptions: RADIUS_OPTIONS, languages: DESK_LANGUAGES, propertyTypes: PROPERTY_TYPES };
 
 export async function GET(req: NextRequest) {
   const c = await caller(req);
@@ -104,6 +106,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ day: await skipItem(c, str(body.itemId), str(body.reason)) });
       case "edit":
         return NextResponse.json({ day: await editItem(c, str(body.itemId), str(body.subject), str(body.body)) });
+      case "program":
+        return NextResponse.json({ day: await reprogramItem(c, str(body.itemId), str(body.program)) });
       case "retry":
         return NextResponse.json({ day: await retryItem(c, str(body.itemId)) });
       case "settings": {
@@ -114,6 +118,15 @@ export async function POST(req: NextRequest) {
           ...(body.priceMax !== undefined ? { priceMax: body.priceMax as number | null } : {}),
           ...(Array.isArray(body.preferredPrograms) ? { preferredPrograms: body.preferredPrograms.map(String) } : {}),
           ...(body.instructions !== undefined ? { instructions: str(body.instructions) } : {}),
+          ...(body.programMode !== undefined ? { programMode: body.programMode === "only" ? "only" : "prefer" } : {}),
+          ...(body.domMin !== undefined ? { domMin: body.domMin as number | null } : {}),
+          ...(body.domMax !== undefined ? { domMax: body.domMax as number | null } : {}),
+          ...(Array.isArray(body.propertyTypes) ? { propertyTypes: body.propertyTypes.map(String) } : {}),
+          ...(body.bedsMin !== undefined ? { bedsMin: body.bedsMin as number | null } : {}),
+          ...(body.tone !== undefined ? { tone: str(body.tone) as DeskTone } : {}),
+          ...(body.language !== undefined ? { language: str(body.language) } : {}),
+          ...(body.flyerMode !== undefined ? { flyerMode: str(body.flyerMode) as DeskFlyerMode } : {}),
+          ...(body.followUpDays !== undefined ? { followUpDays: body.followUpDays as number | null } : {}),
         });
         if (body.rebuild) await resetToday(c);
         return NextResponse.json({ settings, day: await getDay(c.email) });
@@ -126,7 +139,7 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Something went wrong.";
     console.error(`[daily-desk] ${action} failed`, err);
     // Mutations raise user-facing messages; anything else gets a generic one.
-    const userFacing = /wasn't found|isn't in today|already handled|Only (unsent|failed)/.test(msg);
+    const userFacing = /wasn't found|isn't in today|already handled|Only (unsent|failed)|isn't eligible/.test(msg);
     return NextResponse.json({ error: userFacing ? msg : "Something went wrong — please try again." }, { status: userFacing ? 409 : 500 });
   }
 }

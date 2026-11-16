@@ -728,6 +728,7 @@ export default function Home() {
                 onSignIn={() => { signIn().catch(() => {}); }}
                 programs={programs}
                 onOpenSignatureSettings={() => setSettingsOpen(true)}
+                onOpenProperty={(l) => setModalListing(l as RentCastListing)}
               />
             )}
             {activeTab === "flyers" && isPartner && <PartnerFlyersTab />}

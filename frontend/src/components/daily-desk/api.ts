@@ -13,16 +13,26 @@ export interface DeskListing {
   price: number | null; beds: number | null; baths: number | null; sqft: number | null;
   propertyType: string | null; daysOnMarket: number | null;
   agentName: string; agentEmail: string; agentPhone: string | null; officeName: string | null; area?: string;
+  county?: string; latitude?: number; longitude?: number; addressLine1?: string;
+  yearBuilt?: number | null; lotSize?: number | null; hoaFee?: number | null; listedDate?: string | null; mlsNumber?: string | null;
+  lastSalePrice?: number | null; lastSaleDate?: string | null; officePhone?: string | null; tractIncome?: string | null; msaName?: string | null;
 }
 export interface DeskItem {
-  id: string; listing: DeskListing; program: string; reason: string; productId: string | null;
+  id: string; listing: DeskListing; program: string; reason: string; alternatives?: string[]; productId: string | null;
   subject: string; body: string; status: "ready" | "sent" | "skipped" | "failed";
-  edited?: boolean; skipReason?: string; error?: string; sentAt?: number; flyer?: "embedded" | "linked" | "none";
+  edited?: boolean; skipReason?: string; error?: string; sentAt?: number; flyer?: "embedded" | "attached" | "linked" | "none";
 }
 export interface DeskDay { day: string; status: "building" | "ready" | "needs_setup"; startedAt: number; builtAt?: number; items: DeskItem[]; note?: string }
 export interface DeskSettings {
   areas: DeskArea[]; batchSize: number; priceMin: number | null; priceMax: number | null;
   preferredPrograms: string[]; instructions: string; autoSeeded: boolean;
+  programMode: "prefer" | "only";
+  domMin: number | null; domMax: number | null;
+  propertyTypes: string[]; bedsMin: number | null;
+  tone: "friendly" | "professional" | "brief";
+  language: string;
+  flyerMode: "embed" | "attach" | "link" | "none";
+  followUpDays: number | null;
 }
 export interface DeskState {
   settings: DeskSettings;
@@ -30,7 +40,7 @@ export interface DeskState {
   stats: { sent: number; replies: number };
   popular: Record<string, string[]>;
   signatureOk: boolean;
-  limits: { defaultBatch: number; maxBatch: number; maxAreas: number; radiusOptions: number[] };
+  limits: { defaultBatch: number; maxBatch: number; maxAreas: number; radiusOptions: number[]; languages: string[]; propertyTypes: string[] };
 }
 
 function headers(): HeadersInit {
@@ -70,6 +80,7 @@ export const deskApi = {
   send: (itemIds: string[] | "all") => call<{ day: DeskDay; sent: number; skipped: number; failed: number }>({ method: "POST", body: { action: "send", itemIds } }),
   skip: (itemId: string, reason: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "skip", itemId, reason } }),
   edit: (itemId: string, subject: string, body: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "edit", itemId, subject, body } }),
+  program: (itemId: string, program: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "program", itemId, program } }),
   retry: (itemId: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "retry", itemId } }),
   saveSettings: (s: Partial<Omit<DeskSettings, "areas">> & { areaInputs?: AreaInput[]; rebuild?: boolean }) =>
     call<{ settings: DeskSettings; day: DeskDay | null }>({ method: "POST", body: { action: "settings", ...s } }),
