@@ -13,6 +13,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAuth, unauthorized } from "@/lib/require-auth";
 import {
+  DeskLimitError,
   DeskSendError,
   buildToday,
   editItem,
@@ -136,6 +137,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     if (err instanceof DeskSendError) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (err instanceof DeskLimitError) return NextResponse.json({ error: err.message }, { status: 429 });
     const msg = err instanceof Error ? err.message : "Something went wrong.";
     console.error(`[daily-desk] ${action} failed`, err);
     // Mutations raise user-facing messages; anything else gets a generic one.

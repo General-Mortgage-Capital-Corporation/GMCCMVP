@@ -314,12 +314,20 @@ async function releaseHold(email: string, callerEmail: string) {
 
 // ─── Listings ────────────────────────────────────────────────────────────────
 
-async function listingsForArea(area: DeskArea): Promise<{ listings: Record<string, unknown>[]; fromCache: boolean; budgetHit: boolean }> {
+/** Per-LO daily cap on fresh (uncached) RentCast calls from the desk. */
+const DESK_RENTCAST_PER_LO_PER_DAY = 9;
+/** Per-LO daily cap on builds (first build, rebuilds after settings, top-ups). */
+const DESK_BUILDS_PER_LO_PER_DAY = 8;
+
+export class DeskLimitError extends Error {}
+
+async function listingsForArea(area: DeskArea, callerEmail: string): Promise<{ listings: Record<string, unknown>[]; fromCache: boolean; budgetHit: boolean }> {
   const params = new URLSearchParams({ status: "Active", limit: "500" });
   if (area.lat != null && area.lng != null) {
-    // Rounded so LOs in the same spot share the 12h cache.
-    params.set("latitude", area.lat.toFixed(3));
-    params.set("longitude", area.lng.toFixed(3));
+    // Snapped to a ~1 km grid so nearby LOs share the 12h cache and random
+    // coordinates can't be used to force fresh (paid) searches.
+    params.set("latitude", area.lat.toFixed(2));
+    params.set("longitude", area.lng.toFixed(2));
     params.set("radius", String(area.radiusMi ?? 5));
   } else if (area.zip) params.set("zipCode", area.zip);
   else {
@@ -330,9 +338,13 @@ async function listingsForArea(area: DeskArea): Promise<{ listings: Record<strin
   const cached = await getCachedRentcastSearch(key);
   if (cached) return { listings: cached as Record<string, unknown>[], fromCache: true, budgetHit: false };
 
+  // Fail closed: if the counters can't be read, don't spend.
   const month = new Date().toISOString().slice(0, 7);
   const used = await incrementCounter(`dailydesk:rentcast:${month}`, 40 * 24 * 3600);
-  if (used !== null && used > DESK_RENTCAST_MONTHLY_BUDGET) return { listings: [], fromCache: false, budgetHit: true };
+  const mine = await incrementCounter(`dailydesk:rentcast:${callerEmail}:${dayKey()}`, 2 * 24 * 3600);
+  if (used === null || mine === null || used > DESK_RENTCAST_MONTHLY_BUDGET || mine > DESK_RENTCAST_PER_LO_PER_DAY) {
+    return { listings: [], fromCache: false, budgetHit: true };
+  }
 
   const listings = (await rentcastFetch(params, RENTCAST_KEY)) as Record<string, unknown>[];
   if (listings.length) setCachedRentcastSearch(key, listings).catch(() => {});
@@ -391,6 +403,12 @@ export async function buildToday(caller: DeskCaller, recentSearches: string[] = 
     return null;
   });
   if (claimed && claimed.status !== "needs_setup") return claimed;
+  try {
+    await countBuild(caller.email);
+  } catch (err) {
+    await ref.delete().catch(() => {});
+    throw err;
+  }
 
   try {
     const settings = await getSettings(caller, recentSearches);
@@ -427,7 +445,7 @@ async function buildItems(
   let budgetHit = false;
   for (const area of settings.areas) {
     try {
-      const r = await listingsForArea(area);
+      const r = await listingsForArea(area, caller.email);
       budgetHit ||= r.budgetHit;
       for (const raw of r.listings) {
         const l = toDeskListing(raw);
@@ -437,7 +455,7 @@ async function buildItems(
       notes.push(err instanceof RentCastError ? `Listings for ${area.label} are unavailable right now.` : `Couldn't load ${area.label}.`);
     }
   }
-  if (budgetHit) notes.push("We've hit this month's listing-search budget, so only cached areas were used.");
+  if (budgetHit) notes.push("Today's listing-search limit was reached, so only recently searched areas were used.");
   if (!all.length) return { items: [], note: notes.join(" ") || "No active listings with an agent email in your areas right now." };
 
   // 2) Who we may not email: this LO's own 30-day history + company-wide guard.
@@ -589,6 +607,13 @@ export async function previewBatch(caller: DeskCaller, settings: DeskSettings) {
 }
 
 /** Swap skipped cards for fresh ones, up to the batch size. */
+async function countBuild(email: string) {
+  const n = await incrementCounter(`dailydesk:builds:${email}:${dayKey()}`, 2 * 24 * 3600);
+  if (n === null || n > DESK_BUILDS_PER_LO_PER_DAY) {
+    throw new DeskLimitError("You've rebuilt today's list a lot today — it'll refresh tomorrow. (Your saved settings are kept.)");
+  }
+}
+
 export async function topUp(caller: DeskCaller): Promise<DeskDay> {
   const day = dayKey();
   const ref = dayRef(caller.email, day);
@@ -598,6 +623,7 @@ export async function topUp(caller: DeskCaller): Promise<DeskDay> {
   const active = cur.items.filter((i) => i.status !== "skipped").length;
   const want = Math.max(0, settings.batchSize - active);
   if (!want) return cur;
+  await countBuild(caller.email);
   const exclude = new Set(cur.items.map((i) => i.listing.agentEmail));
   const more = await buildItems(caller, settings, day, exclude, want);
   const next: DeskDay = { ...cur, items: [...cur.items, ...more.items], note: more.items.length ? undefined : more.note };
