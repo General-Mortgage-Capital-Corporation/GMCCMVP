@@ -437,7 +437,12 @@ export default function DailyDeskTab({
           </motion.div>
         )}
         {error && (
-          <motion.div key="err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</motion.div>
+          <motion.div key="err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+            {error}
+            {(!state || !state.day) && !loading && !building && (
+              <button type="button" onClick={() => load()} className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-100">Try again</button>
+            )}
+          </motion.div>
         )}
       </AnimatePresence>
 

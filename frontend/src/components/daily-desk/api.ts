@@ -1,6 +1,7 @@
 "use client";
 
 import { authedFetch } from "@/lib/authed-fetch";
+import { getAuthToken } from "@/lib/auth-token";
 import { getLOInfo } from "@/lib/lo-info-store";
 import { getRecentSearches } from "@/lib/recent-searches";
 
@@ -50,15 +51,42 @@ function headers(): HeadersInit {
   return h;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The Firebase ID token, waiting briefly for it: right after page load the
+ * Today tab can ask before sign-in has finished restoring, which used to
+ * send the request without a token ("Authentication required").
+ */
+async function waitForToken(maxMs = 10_000): Promise<string | null> {
+  const until = Date.now() + maxMs;
+  for (;;) {
+    const t = await getAuthToken();
+    if (t || Date.now() > until) return t;
+    await sleep(300);
+  }
+}
+
 async function call<T>(init?: { method?: string; body?: unknown }): Promise<T> {
-  const res = await authedFetch("/api/daily-desk", {
-    method: init?.method ?? "GET",
-    headers: headers(),
-    ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
-  });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((j as { error?: string }).error || `Request failed (${res.status})`);
-  return j as T;
+  for (let attempt = 0; ; attempt++) {
+    const token = await waitForToken();
+    const h = new Headers(headers());
+    if (token) h.set("Authorization", `Bearer ${token}`);
+    const res = await fetch("/api/daily-desk", {
+      method: init?.method ?? "GET",
+      headers: h,
+      ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+    });
+    // One retry on 401: the token may have been mid-refresh.
+    if (res.status === 401 && attempt === 0) {
+      await sleep(1200);
+      continue;
+    }
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error("Your sign-in didn't come through — refresh the page, or sign out and back in.");
+    if (!res.ok) throw new Error((j as { error?: string }).error || `Request failed (${res.status})`);
+    return j as T;
+  }
 }
 
 /** Recent property searches on this browser → hints for auto-picking areas. */
