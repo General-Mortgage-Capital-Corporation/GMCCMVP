@@ -37,11 +37,12 @@ import {
 } from "@/lib/api";
 import { listingPassesChipFilters, formatPrice, EXCLUDED_PROPERTY_TYPES } from "@/lib/utils";
 
+import DailyDeskTab from "@/components/daily-desk/DailyDeskTab";
 import type { RentCastListing, ProgramLocationEntry } from "@/types";
 import type { ChipFilter } from "@/lib/utils";
 import type { MkSortColumn, MkSortDir } from "@/components/marketing/MarketingTable";
 
-type ActiveTab = "find" | "program" | "marketing" | "cra" | "chat" | "refi" | "flyers";
+type ActiveTab = "today" | "find" | "program" | "marketing" | "cra" | "chat" | "refi" | "flyers";
 
 function excludeTypes(listing: RentCastListing) {
   return !EXCLUDED_PROPERTY_TYPES.has(listing.propertyType ?? "");
@@ -75,7 +76,11 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpCount, setFollowUpCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("cra");
+  // LOs land on "Today" (their ready-to-send realtor emails); partners don't have it.
+  const [activeTab, setActiveTab] = useState<ActiveTab>("today");
+  useEffect(() => {
+    if (isPartner && activeTab === "today") setActiveTab("cra");
+  }, [isPartner, activeTab]);
   // Polled status feeding both the header pill and the in-tab card/gate.
   // Single source of truth — one polling loop, identical balances on both
   // surfaces. `aggressive` flips to 3s cadence during payment flows so the
@@ -666,6 +671,7 @@ export default function Home() {
                       ["flyers", "Flyers", "Program Flyers"],
                     ]
                   : [
+                      ["today", "Today", "Today's Emails"],
                       ["chat", "AI Agent", "AI Marketing Agent"],
                       ["cra", "CRA Check", "CRA Address Fast Check"],
                       ["marketing", "Marketing", "Massive Marketing"],
@@ -716,6 +722,15 @@ export default function Home() {
               />
             )}
             {activeTab === "cra" && <CRACheckTab />}
+            {activeTab === "today" && !isPartner && (
+              <DailyDeskTab
+                signedIn={!!user}
+                onSignIn={() => { signIn().catch(() => {}); }}
+                programs={programs}
+                onOpenSignatureSettings={() => setSettingsOpen(true)}
+                onOpenProperty={(l) => setModalListing(l as RentCastListing)}
+              />
+            )}
             {activeTab === "flyers" && isPartner && <PartnerFlyersTab />}
             {activeTab === "refi" && (
               <RefiFinderGate

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const result = await recordFollowUp({
       firebaseToken: idToken,
       userEmail: body.userEmail || "",
-      recipientEmail: body.recipientEmail,
+      recipientEmail: String(body.recipientEmail).trim().toLowerCase(),
       recipientName: body.recipientName,
       recipientType: body.recipientType,
       subject: body.subject,

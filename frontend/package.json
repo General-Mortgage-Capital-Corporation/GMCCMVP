@@ -23,6 +23,7 @@
     "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
+    "motion": "12.23.12",
     "next": "16.1.6",
     "pdfjs-dist": "^6.5.438",
     "posthog-js": "^1.371.2",

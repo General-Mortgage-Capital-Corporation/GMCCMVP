@@ -47,7 +47,7 @@ export async function recordFollowUp(
   const doc = {
     userId: uid,
     userEmail: input.userEmail || "",
-    recipientEmail: input.recipientEmail,
+    recipientEmail: input.recipientEmail.trim().toLowerCase(),
     recipientName: input.recipientName || "",
     recipientType: input.recipientType || "realtor",
     subject: input.subject,
