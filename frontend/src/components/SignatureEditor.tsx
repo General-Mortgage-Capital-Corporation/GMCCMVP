@@ -2,9 +2,10 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
-import { getSignatureHtml, setSignatureHtml, clearSignature, COMPANY_NAME, COMPANY_NMLS, COMPANY_DISCLAIMER } from "@/lib/signature-store";
+import { getSignatureHtml, setSignatureHtml, clearSignature, findSignaturePlaceholder, COMPANY_NAME, COMPANY_NMLS, COMPANY_DISCLAIMER } from "@/lib/signature-store";
 import { getLOInfo } from "@/lib/lo-info-store";
 import { useAuth } from "@/contexts/AuthContext";
+import { authedFetch } from "@/lib/authed-fetch";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -57,17 +58,25 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [isPrefill, setIsPrefill] = useState(false);
   const { user } = useAuth();
 
-  // Load saved signature on mount, or prefill a preset from LO profile + auth
-  // when no signature has been saved yet. Presets are auto-saved so the user
-  // has a working signature immediately without needing to click Save.
+  // Load the saved signature on mount (localStorage cache first, then the
+  // server copy). When nothing is saved anywhere, prefill a preset from the
+  // LO profile — as an UNSAVED draft. The preset is never auto-persisted:
+  // auto-saving used to mark half-filled placeholders ("Your Name",
+  // "NMLS# _______") as a valid signature the moment Settings opened, which
+  // let placeholder junk pass the signature-required gate and go out in
+  // real emails.
   useEffect(() => {
-    if (!editorRef.current) return;
-    const savedHtml = getSignatureHtml();
-    if (savedHtml) {
-      const sanitized = DOMPurify.sanitize(savedHtml, {
+    let cancelled = false;
+
+    const insertHtml = (html: string) => {
+      if (!editorRef.current) return;
+      const sanitized = DOMPurify.sanitize(html, {
         ADD_TAGS: ["img"],
         ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
       });
@@ -76,23 +85,43 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
       editorRef.current.textContent = "";
       editorRef.current.appendChild(template.content);
       setIsEmpty(false);
-      return;
-    }
+    };
 
-    // No saved signature — build preset, display it, and auto-save
-    const preset = buildPresetSignatureHtml(user?.displayName, user?.email);
-    if (!preset) return;
-    const sanitized = DOMPurify.sanitize(preset, {
-      ADD_TAGS: ["img"],
-      ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
-    });
-    const template = document.createElement("template");
-    template.innerHTML = sanitized;
-    editorRef.current.textContent = "";
-    editorRef.current.appendChild(template.content);
-    setSignatureHtml(sanitized);
-    setIsEmpty(false);
-    onSave?.();
+    (async () => {
+      if (!editorRef.current) return;
+
+      let savedHtml = getSignatureHtml();
+      if (!savedHtml) {
+        // Cache miss — the server may still have one (saved on another device).
+        try {
+          const res = await authedFetch("/api/user/signature");
+          if (res.ok) {
+            const data = (await res.json()) as { signatureHtml?: string | null };
+            if (data.signatureHtml) {
+              savedHtml = data.signatureHtml;
+              setSignatureHtml(savedHtml);
+            }
+          }
+        } catch {
+          /* offline — fall through to preset */
+        }
+      }
+      if (cancelled || !editorRef.current) return;
+
+      if (savedHtml) {
+        insertHtml(savedHtml);
+        return;
+      }
+
+      const preset = buildPresetSignatureHtml(user?.displayName, user?.email);
+      if (!preset) return;
+      insertHtml(preset);
+      setIsPrefill(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.displayName, user?.email]);
 
   const updateEmpty = useCallback(() => {
@@ -148,8 +177,9 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
     e.target.value = "";
   }
 
-  function handleSave() {
-    if (!editorRef.current) return;
+  async function handleSave() {
+    if (!editorRef.current || saving) return;
+    setSaveError(null);
     // Ensure pasted images have max-width for email compatibility
     editorRef.current.querySelectorAll("img").forEach((img) => {
       if (!img.style.maxWidth) {
@@ -163,18 +193,50 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
       ADD_TAGS: ["img"],
       ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
     });
-    setSignatureHtml(html);
-    setSaved(true);
-    onSave?.();
-    setTimeout(() => setSaved(false), 2000);
+
+    // Block placeholder content — a signature with "Your Name" or
+    // "NMLS# _______" must never satisfy the signature-required gate.
+    const placeholder = findSignaturePlaceholder(html);
+    if (placeholder) {
+      setSaveError(`Replace the placeholder "${placeholder}" with your real information, then save.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Server copy is the source of truth (the AI agent reads it);
+      // localStorage is the cache the flier modals read synchronously.
+      const res = await authedFetch("/api/user/signature", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signatureHtml: html }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setSaveError(data.error ?? "Could not save to the server — check your connection and try again.");
+        return;
+      }
+      setSignatureHtml(html);
+      setIsPrefill(false);
+      setSaved(true);
+      onSave?.();
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError("Could not save to the server — check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleClear() {
     if (!confirm("Clear your email signature?")) return;
     clearSignature();
+    void authedFetch("/api/user/signature", { method: "DELETE" }).catch(() => {});
     if (editorRef.current) editorRef.current.textContent = "";
     setIsEmpty(true);
     setSaved(false);
+    setIsPrefill(false);
+    setSaveError(null);
   }
 
   const btnCls =
@@ -269,15 +331,22 @@ export default function SignatureEditor({ onSave }: SignatureEditorProps = {}) {
       <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
-          disabled={isEmpty}
+          disabled={isEmpty || saving}
           className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40 transition-colors"
         >
-          {saved ? "Saved!" : "Save Signature"}
+          {saving ? "Saving…" : saved ? "Saved!" : "Save Signature"}
         </button>
-        {!isEmpty && !saved && (
-          <span className="text-[0.65rem] text-amber-600">Unsaved changes</span>
+        {!isEmpty && !saved && !saving && (
+          <span className="text-[0.65rem] text-amber-600">
+            {isPrefill
+              ? "Prefilled from your profile — review, fill in any blanks, and click Save."
+              : "Unsaved changes"}
+          </span>
         )}
       </div>
+      {saveError && (
+        <p className="text-xs text-red-600">{saveError}</p>
+      )}
 
       {/* Company compliance block (non-editable) */}
       <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">

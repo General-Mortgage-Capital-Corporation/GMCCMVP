@@ -595,3 +595,102 @@ class TestMatchListing:
             results = match_listing(listing)
         assert len(results) >= 1
         matcher_mod.load_programs.cache_clear()
+
+
+class TestGrandSlamIsSelectable:
+    """Grand Slam scored correctly but could never be asked for.
+
+    `is_secondary` decides how a program is DISPLAYED (grouped under
+    "Community Lending Programs", no card badge). It was also deciding what
+    the program pickers offer — a different question — so Grand Slam only
+    ever surfaced by accident, on a property the LO had already opened.
+    """
+
+    def test_grand_slam_is_offered_in_the_pickers(self):
+        from matching.matcher import is_selectable_program
+
+        assert is_selectable_program("GMCC CRA: Cronus Grand Slam")
+
+    def test_other_community_programs_stay_hidden(self):
+        # Widening this is a deliberate product call, not a side effect.
+        from matching.matcher import is_selectable_program
+
+        assert not is_selectable_program("GMCC Celebrity CRA: $15k DPA")
+        assert not is_selectable_program("GMCC CRA: Universe CRA")
+
+    def test_still_grouped_as_community_lending(self):
+        from matching.matcher import match_listing
+        from matching.models import ListingInput
+
+        listing = ListingInput(
+            price=700_000, property_type="Single Family", state="CA",
+            county="Orange", county_fips="06059",
+            tract_income_level="Moderate", census_tract_fips="06059001103",
+        )
+        result = next(
+            r for r in match_listing(listing) if "Grand Slam" in r.program_name
+        )
+        assert result.status.value == "Eligible"
+        assert result.is_secondary is True
+
+    def test_lmi_gate_still_applies(self):
+        """Selectable must not mean the CRA requirement got looser."""
+        from matching.matcher import match_listing
+        from matching.models import ListingInput
+
+        upper = ListingInput(
+            price=700_000, property_type="Single Family", state="CA",
+            county="Orange", county_fips="06059",
+            tract_income_level="Upper", census_tract_fips="06059099999",
+        )
+        result = next(
+            r for r in match_listing(upper) if "Grand Slam" in r.program_name
+        )
+        assert result.status.value == "Ineligible"
+
+    def test_selecting_it_filters_by_its_counties(self):
+        from matching.matcher import quick_prescreen
+
+        in_county = {"propertyType": "Single Family", "price": 700_000,
+                     "stateFips": "06", "countyFips": "059"}
+        off_list = {"propertyType": "Single Family", "price": 700_000,
+                    "stateFips": "48", "countyFips": "201"}
+        assert quick_prescreen(in_county, ["GMCC CRA: Cronus Grand Slam"])
+        assert not quick_prescreen(off_list, ["GMCC CRA: Cronus Grand Slam"])
+
+
+class TestCrown:
+    """GMCC Crown (asset qualifier, DTA): AZ/CA/NJ/NY, no county limits, a
+    primary program LOs can pick, flyer + rate sheet wired in the frontend."""
+
+    NAME = "GMCC: Crown No Income Doc/No Ratio (DTA)"
+
+    def _result(self, **kw):
+        from matching.matcher import match_listing
+        from matching.models import ListingInput
+
+        listing = ListingInput(**{"price": 2_500_000, "property_type": "Single Family", **kw})
+        return next(r for r in match_listing(listing) if r.program_name == self.NAME)
+
+    def test_eligible_in_its_states(self):
+        for state, county, fips in [("CA", "Santa Clara", "06085"), ("NY", "Queens", "36081"), ("NJ", "Bergen", "34003"), ("AZ", "Maricopa", "04013")]:
+            r = self._result(state=state, county=county, county_fips=fips)
+            assert r.status.value == "Eligible", (state, r)
+            assert r.is_secondary is False
+
+    def test_not_offered_outside_its_states(self):
+        r = self._result(state="TX", county="Harris", county_fips="48201")
+        assert r.status.value != "Eligible"
+
+    def test_selectable_in_the_pickers(self):
+        from matching.matcher import is_selectable_program
+
+        assert is_selectable_program(self.NAME)
+
+    def test_small_loans_are_only_potentially_eligible(self):
+        # Largest loan = 60% of price: $300K → $180K, under the $200K soft minimum.
+        small = self._result(price=300_000, state="CA", county="Santa Clara", county_fips="06085")
+        assert small.status.value == "Potentially Eligible"
+        # $400K → $240K possible loan: clears it.
+        ok = self._result(price=400_000, state="CA", county="Santa Clara", county_fips="06085")
+        assert ok.status.value == "Eligible"

@@ -387,7 +387,7 @@ function updateCardPrograms(index, programs) {
     } else {
         programsArea.innerHTML = eligible.map(p => {
             const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-            const beta = p.program_name === 'GMCC CRA: Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
+            const beta = p.program_name === 'GMCC Celebrity CRA: $15k DPA' ? ' <span class="beta-tag">Beta</span>' : '';
             return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
         }).join('');
     }
@@ -433,8 +433,8 @@ function createProgramCard(program, listing) {
     const body = document.createElement('div');
     body.className = 'program-card-body';
     body.style.display = 'none';
-    const betaNotice = program.program_name === 'GMCC CRA: Diamond CRA'
-        ? `<div class="diamond-beta-notice">Beta — Tract eligibility list may be outdated. Please verify at <a href="https://hub.collateralanalytics.com/correspondentsearch" target="_blank" rel="noopener">Collateral Analytics</a> before proceeding.</div>`
+    const betaNotice = program.program_name === 'GMCC Celebrity CRA: $15k DPA'
+        ? `<div class="diamond-beta-notice">Beta — Tract eligibility list may be outdated. Please verify at <a href="https://chase.homestory.co/clp/homestoryca/search-results/san_jose,ca?clp_tier=1,2,3&page=1" target="_blank" rel="noopener">the Chase Community Lending map</a> before proceeding.</div>`
         : '';
 
     body.innerHTML = `
@@ -857,7 +857,7 @@ function createPropertyCard(listing, index) {
         } else {
             programsHtml = eligible.map(p => {
                 const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-                const beta = p.program_name === 'GMCC CRA: Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
+                const beta = p.program_name === 'GMCC Celebrity CRA: $15k DPA' ? ' <span class="beta-tag">Beta</span>' : '';
                 return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
             }).join('');
         }
@@ -1894,7 +1894,7 @@ function renderMarketingPage() {
         const programBadges = eligible.length > 0
             ? eligible.map(p => {
                 const cls = p.status === 'Eligible' ? 'prog-badge-eligible' : 'prog-badge-potential';
-                const beta = p.program_name === 'GMCC CRA: Diamond CRA' ? ' <span class="beta-tag">Beta</span>' : '';
+                const beta = p.program_name === 'GMCC Celebrity CRA: $15k DPA' ? ' <span class="beta-tag">Beta</span>' : '';
                 return `<span class="prog-badge ${cls}">${escapeHtml(p.program_name)}${beta}</span>`;
             }).join(' ')
             : '<span class="prog-none">None</span>';

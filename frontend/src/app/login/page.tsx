@@ -44,9 +44,14 @@ function cleanNextDestination(next: string): string {
 function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, signIn, signInSilent, getIdToken, loading } = useAuth();
+  const { user, signIn, signInSilent, signInPartner, getIdToken, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Partner (email/password) mode — for realtors/CPAs an LO invited. Kept on
+  // the same page as a small toggle so the emailed link stays a single URL.
+  const [partnerMode, setPartnerMode] = useState(false);
+  const [partnerEmail, setPartnerEmail] = useState("");
+  const [partnerPassword, setPartnerPassword] = useState("");
 
   const next = useMemo(
     () => cleanNextDestination(sanitizeNextPath(searchParams.get("next"))),
@@ -161,6 +166,20 @@ function LoginInner() {
     }
   }
 
+  async function handlePartnerSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await signInPartner(partnerEmail, partnerPassword);
+      // Redirect happens via the user-effect above.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // Show the spinner only while something is actually in flight: a real
   // sign-in attempt, the legacy ?sso_token= exchange, the portal silent SSO,
   // or the redirect-after-success window. Direct visits show the button
@@ -173,7 +192,11 @@ function LoginInner() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-semibold text-gray-900">GMCC Property Search</h1>
           <p className="mt-2 text-sm text-gray-600">
-            {showSpinner ? "Signing you in…" : "Sign in with your GMCC Outlook account to continue."}
+            {showSpinner
+              ? "Signing you in…"
+              : partnerMode
+                ? "Sign in with the credentials your loan officer sent you."
+                : "Sign in with your GMCC Outlook account to continue."}
           </p>
         </div>
 
@@ -181,6 +204,34 @@ function LoginInner() {
           <div className="flex items-center justify-center py-3">
             <LoadingSpinner size="md" />
           </div>
+        ) : partnerMode ? (
+          <form onSubmit={handlePartnerSignIn} className="space-y-3">
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              value={partnerEmail}
+              onChange={(e) => setPartnerEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300"
+            />
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={partnerPassword}
+              onChange={(e) => setPartnerPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300"
+            />
+            <button
+              type="submit"
+              disabled={!partnerEmail.trim() || !partnerPassword}
+              className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-50"
+            >
+              Sign in
+            </button>
+          </form>
         ) : (
           <button
             onClick={handleSignIn}
@@ -193,6 +244,21 @@ function LoginInner() {
               <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900"/>
             </svg>
             <span>Sign in with Outlook</span>
+          </button>
+        )}
+
+        {!showSpinner && (
+          <button
+            type="button"
+            onClick={() => {
+              setPartnerMode((m) => !m);
+              setError(null);
+            }}
+            className="mt-4 w-full text-center text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
+          >
+            {partnerMode
+              ? "GMCC employee? Sign in with Outlook"
+              : "Partner sign in (invited by your loan officer)"}
           </button>
         )}
 
@@ -209,7 +275,9 @@ function LoginInner() {
         )}
 
         <p className="mt-6 text-center text-xs text-gray-500">
-          Access is restricted to GMCC loan officers. Contact your admin if you need access.
+          {partnerMode
+            ? "Partner access is by invitation from a GMCC loan officer."
+            : "Access is restricted to GMCC loan officers. Contact your admin if you need access."}
         </p>
       </div>
     </main>

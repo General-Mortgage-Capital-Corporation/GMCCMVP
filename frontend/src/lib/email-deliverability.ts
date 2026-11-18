@@ -113,6 +113,146 @@ export async function readCachedDeliverability(
 }
 
 /**
+ * Ops health record for the Bouncer integration (`ops/bouncerHealth`).
+ * Written best-effort on every live Bouncer call so the admin email-approvals
+ * page can show an outage banner. The 2026-08 credits-exhaustion incident
+ * (HTTP 402 → every uncached address blocked for everyone) was invisible
+ * until LOs complained — this makes the failure mode observable.
+ */
+async function recordBouncerHealth(ok: boolean, detail?: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await db
+      .collection("ops")
+      .doc("bouncerHealth")
+      .set(
+        ok
+          ? { lastOkAt: FieldValue.serverTimestamp() }
+          : {
+              lastErrorAt: FieldValue.serverTimestamp(),
+              lastErrorDetail: (detail ?? "").slice(0, 300),
+              errorCount: FieldValue.increment(1),
+            },
+        { merge: true },
+      );
+  } catch {
+    /* best-effort */
+  }
+}
+
+export interface BouncerHealth {
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastErrorDetail: string | null;
+  errorCount: number;
+}
+
+/** Read the Bouncer health record (for the admin page banner). */
+export async function readBouncerHealth(): Promise<BouncerHealth | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const snap = await db.collection("ops").doc("bouncerHealth").get();
+    if (!snap.exists) return null;
+    const x = snap.data() as Record<string, unknown>;
+    const ms = (v: unknown) =>
+      v && typeof (v as { toMillis?: () => number }).toMillis === "function"
+        ? (v as { toMillis: () => number }).toMillis()
+        : null;
+    return {
+      lastOkAt: ms(x.lastOkAt),
+      lastErrorAt: ms(x.lastErrorAt),
+      lastErrorDetail: typeof x.lastErrorDetail === "string" ? x.lastErrorDetail : null,
+      errorCount: typeof x.errorCount === "number" ? x.errorCount : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Live Bouncer call + cache write. Assumes syntax/allowlist/cache handled by caller. */
+async function callBouncerAndCache(
+  normalized: string,
+  checkedBy?: string,
+): Promise<DeliverabilityResult> {
+  const apiKey = process.env.BOUNCER_API_KEY;
+  if (!apiKey) {
+    return {
+      email: normalized,
+      status: "unknown",
+      reason: "not_configured",
+      didYouMean: null,
+      source: "not_configured",
+    };
+  }
+
+  try {
+    const url = `https://api.usebouncer.com/v1.1/email/verify?email=${encodeURIComponent(normalized)}&timeout=15`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.warn("[email-deliverability] Bouncer HTTP error:", res.status, detail);
+      void recordBouncerHealth(false, `HTTP ${res.status} ${detail}`);
+      return {
+        email: normalized,
+        status: "unknown",
+        reason: "api_error",
+        didYouMean: null,
+        source: "api_error",
+      };
+    }
+    const body = (await res.json()) as {
+      status?: string;
+      reason?: string | null;
+      didYouMean?: string | null;
+    };
+    void recordBouncerHealth(true);
+    const status = normalizeBouncerStatus(body.status);
+    const reason = body.reason ?? null;
+    const didYouMean = body.didYouMean || null;
+
+    // Persist
+    const db = getDb();
+    if (db) {
+      try {
+        await db
+          .collection("emailValidations")
+          .doc(emailCacheKey(normalized))
+          .set(
+            {
+              email: normalized,
+              status,
+              reason,
+              didYouMean,
+              checkedAt: FieldValue.serverTimestamp(),
+              ...(checkedBy ? { checkedBy } : {}),
+            },
+            { merge: true },
+          );
+      } catch (err) {
+        console.warn("[email-deliverability] cache write failed:", err);
+      }
+    }
+
+    return { email: normalized, status, reason, didYouMean, source: "bouncer" };
+  } catch (err) {
+    console.error("[email-deliverability] call failed:", err);
+    void recordBouncerHealth(false, String(err));
+    return {
+      email: normalized,
+      status: "unknown",
+      reason: "api_error",
+      didYouMean: null,
+      source: "api_error",
+    };
+  }
+}
+
+/**
  * Verify an email's deliverability via Bouncer, with Firestore cache.
  * Fails open: returns `unknown` if Bouncer is misconfigured or down —
  * the caller's policy (blocksSend) is what enforces the hard block.
@@ -149,78 +289,28 @@ export async function verifyDeliverability(
   const cached = await readCachedDeliverability(normalized);
   if (cached) return cached;
 
-  const apiKey = process.env.BOUNCER_API_KEY;
-  if (!apiKey) {
+  return callBouncerAndCache(normalized, checkedBy);
+}
+
+/**
+ * Admin re-check: bypass the allowlist AND the 90-day cache and ask Bouncer
+ * fresh (spends one credit). Used by the admin tool so a flagged address that
+ * has since been fixed (mailbox created, domain repaired) can clear itself
+ * without waiting out the cache TTL.
+ */
+export async function forceReverifyDeliverability(
+  email: string,
+  checkedBy?: string,
+): Promise<DeliverabilityResult> {
+  const normalized = normalizeEmail(email);
+  if (!normalized || !SYNTAX_RE.test(normalized)) {
     return {
       email: normalized,
-      status: "unknown",
-      reason: "not_configured",
+      status: "undeliverable",
+      reason: "invalid_syntax",
       didYouMean: null,
-      source: "not_configured",
+      source: "syntax",
     };
   }
-
-  try {
-    const url = `https://api.usebouncer.com/v1.1/email/verify?email=${encodeURIComponent(normalized)}&timeout=15`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "x-api-key": apiKey },
-    });
-    if (!res.ok) {
-      console.warn(
-        "[email-deliverability] Bouncer HTTP error:",
-        res.status,
-        await res.text().catch(() => ""),
-      );
-      return {
-        email: normalized,
-        status: "unknown",
-        reason: "api_error",
-        didYouMean: null,
-        source: "api_error",
-      };
-    }
-    const body = (await res.json()) as {
-      status?: string;
-      reason?: string | null;
-      didYouMean?: string | null;
-    };
-    const status = normalizeBouncerStatus(body.status);
-    const reason = body.reason ?? null;
-    const didYouMean = body.didYouMean || null;
-
-    // Persist
-    const db = getDb();
-    if (db) {
-      try {
-        await db
-          .collection("emailValidations")
-          .doc(emailCacheKey(normalized))
-          .set(
-            {
-              email: normalized,
-              status,
-              reason,
-              didYouMean,
-              checkedAt: FieldValue.serverTimestamp(),
-              ...(checkedBy ? { checkedBy } : {}),
-            },
-            { merge: true },
-          );
-      } catch (err) {
-        console.warn("[email-deliverability] cache write failed:", err);
-      }
-    }
-
-    return { email: normalized, status, reason, didYouMean, source: "bouncer" };
-  } catch (err) {
-    console.error("[email-deliverability] call failed:", err);
-    return {
-      email: normalized,
-      status: "unknown",
-      reason: "api_error",
-      didYouMean: null,
-      source: "api_error",
-    };
-  }
+  return callBouncerAndCache(normalized, checkedBy);
 }

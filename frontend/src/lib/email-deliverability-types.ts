@@ -54,6 +54,10 @@ export function describeReason(
   if (status === "deliverable") return "Verified deliverable.";
   const r = reason ?? "";
   switch (r) {
+    case "api_error":
+      return "The email verification service is temporarily unavailable — this is NOT a problem with the address itself. Try again in a few minutes, or ask an admin to approve the address.";
+    case "not_configured":
+      return "Email verification is not configured on the server — contact the administrator.";
     case "rejected_email":
       return "The mailbox does not exist.";
     case "invalid_email":

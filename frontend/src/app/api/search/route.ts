@@ -17,7 +17,7 @@ const API_KEY = process.env.RENTCAST_API_KEY ?? "";
 
 /** Search active listings via RentCast. API key stays server-side. */
 export async function GET(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const ip = getClientIp(req);
   if (!(await rateLimit(ip, 30))) {
     return NextResponse.json(

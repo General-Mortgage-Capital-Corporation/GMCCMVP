@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailRequest } from "@/lib/msal-config";
 import { getSignatureHtml, hasSignature, buildHtmlBodyWithSignature } from "@/lib/signature-store";
+import SignatureFixModal from "@/components/SignatureFixModal";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import type { FollowUpListItem } from "@/types/follow-up";
 import { trackEvent } from "@/lib/posthog";
@@ -38,6 +39,9 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
   // the amber "Send anyway" notice. Hard blocks use the plain sendError string.
   const [sendBlocked, setSendBlocked] = useState<DeliverabilityResult | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  // Signature is mandatory on every outgoing email (same policy as the flier
+  // modals and the AI agent) — follow-ups previously slipped through unsigned.
+  const [sigFixOpen, setSigFixOpen] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -127,6 +131,10 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
 
   async function handleSendFollowUp(item: FollowUpListItem) {
     if (sending) return;
+    if (!hasSignature()) {
+      setSigFixOpen(true);
+      return;
+    }
     if (!composeSubject.trim() || !composeBody.trim()) {
       setSendError("Subject and body are required.");
       return;
@@ -464,6 +472,13 @@ export default function FollowUpDashboard({ onClose }: FollowUpDashboardProps) {
           )}
         </div>
       </div>
+
+      {sigFixOpen && (
+        <SignatureFixModal
+          onClose={() => setSigFixOpen(false)}
+          onSaved={() => setSigFixOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -15,7 +15,8 @@ export type ProgramKey =
   | "hermes"
   | "ocean"
   | "universe"
-  | "radiant";
+  | "radiant"
+  | "crown";
 
 /**
  * One rate-sheet record extracted from a SharePoint file.

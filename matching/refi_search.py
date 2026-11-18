@@ -443,6 +443,24 @@ def preview_contacts(radar_ids: list[str]) -> dict:
     }
 
 
+def _cache_covers(cached: dict, *, phone: bool, email: bool) -> bool:
+    """Whether a cached unlock answers the channels being requested now.
+
+    The cache is keyed by property only. An LO who unlocked just the email
+    left ``phone: None`` in the entry; serving that to the next LO who asks
+    for the phone told them "no phone on file" for the life of the entry
+    (365 days) without PropertyRadar ever being asked. Entries now carry
+    ``requested``; older ones without it are trusted only for channels that
+    actually hold a value.
+    """
+    requested = cached.get("requested")
+    if not isinstance(requested, dict):
+        return (not phone or cached.get("phone") is not None) and \
+               (not email or cached.get("email") is not None)
+    return (not phone or bool(requested.get("phone"))) and \
+           (not email or bool(requested.get("email")))
+
+
 def unlock_contacts(radar_ids: list[str], *, phone: bool = True, email: bool = True) -> dict:
     """Fetch phone + email for a list of properties (by RadarID).
 
@@ -473,8 +491,9 @@ def unlock_contacts(radar_ids: list[str], *, phone: bool = True, email: bool = T
         # L2 cache: cross-LO Redis (14-day TTL). Saves credits on any
         # repeated query of the same property by anyone on the team.
         cached = get_cached_contact_unlock(rid)
-        if cached is not None:
+        if cached is not None and _cache_covers(cached, phone=phone, email=email):
             cached_copy = dict(cached)
+            cached_copy.pop("requested", None)
             cached_copy["cache_hit"] = True
             results.append(cached_copy)
             continue
@@ -553,8 +572,24 @@ def unlock_contacts(radar_ids: list[str], *, phone: bool = True, email: bool = T
                 item["email_error"] = "No email on file for any owner"
         item["persons"] = persons_info
         # Cache successful results (negative results too — saves re-querying
-        # properties PR has nothing for).
-        set_cached_contact_unlock(rid, {k: v for k, v in item.items() if k != "cache_hit"})
+        # properties PR has nothing for). The payload records WHICH channels
+        # were asked for: a None for a channel nobody requested is not a
+        # negative result, and must not be served as one later.
+        to_cache = {k: v for k, v in item.items() if k != "cache_hit"}
+        if cached is not None:
+            # Keep channels the earlier unlock already paid for.
+            for ch in ("phone", "email"):
+                if to_cache.get(ch) is None and cached.get(ch) is not None:
+                    to_cache[ch] = cached[ch]
+                    to_cache[f"{ch}_error"] = None
+            prev = cached.get("requested") or {}
+        else:
+            prev = {}
+        to_cache["requested"] = {
+            "phone": bool(phone or prev.get("phone")),
+            "email": bool(email or prev.get("email")),
+        }
+        set_cached_contact_unlock(rid, to_cache)
         results.append(item)
 
     return {"results": results}

@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import DOMPurify from "dompurify";
+import { useAuth } from "@/contexts/AuthContext";
 import type { ProgramResult, RentCastListing } from "@/types";
 import { renderSimpleMarkdown, formatPhoneInput } from "@/lib/utils";
 import { getExplanation } from "@/lib/api";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import FlierButton, { type RealtorInfo } from "@/components/flier/FlierButton";
 import { StatusIcon, CriteriaGrid } from "./PropertyPanels";
+import { diamondEligibilityUrl } from "@/lib/diamond-eligibility";
 
 // ---------------------------------------------------------------------------
 // Talking points
@@ -88,12 +90,15 @@ export function ProgramCard({
   onToggleSelect?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Partners see programs + criteria + flyers only — talking points call the
+  // LLM explain route, which is LO-only (and rejects partners server-side).
+  const isPartner = useAuth().user?.role === "partner";
 
   const tier =
     program.matching_tiers.find((t) => t.tier_name === program.best_tier) ??
     program.matching_tiers[0];
 
-  const isDiamond = program.program_name === "GMCC CRA: Diamond CRA";
+  const isDiamond = program.program_name === "GMCC Celebrity CRA: $15k DPA";
 
   return (
     <div
@@ -168,7 +173,7 @@ export function ProgramCard({
             <div className="mb-3 rounded-md border border-violet-200 bg-violet-50 p-2.5 text-xs text-violet-700">
               Beta — Tract eligibility list may be outdated.{" "}
               <a
-                href="https://hub.collateralanalytics.com/correspondentsearch"
+                href={diamondEligibilityUrl(listing.city, listing.state)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold underline hover:text-violet-900"
@@ -180,7 +185,7 @@ export function ProgramCard({
             </div>
           )}
           {tier && <CriteriaGrid criteria={tier.criteria} />}
-          <TalkingPoints program={program} listing={listing} />
+          {!isPartner && <TalkingPoints program={program} listing={listing} />}
         </div>
       )}
     </div>

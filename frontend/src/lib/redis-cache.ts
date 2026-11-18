@@ -295,6 +295,10 @@ interface AgentArtifactEntry {
   kind: "pdf" | "csv";
   base64: string;
   filename?: string;
+  /** Flyer PDFs: the product the flyer is for (drives the link fallback). */
+  productId?: string;
+  /** Flyer PDFs: page 1 as a JPEG, for embedding in the email body. */
+  image?: { base64: string; width: number; height: number };
 }
 
 export async function getAgentArtifact(ref: string): Promise<AgentArtifactEntry | null> {
@@ -472,4 +476,38 @@ export async function removeStaleIndexEntry(userId: string, convId: string): Pro
       await setCacheValue(chatIndexKey(userId), filtered, CHAT_TTL);
     }
   } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// Generic helpers (Daily Desk)
+// ---------------------------------------------------------------------------
+
+export async function getCachedJson<T>(key: string): Promise<T | null> {
+  return getCacheValue<T>(key);
+}
+
+export async function setCachedJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  await setCacheValue(key, value, ttlSeconds);
+}
+
+/**
+ * Atomically add 1 to a counter and return the new value (Redis INCR with a
+ * TTL on first use). Returns null when no counter store is available — the
+ * caller decides whether that means "allow" or "deny".
+ */
+export async function incrementCounter(key: string, ttlSeconds: number): Promise<number | null> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const n = await redis.incr(key);
+      if (n === 1) await redis.expire(key, ttlSeconds);
+      return n;
+    } catch {
+      return null;
+    }
+  }
+  if (!shouldUseLocalCache()) return null;
+  const cur = (await getLocalCacheValue<number>(key)) ?? 0;
+  await setLocalCacheValue(key, cur + 1, ttlSeconds);
+  return cur + 1;
 }

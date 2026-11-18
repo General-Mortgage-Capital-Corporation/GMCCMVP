@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const subRef = db ? db.doc(`subscriptions/${email}`) : null;
+  // Same doc the cloud functions write; the top-level collection is retired.
+  const subRef = db ? db.doc(`users/${email}/subscriptions/current`) : null;
 
   // Guard 2: in-flight invoice reuse.
   if (subRef) {

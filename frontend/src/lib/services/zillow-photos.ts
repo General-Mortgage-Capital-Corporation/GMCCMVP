@@ -156,8 +156,33 @@ export async function fetchZillowPhotos(address: string): Promise<ZillowPhotoRes
 }
 
 /** Extract the best photo URLs from a Zillow detail scraper result. */
-function extractPhotos(item: Record<string, unknown>): string[] {
-  // Primary source: responsivePhotos — array of { mixedSources: { jpeg: [{ url, width }] } }
+export function extractPhotos(item: Record<string, unknown>): string[] {
+  // Current schema (maxcopell~zillow-detail-scraper, as of 2026-09):
+  // listingPhotos — array of { url } (uncropped 1536×1152), plus
+  // mainImage { hiRes, thumbnail }. The scraper dropped responsivePhotos /
+  // originalPhotos / photos / imgSrc, which silently zeroed every flyer
+  // hero photo until this was added.
+  const listingPhotos = item.listingPhotos;
+  if (Array.isArray(listingPhotos) && listingPhotos.length > 0) {
+    const urls = listingPhotos.flatMap((p) => {
+      if (typeof p === "string") return [p];
+      if (!p || typeof p !== "object") return [];
+      const rec = p as Record<string, unknown>;
+      const u = rec.url ?? rec.hiRes ?? rec.src;
+      return typeof u === "string" ? [u] : [];
+    });
+    if (urls.length > 0) return urls;
+  }
+  const main = item.mainImage;
+  if (main && typeof main === "object") {
+    const rec = main as Record<string, unknown>;
+    const u = rec.hiRes ?? rec.url ?? rec.thumbnail;
+    if (typeof u === "string") return [u];
+  } else if (typeof main === "string") {
+    return [main];
+  }
+
+  // Legacy schema: responsivePhotos — array of { mixedSources: { jpeg: [{ url, width }] } }
   const responsive = item.responsivePhotos;
   if (Array.isArray(responsive) && responsive.length > 0) {
     const urls = responsive.flatMap((rp) => {

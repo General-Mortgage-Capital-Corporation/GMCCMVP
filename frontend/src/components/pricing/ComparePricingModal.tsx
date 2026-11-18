@@ -26,7 +26,7 @@ import type {
  * in place but don't request or render it. To re-enable, add "bws" back to
  * this list (and ideally re-test the new BWS per-variant response shape).
  */
-const ENABLED_ENGINES: EngineProgram[] = ["loannex", "qm_jumbo"];
+const ENABLED_ENGINES: EngineProgram[] = ["loannex", "portfolio"];
 import type { RentCastListing } from "@/types";
 import ScenarioForm from "./ScenarioForm";
 import EngineResults from "./EngineResults";
@@ -237,7 +237,7 @@ function Header({
         <p className="mt-0.5 truncate text-xs text-slate-500">{summary}</p>
         <p className="mt-1 text-[0.7rem] leading-tight text-slate-500">
           Comparing pricing across{" "}
-          <span className="font-medium text-slate-700">QM Jumbo</span> programs (loans ≥ $300K) and{" "}
+          <span className="font-medium text-slate-700">GMCC Portfolio</span> programs (Thunder, Ocean, Universe, Hermes, Radiant, Crown and more) and{" "}
           <span className="font-medium text-slate-700">Loannex</span> programs.
         </p>
       </div>
@@ -308,7 +308,7 @@ function ScenarioPhase({
             <p className="mt-0.5 text-xs text-slate-500">
               {hasResults
                 ? "Adjust any field and re-run to update quotes across all engines."
-                : "We'll fan this out across QM Jumbo (loans ≥ $300K) and Loannex programs. Defaults are conservative — change anything that doesn't match the borrower."}
+                : "We'll fan this out across GMCC Portfolio and Loannex programs. Defaults are conservative — change anything that doesn't match the borrower."}
             </p>
           </div>
 

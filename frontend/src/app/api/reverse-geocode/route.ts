@@ -7,7 +7,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
 
 /** Reverse-geocode lat/lng → formatted street address via Google Geocoding API. */
 export async function GET(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
 
   const lat = Number(req.nextUrl.searchParams.get("lat"));
   const lng = Number(req.nextUrl.searchParams.get("lng"));

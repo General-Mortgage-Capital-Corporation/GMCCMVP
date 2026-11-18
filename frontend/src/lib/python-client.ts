@@ -8,6 +8,11 @@
 import type { CountyInfo } from "@/types";
 
 const BASE = process.env.PYTHON_SERVICE_URL ?? "http://localhost:5001";
+// Shared secret the Flask service requires once PYTHON_SERVICE_SECRET is set
+// on it. Sent on every call; harmless while the service isn't enforcing.
+const SERVICE_SECRET = process.env.PYTHON_SERVICE_SECRET ?? "";
+const authHeaders = (): Record<string, string> =>
+  SERVICE_SECRET ? { "x-service-secret": SERVICE_SECRET } : {};
 
 export class PythonServiceError extends Error {
   status: number;
@@ -33,7 +38,7 @@ export async function pyGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     signal: signal ?? AbortSignal.timeout(60_000),
     cache: "no-store",
-    headers: { accept: "application/json" },
+    headers: { accept: "application/json", ...authHeaders() },
   });
   return handleResponse<T>(res);
 }
@@ -77,7 +82,7 @@ export async function pyPost<T>(
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", accept: "application/json" },
+    headers: { "Content-Type": "application/json", accept: "application/json", ...authHeaders() },
     body: JSON.stringify(body),
     signal: signal ?? AbortSignal.timeout(120_000),
     cache: "no-store",

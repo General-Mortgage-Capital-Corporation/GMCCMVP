@@ -8,7 +8,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? "";
 
 /** Proxy Google Places Autocomplete — keeps API key server-side. */
 export async function GET(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const ip = getClientIp(req);
   if (!(await rateLimit(ip, 120))) {
     return NextResponse.json({ suggestions: [] }, { status: 429 });

@@ -33,12 +33,37 @@ SECONDARY_PROGRAM_NAMES: set[str] = {
     "GMCC CRA: Celebrity Community Opportunity",
     "GMCC CRA: Celebrity Forgivable $10K DPA 2nd",
     "GMCC CRA: Cronus Grand Slam",
-    "GMCC CRA: Cronus Special Conforming",
     "GMCC CRA: Cronus Jumbo CRA",
-    "GMCC CRA: Diamond CRA",
+    "GMCC Celebrity CRA: $15k DPA",
     "GMCC CRA: Universe CRA",  # Universe Home Outreach (CRA) — broker channel only
-    "GMCC Celebrity Jumbo",
+    "GMCC Celebrity CRA: 100% First + $15k DPA",
 }
+
+# Secondary programs that an LO can still SEARCH BY.
+#
+# `is_secondary` describes how a program is DISPLAYED — grouped under
+# "Community Lending Programs" in the property modal, kept off card badges and
+# out of best-match scoring. It was also deciding what the program pickers
+# offer, which is a different question, and the two came apart for Grand Slam:
+# the matcher scores it correctly (it returns ELIGIBLE for an LMI tract in one
+# of its 57 counties), but an LO could never ask for it, so it only ever
+# appeared by accident on a property they had already opened. Hermes is proof
+# the two are separable — it is a primary program with the same LMI gate.
+#
+# Add a name here to make it selectable without promoting it out of the
+# community-lending group.
+SEARCHABLE_SECONDARY_PROGRAM_NAMES: set[str] = {
+    "GMCC CRA: Cronus Grand Slam",
+}
+
+
+def is_selectable_program(program_name: str) -> bool:
+    """True when a program should appear in the search / program pickers."""
+    return (
+        program_name not in SECONDARY_PROGRAM_NAMES
+        or program_name in SEARCHABLE_SECONDARY_PROGRAM_NAMES
+    )
+
 
 # Programs whose eligibility criteria are still pending formalisation.
 # Append these as Potentially Eligible placeholders until a JSON file exists.
@@ -135,6 +160,22 @@ def check_loan_amount(
                 f"${tier.min_loan_amount:,.0f}"
             ),
         )
+
+    # A soft minimum (Crown: $200K on the flyer, priced below that on the
+    # rate sheet): if even the largest loan the program allows on this price
+    # is under it, the listing is only Potentially Eligible.
+    if tier.soft_min_loan_amount is not None:
+        max_loan = price * (tier.max_ltv or 100.0) / 100.0
+        if max_loan < tier.soft_min_loan_amount:
+            return CriterionResult(
+                criterion="loan_amount",
+                status=CriterionStatus.UNVERIFIED,
+                detail=(
+                    f"Price ${price:,.0f} allows at most a ${max_loan:,.0f} loan "
+                    f"({tier.max_ltv or 100:.0f}% LTV) — below ${tier.soft_min_loan_amount:,.0f}; "
+                    "may still qualify, confirm the loan amount with the rate sheet"
+                ),
+            )
 
     # For conforming-only programs: price above max could still work with
     # a larger down payment, so mark as UNVERIFIED rather than FAIL.

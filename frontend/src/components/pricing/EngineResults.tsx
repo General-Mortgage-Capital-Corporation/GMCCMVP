@@ -51,6 +51,7 @@ interface Props {
 const ENGINE_KEY: Record<EngineProgram, ResultEngine> = {
   loannex: "loannex",
   qm_jumbo: "gmcc_processor",
+  portfolio: "gmcc_processor",
   bws: "bws",
 };
 
@@ -60,7 +61,7 @@ const ENGINE_KEY: Record<EngineProgram, ResultEngine> = {
 
 export default function EngineResults({ results, defaultsApplied, enabledEngines }: Props) {
   const byEngine = useMemo(() => groupByEngine(results), [results]);
-  const enabled = enabledEngines ?? (["loannex", "qm_jumbo", "bws"] as EngineProgram[]);
+  const enabled = enabledEngines ?? (["loannex", "portfolio", "bws"] as EngineProgram[]);
   const isOn = (key: EngineProgram) => enabled.includes(key);
 
   return (
@@ -72,11 +73,11 @@ export default function EngineResults({ results, defaultsApplied, enabledEngines
         </div>
       )}
 
-      {isOn("qm_jumbo") && (
+      {(isOn("portfolio") || isOn("qm_jumbo")) && (
         <EngineSection
-          title="QM Jumbo"
-          subtitle="Thunder, Jubilant, Fabulous"
-          rows={byEngine[ENGINE_KEY.qm_jumbo]}
+          title="GMCC Portfolio"
+          subtitle={isOn("portfolio") ? "Thunder, Jubilant, Fabulous, Ocean, Hermes, Universe, Radiant, Crown" : "Thunder, Jubilant, Fabulous"}
+          rows={byEngine[ENGINE_KEY.portfolio]}
         />
       )}
       {isOn("loannex") && (
@@ -127,7 +128,13 @@ function EngineSection({
   }
 
   const eligible = rows.filter((r) => r.status === "eligible");
-  const ineligible = rows.filter((r) => r.status === "ineligible");
+  // "unavailable" rows (program exists but doesn't fit — e.g. "Jubilant loan
+  // amount must be between $300,000 and $1,000,000") used to be silently
+  // dropped, making programs look like they were never checked at all. Show
+  // them alongside ineligible so every evaluated program is accounted for.
+  const ineligible = rows.filter(
+    (r) => r.status === "ineligible" || r.status === "unavailable",
+  );
   const errors = rows.filter((r) => r.status === "error");
 
   return (
@@ -605,17 +612,30 @@ function RateLadder({ rates }: { rates: RateRow[] }) {
 // ---------------------------------------------------------------------------
 
 function IneligibleList({ rows }: { rows: PricingResult[] }) {
+  // The engine can emit the same program more than once (e.g. two identical
+  // "Jubilant loan amount must be between…" unavailable rows). Merge rows by
+  // program name, uniquing their reasons, so nothing shows twice.
+  const merged = new Map<string, string[]>();
+  for (const r of rows) {
+    const reasons = merged.get(r.program) ?? [];
+    for (const reason of r.reasons ?? ["Not eligible"]) {
+      if (!reasons.includes(reason)) reasons.push(reason);
+    }
+    merged.set(r.program, reasons);
+  }
+  const items = [...merged.entries()];
+
   return (
     <details className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
       <summary className="cursor-pointer text-xs font-medium text-slate-600">
-        Ineligible ({rows.length})
+        Not eligible for this scenario ({items.length})
       </summary>
       <ul className="mt-2 space-y-1 text-xs">
-        {rows.map((r) => (
-          <li key={r.program} className="rounded-md bg-white px-2.5 py-1.5">
-            <div className="font-medium text-slate-700">{r.program}</div>
+        {items.map(([program, reasons]) => (
+          <li key={program} className="rounded-md bg-white px-2.5 py-1.5">
+            <div className="font-medium text-slate-700">{program}</div>
             <ul className="mt-0.5 list-inside list-disc text-slate-500">
-              {(r.reasons ?? ["Not eligible"]).map((reason, i) => (
+              {reasons.map((reason, i) => (
                 <li key={i}>{reason}</li>
               ))}
             </ul>

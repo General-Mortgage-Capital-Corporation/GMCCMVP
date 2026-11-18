@@ -1,6 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { generateEmailDraft } from "@/lib/services/email-draft";
+import {
+  findSignaturePlaceholder,
+  isSignatureContentEmpty,
+} from "@/lib/signature-store";
 
 interface DraftEmailContext {
   signatureHtml: string;
@@ -29,15 +33,32 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
         .string()
         .optional()
         .describe("Research summary for personalization (from researchRealtor output)"),
+      flyerDelivery: z
+        .enum(["embedded", "attached", "linked", "none"])
+        .default("none")
+        .describe(
+          "How the program flyer will go out with this email. Call generateFlyer BEFORE drafting: " +
+            "'embedded' if it returned canEmbed: true and the flyer will be shown in the email body; 'attached' only if it returned canAttach: true and the PDF will be attached; 'linked' if it returned canAttach: false (a portal link is added under the text); " +
+            "'none' if there is no flyer. The draft only mentions a flyer in the way that is true.",
+        ),
     }),
     execute: async (input) => {
-      const hasSignature = !!(ctx?.signatureHtml);
+      const sig = ctx?.signatureHtml ?? "";
+      const hasSignature = !!sig && !isSignatureContentEmpty(sig);
 
       if (!hasSignature) {
         return {
           error:
             "No email signature found. Please ask the user to go to Settings (gear icon) and set up their email signature before drafting emails. " +
             "The signature should include their name, title, NMLS#, and contact info.",
+        };
+      }
+      const placeholder = findSignaturePlaceholder(sig);
+      if (placeholder) {
+        return {
+          error:
+            `The saved email signature still contains the placeholder "${placeholder}". ` +
+            "Ask the user to open Settings (gear icon), replace the placeholder with their real information, and save the signature before drafting emails.",
         };
       }
 
@@ -53,12 +74,18 @@ export function createDraftEmailTool(ctx?: DraftEmailContext) {
           userPrompt: input.userPrompt,
           realtorResearch: input.realtorResearch,
           hasSignature: true,
+          flyerDelivery: input.flyerDelivery,
         });
 
         return {
           subject,
           body,
-          note: "Your email signature and GMCC company disclaimer will be automatically appended when sent.",
+          flyerDelivery: input.flyerDelivery,
+          note:
+            "Your email signature and GMCC company disclaimer will be automatically appended when sent." +
+            (input.flyerDelivery === "linked" ? " Send with sendEmail flyerDelivery: 'link' — the flyer link is added under the body." : "") +
+            (input.flyerDelivery === "embedded" ? " Send with sendEmail flyerDelivery: 'embed' and the flyerRef — the flyer shows right under the body." : "") +
+            (input.flyerDelivery === "attached" ? " Send with sendEmail and the flyerRef, or the send will be refused." : ""),
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Email draft failed.";

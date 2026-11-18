@@ -24,13 +24,13 @@ export const RATE_SHEET_FOLDERS: { label: string; url: string }[] = [
     url: "https://netorgft1191593.sharepoint.com/:f:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/QM",
   },
   {
-    label: "Non-QM (Hermes, Ocean, Universe, Radiant)",
+    label: "Non-QM (Hermes, Ocean, Universe, Radiant, Crown)",
     url: "https://netorgft1191593.sharepoint.com/:f:/r/sites/LOTraining/Shared%20Documents/GMCC%20Portfolio%20Ratesheet/GMCC%20Special%20Programs/Non-QM",
   },
 ];
 
 const ALL_PROGRAMS: ProgramKey[] = [
-  "thunder", "fabulous", "jubilant", "hermes", "ocean", "universe", "radiant",
+  "thunder", "fabulous", "jubilant", "hermes", "ocean", "universe", "radiant", "crown",
 ];
 
 export interface SyncResult {

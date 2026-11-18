@@ -19,7 +19,7 @@ export const searchByProgramTool = tool({
   inputSchema: z.object({
     programName: z
       .string()
-      .describe("GMCC program name, e.g. 'GMCC Universe', 'GMCC CRA: Diamond CRA'"),
+      .describe("GMCC program name, e.g. 'GMCC Universe', 'GMCC Celebrity CRA: $15k DPA'"),
   }),
   execute: async ({ programName }) => {
     try {

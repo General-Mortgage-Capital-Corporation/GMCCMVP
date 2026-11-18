@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   // to an <img src=...> later, the cookie-only fallback in middleware will
   // still gate at the page level. Belt + suspenders: require the bearer
   // header for direct API access.
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const { searchParams } = req.nextUrl;
   const address = searchParams.get("address") ?? "";
   const lat = searchParams.get("lat") ?? "";

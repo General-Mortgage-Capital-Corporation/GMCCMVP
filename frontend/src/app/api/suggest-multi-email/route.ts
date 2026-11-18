@@ -72,7 +72,7 @@ Context:
 - Recipient: ${recipientLabel}${realtorEmail ? ` (${realtorEmail})` : ""}
 - Property: ${propertyAddress || "property not specified"}, listed at ${priceFormatted}
 - Programs being marketed: ${programs.join(", ")}
-- PDF flyers for each program will be attached to the email
+- The flyers for these programs are included with the email (shown in the message or attached)
 
 Multi-Program Summary (use this as your source for program details and marketing hooks):
 ${summary || "No summary provided — focus on the programs listed above."}${researchBlock}
@@ -84,7 +84,7 @@ Tone: Professional but warm and conversational — like a knowledgeable colleagu
 Write a concise email (2–4 short paragraphs). Use compelling one-liners from the summary for each program — do NOT dump all details. Include an appropriate salutation.
 ${hasSignature ? "Do NOT include a closing signature or sign-off — the loan officer's email signature will be appended automatically." : `Include a professional closing with the LO's name. Also include a brief professional signature block with the LO's name, title "Loan Officer", and company "GMCC (General Mortgage Capital Corporation)".`}
 
-Mention that ${programs.length} program flyers are attached for their review.
+Mention that ${programs.length} program flyers are included for their review. Do not say they are attached.
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code block):
 {"subject":"...","body":"..."}

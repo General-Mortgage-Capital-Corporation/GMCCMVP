@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { formatPrice, formatCurrency, formatPhoneInput } from "@/lib/utils";
@@ -13,6 +13,7 @@ import MultiEmailModal from "@/components/flier/MultiEmailModal";
 import LoanComparisonFlyer from "./LoanComparisonFlyer";
 import ComparePricingModal from "@/components/pricing/ComparePricingModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePartnerProfile } from "@/hooks/usePartnerProfile";
 import { trackEvent } from "@/lib/posthog";
 import { authedFetch } from "@/lib/authed-fetch";
 import type {
@@ -52,6 +53,10 @@ function setCachedPhotos(address: string, photos: string[]) {
 
 export default function CRACheckTab() {
   const { user, signIn, getIdToken } = useAuth();
+  // Partner sessions: programs + criteria + flyers only. Pricing compare,
+  // multi-program email, talking points, and the comparison flyer builder
+  // are LO tools (their APIs reject partners server-side too).
+  const isPartner = user?.role === "partner";
 
   // Search state
   const [address, setAddress] = useState("");
@@ -75,6 +80,23 @@ export default function CRACheckTab() {
   const [realtorInfo, setRealtorInfo] = useState<RealtorInfo>({
     name: "", phone: "", email: "", nmls: "", company: "",
   });
+  // Partner sessions: the flyer's realtor panel is themselves — seed it from
+  // the record their LO saved, but never clobber anything already typed.
+  const partnerProfile = usePartnerProfile();
+  useEffect(() => {
+    if (!partnerProfile) return;
+    setRealtorInfo((r) =>
+      r.name || r.phone || r.email || r.nmls
+        ? r
+        : {
+            name: partnerProfile.partner.name,
+            phone: partnerProfile.partner.phone,
+            email: partnerProfile.partner.email,
+            nmls: partnerProfile.partner.license,
+            company: "",
+          },
+    );
+  }, [partnerProfile]);
   const [editRealtorOpen, setEditRealtorOpen] = useState(false);
   const [propertyImage, setPropertyImage] = useState<string | undefined>(undefined);
   const [fileUploadError, setFileUploadError] = useState<string | undefined>(undefined);
@@ -253,7 +275,7 @@ export default function CRACheckTab() {
 
   // Fetch filled PDF for email attachments
   const fetchPdfForProduct = useCallback(
-    async (productId: string): Promise<Blob | null> => {
+    async (productId: string, format: "pdf" | "jpeg" = "pdf", maxBytes?: number): Promise<Blob | null> => {
       try {
         let email = user?.email;
         let idToken: string | null = null;
@@ -271,6 +293,8 @@ export default function CRACheckTab() {
           body: JSON.stringify({
             productId,
             userId: email,
+            ...(format === "jpeg" ? { format } : {}),
+            ...(maxBytes ? { maxBytes } : {}),
             ...(listing?.formattedAddress ? { address: listing.formattedAddress } : {}),
             ...(listing?.price ? { listingPrice: String(listing.price) } : {}),
             ...(realtorInfo.name ? { realtorName: realtorInfo.name } : {}),
@@ -371,10 +395,11 @@ export default function CRACheckTab() {
                     {listing.status}
                   </span>
                 )}
+                {!isPartner && (
                 <button
                   onClick={() => setShowComparePricing(true)}
                   className="group inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:border-violet-300 hover:shadow-md"
-                  title="Fan out this scenario across Loannex, QM Jumbo, and BWS engines"
+                  title="Fan out this scenario across Loannex, GMCC Portfolio, and BWS engines"
                 >
                   <svg
                     width="13"
@@ -391,6 +416,7 @@ export default function CRACheckTab() {
                     New
                   </span>
                 </button>
+                )}
               </div>
             </div>
           </div>
@@ -533,7 +559,7 @@ export default function CRACheckTab() {
             <div>
               <div className="mb-4 flex items-center justify-between">
                 <SectionTitle>Matching Programs</SectionTitle>
-                {selectablePrograms.length > 1 && (
+                {selectablePrograms.length > 1 && !isPartner && (
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       onClick={() => setSelectedPrograms(new Set(selectablePrograms.map((p) => p.program_name)))}
@@ -575,7 +601,7 @@ export default function CRACheckTab() {
                       realtorInfo={realtorInfo}
                       propertyImage={propertyImage}
                       selected={selectedPrograms.has(prog.program_name)}
-                      onToggleSelect={() => toggleProgramSelect(prog.program_name)}
+                      onToggleSelect={isPartner ? undefined : () => toggleProgramSelect(prog.program_name)}
                     />
                   ))}
                 </div>
@@ -610,7 +636,7 @@ export default function CRACheckTab() {
                             realtorInfo={realtorInfo}
                             propertyImage={propertyImage}
                             selected={selectedPrograms.has(prog.program_name)}
-                            onToggleSelect={() => toggleProgramSelect(prog.program_name)}
+                            onToggleSelect={isPartner ? undefined : () => toggleProgramSelect(prog.program_name)}
                           />
                         ))}
                         {secIneligible.length > 0 && (
@@ -627,6 +653,7 @@ export default function CRACheckTab() {
           )}
 
           {/* ═══ Home Financing Options Flyer Builder ═══ */}
+          {!isPartner && (
           <LoanComparisonFlyer
             listing={listing}
             census={census}
@@ -634,6 +661,7 @@ export default function CRACheckTab() {
             propertyImage={propertyImage}
             zillowPhotos={zillowPhotos}
           />
+          )}
         </div>
       )}
 

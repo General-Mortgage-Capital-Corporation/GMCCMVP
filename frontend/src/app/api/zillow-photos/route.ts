@@ -15,7 +15,7 @@ export const maxDuration = 120; // Two sequential Apify calls can take up to ~90
  * Returns { photos: string[], primaryPhoto: string | null }.
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAuth(req))) return unauthorized();
+  if (!(await requireAuth(req, { allowPartner: true }))) return unauthorized();
   const address = req.nextUrl.searchParams.get("address") ?? "";
 
   if (!address) {

@@ -24,14 +24,19 @@ import { checkCRAEligibilityTool } from "@/lib/tools/check-cra-eligibility";
 import { createSearchSentEmailsTool } from "@/lib/tools/search-sent-emails";
 import { fetchPropertyPhotoTool } from "@/lib/tools/fetch-property-photo";
 import { lookupPropertyTool } from "@/lib/tools/lookup-property";
+import { createRunMarketingCampaignTool } from "@/lib/tools/run-marketing-campaign";
+import { createCheckCampaignStatusTool } from "@/lib/tools/check-campaign-status";
 import { SYSTEM_PROMPT } from "@/lib/agents/gmcc-agent";
+import { pruneModelMessages } from "@/lib/agents/prune-history";
 import { requireAuth, unauthorized } from "@/lib/require-auth";
+import { getStoredSignature, sanitizeSignatureHtml } from "@/lib/signature-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
-  if (!(await requireAuth(req))) return unauthorized();
+  const auth = await requireAuth(req);
+  if (!auth) return unauthorized();
   const body = await req.json().catch(() => null);
   if (!body || !Array.isArray(body.messages)) {
     return new Response(JSON.stringify({ error: "messages array required" }), {
@@ -42,29 +47,33 @@ export async function POST(req: Request) {
   const { messages } = body;
 
   // Guard against abuse: cap conversation size
-  if (messages.length > 200) {
+  if (messages.length > 400) {
     return new Response(JSON.stringify({ error: "Conversation too long" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Extract auth context from headers
+  // Extract auth context from headers. The user's email comes from the
+  // verified Firebase token, not the spoofable X-User-Email header.
   const firebaseToken = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
   const msalToken = req.headers.get("X-MSAL-Token") ?? "";
-  const userEmail = req.headers.get("X-User-Email") ?? "";
+  const userEmail = auth.email || req.headers.get("X-User-Email") || "";
 
-  // Decode email signature (base64 UTF-8 from client)
-  const sigHeader = req.headers.get("X-Email-Signature") ?? "";
-  let signatureHtml = "";
-  if (sigHeader) {
-    try {
-      const raw = decodeURIComponent(escape(atob(sigHeader)));
-      // Strip script tags and event handlers to prevent HTML injection in emails
-      signatureHtml = raw
-        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, "");
-    } catch { /* ignore decode errors */ }
+  // Email signature: the server-stored copy (userSettings) is the source of
+  // truth — it roams across devices and has no size ceiling. The
+  // X-Email-Signature header is only a fallback for clients that saved before
+  // server storage existed (the client omits it entirely for large
+  // signatures, which used to overflow Vercel's request-header cap).
+  let signatureHtml = (await getStoredSignature(auth.email)) ?? "";
+  if (!signatureHtml) {
+    const sigHeader = req.headers.get("X-Email-Signature") ?? "";
+    if (sigHeader) {
+      try {
+        const raw = decodeURIComponent(escape(atob(sigHeader)));
+        signatureHtml = sanitizeSignatureHtml(raw);
+      } catch { /* ignore decode errors */ }
+    }
   }
 
   // Decode LO profile info (name, title, NMLS, phone)
@@ -92,17 +101,24 @@ export async function POST(req: Request) {
     ? `${SYSTEM_PROMPT}\n\n## Current User (Loan Officer)\n${userContext}\n\nAlways use this information when drafting emails, referencing the loan officer, or personalizing content. Never use placeholders like "[Your Name]" — use the real name above.`
     : SYSTEM_PROMPT;
 
-  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "" };
+  const authContext = { firebaseToken, msalToken, userEmail, signatureHtml, loTitle: loInfo.title ?? "", loNmls: sanitizeField(loInfo.nmls) };
 
   // Per-request ledger so recordFollowUp always uses the address sendEmail
   // actually sent to (scoped here so it never bleeds across users on a warm
   // instance).
   const sendLedger = createSendLedger();
 
-  // Construct agent per-request with auth-bound tools
+  // Construct agent per-request with auth-bound tools.
+  // AGENT_MODEL env lets us switch the orchestrator model (e.g. to a stronger
+  // tier) without a deploy-time code change.
   const agent = new ToolLoopAgent({
-    model: "google/gemini-3-flash",
+    model: process.env.AGENT_MODEL || "google/gemini-3-flash",
     instructions: personalizedPrompt,
+    // Context hygiene: stub out old bulky tool outputs each step so long
+    // campaign conversations don't balloon tokens (see prune-history.ts).
+    prepareStep: ({ messages: stepMessages }) => ({
+      messages: pruneModelMessages(stepMessages),
+    }),
     tools: {
       // Phase 1 tools (no auth needed)
       searchProperties: searchPropertiesTool,
@@ -126,8 +142,22 @@ export async function POST(req: Request) {
       searchSentEmails: createSearchSentEmailsTool(authContext),
       fetchPropertyPhoto: fetchPropertyPhotoTool,
       lookupProperty: lookupPropertyTool,
+      // Mass-campaign engine: one tool call executes the whole batch
+      // server-side and continues via cron — replaces per-property tool loops
+      // for >10 properties.
+      runMarketingCampaign: createRunMarketingCampaignTool({
+        firebaseToken,
+        userEmail,
+        loName: loInfo.name,
+        loTitle: loInfo.title,
+        loNmls: sanitizeField(loInfo.nmls),
+      }),
+      checkCampaignStatus: createCheckCampaignStatusTool({ userEmail }),
     },
-    stopWhen: stepCountIs(25),
+    // 60 steps: mass-marketing campaigns legitimately need many tool
+    // round-trips even when chunked (the system prompt caps chunks at ~10
+    // properties per confirmation round).
+    stopWhen: stepCountIs(60),
     temperature: 0.3,
   });
 

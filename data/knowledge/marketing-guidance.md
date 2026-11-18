@@ -24,13 +24,12 @@ CRA (Community Reinvestment Act) requires banks to serve underserved communities
 ### 4. Geographic Breadth
 - Diamond CRA covers all 50 states
 - Jumbo CRA covers 20+ counties in 11 states
-- Special Conforming covers 16 MSAs across 8 states
 
 ## How to Check CRA Eligibility
 
 A property qualifies for CRA pricing based on its census tract designation:
 - **LMI (Low-to-Moderate Income) tract** — required by Jumbo CRA, Grandslam
-- **MMCT (Majority-Minority Census Tract)** — required by $10K Grant, Special Conforming
+- **MMCT (Majority-Minority Census Tract)** — required by $10K Grant
 - **Eligible census tract list** — required by Diamond CRA
 
 GMCC's search tool automatically checks these designations using FFIEC data.
@@ -47,7 +46,7 @@ GMCC's search tool automatically checks these designations using FFIEC data.
 → Most GMCC CRA programs have NO income cap. Diamond CRA and Jumbo CRA qualify based on property location (census tract), not borrower income.
 
 **"Is this only for first-time homebuyers?"**
-→ No. Diamond CRA, Jumbo CRA, and Special Conforming are available regardless of homeownership history. Only Grandslam has first-time buyer focus.
+→ No. Diamond CRA and Jumbo CRA are available regardless of homeownership history. Only Grandslam has first-time buyer focus.
 
 **"What about refinancing?"**
 → Jumbo CRA supports rate/term and cash-out refinancing. Diamond CRA supports refinancing. Grandslam and $10K Grant are purchase-only.

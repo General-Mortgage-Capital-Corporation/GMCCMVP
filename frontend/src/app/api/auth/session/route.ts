@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "missing bearer token" }, { status: 401 });
   }
   const idToken = authHeader.replace("Bearer ", "");
-  const verified = await verifyIdTokenWithEmail(idToken);
+  // Partners must be able to set the session cookie too — this route only
+  // marks "signed in" for the middleware gate; per-API authorization still
+  // happens on every request with role checks.
+  const verified = await verifyIdTokenWithEmail(idToken, { allowPartner: true });
   if (!verified) {
     return NextResponse.json({ ok: false, error: "invalid token" }, { status: 401 });
   }

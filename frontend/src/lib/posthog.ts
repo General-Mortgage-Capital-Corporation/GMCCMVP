@@ -25,12 +25,31 @@ export function initPostHog() {
   initialized = true;
 }
 
-/** Identify the current user after sign-in. */
-export function identifyUser(email: string, displayName: string) {
+/**
+ * Identify the current user after sign-in.
+ *
+ * `role` distinguishes LO sessions from partner (realtor/CPA) sessions, and
+ * `mloEmail` ties every partner event back to the LO who provisioned the
+ * account — so dashboards can slice by partner activity per LO. Registered
+ * as super properties too, so every subsequent event carries them without
+ * each call site remembering to.
+ */
+export function identifyUser(
+  email: string,
+  displayName: string,
+  extra?: { role?: "mlo" | "partner"; mloEmail?: string },
+) {
   if (!initialized) return;
+  const role = extra?.role ?? "mlo";
   posthog.identify(email, {
     email,
     name: displayName,
+    role,
+    ...(extra?.mloEmail ? { mlo_email: extra.mloEmail } : {}),
+  });
+  posthog.register({
+    role,
+    ...(extra?.mloEmail ? { mlo_email: extra.mloEmail } : {}),
   });
 }
 

@@ -1,6 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { storeArtifact } from "@/lib/tools/flyer-store";
+import { MAX_INLINE_ATTACHMENT_BASE64, kb } from "@/lib/email/attachment-policy";
+import type { FlyerImage } from "@/lib/email/flyer-embed";
+import { renderFlyerImage } from "@/lib/email/flyer-image";
+import { attachableFlyerBase64 } from "@/lib/email/flyer-pdf-compact";
 
 const CLOUD_FUNCTIONS_BASE = "https://us-central1-gmcc-66e1e.cloudfunctions.net";
 
@@ -9,26 +13,33 @@ const PROGRAM_TO_PRODUCT_ID: Record<string, string> = {
   // Hot Programs
   "GMCC Buy Without Sell First": "buy-without-sell-first",
   "GMCC Universe": "universe",
-  "GMCC Massive": "massive",
-  "GMCC Diamond Express": "diamond-express",
+  "GMCC: Diamond Express (Jumbo/Conforming) to $10M": "diamond-express",
   "GMCC DSCR Rental Flow": "dscr",
-  "GMCC Ocean": "ocean",
-  "GMCC Hermes": "hermes",
-  "GMCC Radiant": "radiant",
+  "GMCC: Ocean, Borrower Prepared P&L": "ocean",
+  "GMCC: Hermes, Borrower Prepared P&L": "hermes",
+  "GMCC: Radiant No Income Doc/No DTI": "radiant",
+  "GMCC: Crown No Income Doc/No Ratio (DTA)": "gmcc-crown",
   "GMCC Bank Statement Self Employed": "bank-statement",
-  "GMCC Fabulous Jumbo": "fabulous-program",
+  "GMCC Fabulous Jumbo": "fabulous",
   // Community Lending Programs (CRA)
   "GMCC CRA: Celebrity $10K Grant": "celebrity-10k",
   "GMCC CRA: Celebrity Forgivable $10K DPA 2nd": "forgivable-15k",
-  "GMCC CRA: Cronus Grand Slam": "grandslam",
-  "GMCC CRA: Cronus Special Conforming": "conforming-special",
+  "GMCC CRA: Cronus Grand Slam": "grand-slam",
   "GMCC CRA: Cronus Jumbo CRA": "jumbo-cra",
-  "GMCC CRA: Diamond CRA": "diamond-community-lending",
-  "GMCC Celebrity Jumbo": "celebrity-jumbo",
+  "GMCC Celebrity CRA: $15k DPA": "diamond-community-lending",
+  "GMCC Celebrity CRA: 100% First + $15k DPA": "celebrity-jumbo",
   "GMCC Thunder": "thunder",
+  // Short names the AI agent may still pass after the 2026-10 display renames.
+  "GMCC Diamond Express": "diamond-express",
+  "GMCC Ocean": "ocean",
+  "GMCC Hermes": "hermes",
+  "GMCC Radiant": "radiant",
+  "GMCC Crown": "gmcc-crown",
+  "GMCC Diamond CRA": "diamond-community-lending",
+  "GMCC Celebrity Jumbo": "celebrity-jumbo",
 };
 
-function resolveProductId(programName: string): string | null {
+export function resolveProductId(programName: string): string | null {
   // Direct match
   if (PROGRAM_TO_PRODUCT_ID[programName]) return PROGRAM_TO_PRODUCT_ID[programName];
 
@@ -49,6 +60,54 @@ interface AuthContext {
   loTitle?: string;
 }
 
+/**
+ * Generate a program flyer PDF (no property personalization) and return raw
+ * base64. Used by the campaign engine to pre-generate ONE flyer per program at
+ * campaign start — the Cloud Function needs the user's Firebase token, which
+ * only exists during the interactive request, not in the cron.
+ */
+export async function generateProgramFlyerBase64(
+  programName: string,
+  auth: AuthContext,
+): Promise<{ base64: string; productId: string } | { error: string }> {
+  if (!auth.firebaseToken) return { error: "User not signed in." };
+  const productId = resolveProductId(programName);
+  if (!productId) return { error: `No flyer template for "${programName}".` };
+
+  const payload = {
+    productId,
+    data: {
+      loanOfficer: { userId: auth.userEmail, ...(auth.loTitle ? { title: auth.loTitle } : {}) },
+    },
+    previewMode: false,
+  };
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${CLOUD_FUNCTIONS_BASE}/fillPdfFlier`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.firebaseToken}`,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        if (attempt < 2) continue;
+        return { error: `Flyer generation failed (${res.status})` };
+      }
+      const pdfBytes = await res.arrayBuffer();
+      // Shrunk when too big to attach, so campaign emails carry the PDF instead of a link.
+      return { base64: await attachableFlyerBase64(Buffer.from(pdfBytes).toString("base64")), productId };
+    } catch {
+      if (attempt < 2) continue;
+      return { error: "Flyer generation failed." };
+    }
+  }
+  return { error: "Flyer generation failed." };
+}
+
 export function createGenerateFlyerTool(auth: AuthContext) {
   return tool({
     description:
@@ -63,7 +122,7 @@ export function createGenerateFlyerTool(auth: AuthContext) {
     inputSchema: z.object({
       programName: z
         .string()
-        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC CRA: Diamond CRA'"),
+        .describe("GMCC program name exactly as shown in match results, e.g. 'GMCC Universe', 'GMCC Celebrity CRA: $15k DPA'"),
       address: z.string().optional().describe("Property address"),
       listingPrice: z.string().optional().describe("Listing price"),
       propertyImage: z
@@ -139,17 +198,34 @@ export function createGenerateFlyerTool(auth: AuthContext) {
           }
 
           const pdfBytes = await res.arrayBuffer();
-          const base64 = Buffer.from(pdfBytes).toString("base64");
+          // A flyer too big to attach is shrunk (pages as print-resolution
+          // images) so it can still go as a PDF instead of a link.
+          const base64 = await attachableFlyerBase64(Buffer.from(pdfBytes).toString("base64"));
 
           // Store PDF server-side to avoid bloating conversation context
-          const flyerRef = await storeArtifact("pdf", base64);
+          let image: FlyerImage | undefined;
+          try {
+            image = await renderFlyerImage(new Uint8Array(pdfBytes));
+          } catch (err) {
+            console.error("[generateFlyer] could not render the flyer image:", err);
+          }
+          const flyerRef = await storeArtifact("pdf", base64, `GMCC-${productId}-flyer.pdf`, { productId, image });
+          const canAttach = base64.length <= MAX_INLINE_ATTACHMENT_BASE64;
+          const sizeKB = kb(base64.length);
 
           return {
             success: true,
             programName: input.programName,
             productId,
             flyerRef,
-            sizeKB: Math.round(pdfBytes.byteLength / 1024),
+            sizeKB,
+            canEmbed: !!image,
+            canAttach,
+            note: image
+              ? "Can be shown in the email body — draft with flyerDelivery 'embedded' and send with flyerDelivery 'embed', unless the user asked for an attachment."
+              : canAttach
+              ? "Fits Outlook's attachment limit — draft with flyerDelivery 'attached' and send with this flyerRef."
+              : `${Math.round(sizeKB / 102.4) / 10} MB is over Outlook's attachment limit — draft with flyerDelivery 'linked' and send with flyerDelivery 'link' (a personalized portal link to this flyer is added under the text).`,
           };
         } catch (err) {
           console.error(`[generateFlyer] attempt ${attempt}/${MAX_RETRIES} threw:`, err);

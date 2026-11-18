@@ -17,11 +17,14 @@ export default function PostHogProvider() {
 
   useEffect(() => {
     if (user?.email) {
-      identifyUser(user.email, user.displayName);
+      identifyUser(user.email, user.displayName, {
+        role: user.role === "partner" ? "partner" : "mlo",
+        mloEmail: user.mloEmail,
+      });
     } else {
       resetUser();
     }
-  }, [user?.email, user?.displayName]);
+  }, [user?.email, user?.displayName, user?.role, user?.mloEmail]);
 
   return null;
 }

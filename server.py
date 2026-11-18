@@ -22,6 +22,7 @@ Routes:
 import json
 import logging
 import os
+import hmac
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify
@@ -31,7 +32,12 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 from matching.models import ListingInput
-from matching.matcher import match_listing, load_programs, SECONDARY_PROGRAM_NAMES
+from matching.matcher import (
+    match_listing,
+    load_programs,
+    SECONDARY_PROGRAM_NAMES,
+    is_selectable_program,
+)
 from matching.census import get_census_data
 from matching.explain import explain_match
 from rag.config import PROGRAMS_DIR
@@ -39,6 +45,30 @@ from rag.config import PROGRAMS_DIR
 load_dotenv()
 
 app = Flask(__name__)
+
+# ---------------------------------------------------------------------------
+# Service-to-service auth.
+#
+# This app is deployed as its own public Vercel project and every credit
+# gate lives in the Next.js layer in front of it. Before this check the
+# paid PropertyRadar endpoints (/api/refi/search, /api/refi/unlock-contact)
+# answered anyone who found the URL, which bypassed the paywall entirely and
+# let a stranger drain the company PR budget. Enforced only once
+# PYTHON_SERVICE_SECRET is set on this project, so the two deploys can land
+# in either order; the Next.js client sends the same value.
+# ---------------------------------------------------------------------------
+_SERVICE_SECRET = os.environ.get("PYTHON_SERVICE_SECRET", "")
+
+
+@app.before_request
+def _require_service_secret():
+    if not _SERVICE_SECRET or request.method == "OPTIONS":
+        return None
+    provided = request.headers.get("X-Service-Secret", "")
+    if not hmac.compare_digest(provided, _SERVICE_SECRET):
+        return jsonify({"success": False, "error": "unauthorized"}), 401
+    return None
+
 CORS(app, origins=[
     r"^https://gmccmvp-two(-.+)?\.vercel\.app$",
     r"^http://localhost:3000$",
@@ -127,7 +157,26 @@ def _get_tract_counties(tract_file: str) -> set[str]:
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy"})
+    # ?deep=1 probes the external dependencies this lambda actually needs —
+    # added while diagnosing census_data coming back null in production
+    # (geocoder reachability from Vercel egress IPs is the usual suspect).
+    if request.args.get("deep") != "1":
+        return jsonify({"status": "healthy"})
+    import requests as _rq
+    from matching.census import CENSUS_GEOCODER, _load_tract_lookup, _load_minority_lookup
+    probe = {"status": "healthy", "tract_lookup": len(_load_tract_lookup()), "minority_lookup": len(_load_minority_lookup())}
+    try:
+        r = _rq.get(
+            CENSUS_GEOCODER,
+            params={"street": "1694 Story Rd", "city": "San Jose", "state": "CA",
+                    "benchmark": "Public_AR_Current", "vintage": "Current_Current", "format": "json"},
+            timeout=12,
+        )
+        probe["geocoder_status"] = r.status_code
+        probe["geocoder_body_head"] = r.text[:200]
+    except Exception as exc:
+        probe["geocoder_error"] = f"{type(exc).__name__}: {exc}"
+    return jsonify(probe)
 
 
 @app.route("/api/cache-stats", methods=["GET"])
@@ -142,7 +191,9 @@ def cache_stats():
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
     programs = load_programs()
-    return jsonify({"programs": [p.program_name for p in programs if p.program_name not in SECONDARY_PROGRAM_NAMES]})
+    return jsonify(
+        {"programs": [p.program_name for p in programs if is_selectable_program(p.program_name)]}
+    )
 
 
 @app.route("/api/match", methods=["POST"])
@@ -323,7 +374,7 @@ def program_locations():
 
     result = []
     for program in programs:
-        if program.program_name in SECONDARY_PROGRAM_NAMES:
+        if not is_selectable_program(program.program_name):
             continue
         all_fips: set[str] = set()
         has_any_location_restriction = False

@@ -41,6 +41,7 @@ interface JobDoc {
   deducted: { contact: number; property: number };
   refunded?: { contact: number; property: number };
   cycleId: string;
+  packEpoch?: number | null;
   poolRef: ResolvedPool["poolRef"];
   drewFromBuffer: boolean;
   source: string;
@@ -130,6 +131,7 @@ export async function GET(req: NextRequest) {
         pool,
         amount: { contact: job.deducted.contact, property: job.deducted.property },
         cycleId: job.cycleId,
+        packEpoch: job.packEpoch ?? null,
         source: "reconcile",
       });
 

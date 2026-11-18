@@ -24,6 +24,12 @@ interface FlaggedEmail {
   checkedAt: number | null;
   approved: boolean;
 }
+interface BouncerHealth {
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastErrorDetail: string | null;
+  errorCount: number;
+}
 
 const fmt = (ms: number | null) =>
   ms ? new Date(ms).toLocaleString() : "—";
@@ -45,6 +51,8 @@ export default function EmailApprovalsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [manualEmail, setManualEmail] = useState("");
   const [showApprovedOnly, setShowApprovedOnly] = useState(false);
+  const [health, setHealth] = useState<BouncerHealth | null>(null);
+  const [recheckNote, setRecheckNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,9 +62,14 @@ export default function EmailApprovalsPage() {
       if (res.status === 401) { setDenied("auth"); return; }
       if (res.status === 403) { setDenied("admin"); return; }
       if (!res.ok) throw new Error("load failed");
-      const data = (await res.json()) as { approved: ApprovedEmail[]; flagged: FlaggedEmail[] };
+      const data = (await res.json()) as {
+        approved: ApprovedEmail[];
+        flagged: FlaggedEmail[];
+        bouncerHealth?: BouncerHealth | null;
+      };
       setApproved(data.approved ?? []);
       setFlagged(data.flagged ?? []);
+      setHealth(data.bouncerHealth ?? null);
     } catch {
       /* leave as-is */
     } finally {
@@ -94,6 +107,35 @@ export default function EmailApprovalsPage() {
     }
   }
 
+  /** Fresh Bouncer re-check (bypasses the 90-day cache; costs one credit). */
+  async function recheck(email: string) {
+    setBusy(email);
+    setRecheckNote(null);
+    try {
+      const res = await authedFetch("/api/admin/email-approvals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { result?: { status?: string } };
+        setRecheckNote(
+          data.result?.status === "deliverable"
+            ? `${email} now verifies as deliverable — it will send without approval.`
+            : `${email} re-checked: still ${data.result?.status ?? "flagged"}.`,
+        );
+        await load();
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const bouncerDown =
+    !!health?.lastErrorAt &&
+    (health.lastOkAt == null || health.lastErrorAt > health.lastOkAt) &&
+    Date.now() - health.lastErrorAt < 48 * 60 * 60 * 1000;
+
   if (loading) {
     return <main className="mx-auto max-w-4xl p-6 text-sm text-slate-500">Loading…</main>;
   }
@@ -125,6 +167,25 @@ export default function EmailApprovalsPage() {
           address are told to email <span className="font-mono">ai@gmccloan.com</span> to request approval.
         </p>
       </header>
+
+      {bouncerDown && health && (
+        <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-semibold">⚠️ Email verification (Bouncer) is failing</p>
+          <p className="mt-1">
+            Last failure {fmt(health.lastErrorAt)}
+            {health.lastErrorDetail ? ` — ${health.lastErrorDetail}` : ""}.
+            While Bouncer is down, every address that isn&apos;t already cached or approved is
+            <strong> blocked from sending for all LOs</strong>. If the detail mentions HTTP 402 or
+            credits, reload credits at usebouncer.com.
+          </p>
+        </div>
+      )}
+
+      {recheckNote && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          {recheckNote}
+        </div>
+      )}
 
       {/* Manual approve */}
       <section className="rounded-xl border border-slate-200 bg-white p-4">
@@ -228,14 +289,25 @@ export default function EmailApprovalsPage() {
                       {f.approved ? (
                         <span className="text-xs font-medium text-emerald-600">Approved</span>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={busy === f.email}
-                          onClick={() => approve(f.email, f.status)}
-                          className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
+                        <span className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={busy === f.email}
+                            onClick={() => recheck(f.email)}
+                            title="Ask Bouncer again (bypasses the 90-day cache; costs one credit). Use when the mailbox may have been fixed since it was flagged."
+                            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Re-check
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy === f.email}
+                            onClick={() => approve(f.email, f.status)}
+                            className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                        </span>
                       )}
                     </td>
                   </tr>

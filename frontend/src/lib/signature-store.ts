@@ -64,7 +64,33 @@ export function clearSignature(): void {
 
 /** Whether the user has saved any editable signature content. */
 export function hasSignature(): boolean {
-  return getSignatureHtml().trim().length > 0;
+  const html = getSignatureHtml();
+  return !isSignatureContentEmpty(html) && !findSignaturePlaceholder(html);
+}
+
+// ---------------------------------------------------------------------------
+// Signature content validation (pure — safe on both client and server)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the placeholder token found in the signature, or null if clean.
+ * The signature editor prefills a preset that may contain "Your Name" or
+ * "NMLS# _______" when the LO profile is incomplete — those must never go
+ * out in a real email, so saves and sends both reject them.
+ */
+export function findSignaturePlaceholder(html: string): string | null {
+  if (!html) return null;
+  if (html.includes("Your Name")) return "Your Name";
+  const underscores = html.match(/_{3,}/);
+  if (underscores) return underscores[0];
+  return null;
+}
+
+/** True when the HTML has no visible text and no image (e.g. "<div><br></div>"). */
+export function isSignatureContentEmpty(html: string): boolean {
+  if (!html) return true;
+  if (/<img\b/i.test(html)) return false;
+  return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").trim().length === 0;
 }
 
 /**
@@ -74,20 +100,28 @@ export function hasSignature(): boolean {
 export function buildHtmlBodyWithSignature(
   plainBody: string,
   signatureHtml: string,
+  /** Embedded flyers (flyerImagesHtml), shown between the message and the signature. */
+  flyersHtml = "",
 ): string {
   // Convert plain text body to HTML paragraphs
   const bodyHtml = plainBody
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    // Flyer links appended by the sender must be clickable. Quotes are
+    // already entities at this point, so a URL can't close the attribute.
+    .replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1">$1</a>')
     .replace(/\n/g, "<br>");
 
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#333">
 ${bodyHtml}
-<br><br>
+${flyersHtml}
+${signatureHtml ? `<br><br>
 <div style="border-top:1px solid #ccc;padding-top:12px;margin-top:12px">
 ${signatureHtml}
-</div>
+</div>` : ""}
 ${COMPANY_DISCLAIMER_HTML}
 </div>`;
 }

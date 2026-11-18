@@ -51,12 +51,14 @@ export async function resolveSubscription(
     };
   }
 
-  // subscriptions doc lives at /subscriptions/{email} (NOT /users/{email}/subscriptions/...)
-  // with refi_finder as a nested field. This matches the MLO portal's existing
-  // schema — the source of truth lives under subscriptions/{email}.refi_finder.
+  // The subscription doc is users/{email}/subscriptions/current, with
+  // refi_finder as a nested field. That is the doc the Bill.com webhook, the
+  // cancel handler, and the MLO portal all write. This used to read the
+  // retired top-level subscriptions/{email} collection instead, so a user
+  // who cancelled auto-renewal in the UI never showed as cancelled here.
   const [packSnap, subSnap] = await Promise.all([
     db.doc(`users/${normalized}/creditPacks/refi_finder`).get(),
-    db.doc(`subscriptions/${normalized}`).get(),
+    db.doc(`users/${normalized}/subscriptions/current`).get(),
   ]);
 
   if (!packSnap.exists) {

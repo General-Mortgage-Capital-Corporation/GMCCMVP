@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authedFetch } from "@/lib/authed-fetch";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   pickRecord,
   type ParsedFilename,
@@ -21,10 +22,11 @@ const DISPLAY_NAME_TO_PROGRAM_KEY: Record<string, ProgramKey> = {
   "GMCC Thunder": "thunder",
   "GMCC Fabulous Jumbo": "fabulous",
   "GMCC Jubilant": "jubilant",
-  "GMCC Hermes": "hermes",
-  "GMCC Ocean": "ocean",
+  "GMCC: Hermes, Borrower Prepared P&L": "hermes",
+  "GMCC: Ocean, Borrower Prepared P&L": "ocean",
   "GMCC Universe": "universe",
-  "GMCC Radiant": "radiant",
+  "GMCC: Radiant No Income Doc/No DTI": "radiant",
+  "GMCC: Crown No Income Doc/No Ratio (DTA)": "crown",
 };
 
 const STORAGE_KEY = "gmcc_rate_sheets_v1";
@@ -82,8 +84,13 @@ export function useRateSheets() {
     () => loadFromStorage()?.snapshot ?? null,
   );
 
+  const isPartner = useAuth().user?.role === "partner";
+
   useEffect(() => {
     let cancelled = false;
+    // Rate sheets are hidden from partner sessions and the API rejects
+    // them — don't fire the doomed request.
+    if (isPartner) return;
     const cached = loadFromStorage();
     if (cached) {
       // Have fresh local cache; skip fetch.
@@ -102,7 +109,7 @@ export function useRateSheets() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isPartner]);
 
   /** Resolve a display program name + optional state to a fresh URL, or null. */
   function resolveUrl(programName: string, state?: string): string | null {

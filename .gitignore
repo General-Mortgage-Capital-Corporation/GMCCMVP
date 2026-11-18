@@ -31,3 +31,5 @@ dev/
 data/pr_cache/
 data/pr_quota_log.jsonl
 data/pr_spike_results.json
+.vercel
+.env*

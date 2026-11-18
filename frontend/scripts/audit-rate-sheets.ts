@@ -33,6 +33,7 @@ const HARDCODED: Record<string, string> = {
     "GMCC Hermes Rate Sheet 3.30.2026 CO, DC, GA, IL, NJ, NY, NV, TX, VA, WA, AZ.pdf",
   Ocean: "GMCC Ocean Rate Sheet 2.3.2026.pdf",
   Radiant: "GMCC Radiant Rate Sheet 2.10.2026.pdf",
+  Crown: "GMCC Crown Rate Sheet 10.12.2026.pdf",
 };
 
 async function main() {
