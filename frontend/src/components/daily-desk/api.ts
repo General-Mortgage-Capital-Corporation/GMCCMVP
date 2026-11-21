@@ -34,6 +34,7 @@ export interface DeskSettings {
   language: string;
   flyerMode: "embed" | "attach" | "link" | "none";
   followUpDays: number | null;
+  ccSelf: boolean;
 }
 export interface DeskState {
   settings: DeskSettings;

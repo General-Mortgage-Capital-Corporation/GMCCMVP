@@ -128,6 +128,7 @@ export async function POST(req: NextRequest) {
           ...(body.language !== undefined ? { language: str(body.language) } : {}),
           ...(body.flyerMode !== undefined ? { flyerMode: str(body.flyerMode) as DeskFlyerMode } : {}),
           ...(body.followUpDays !== undefined ? { followUpDays: body.followUpDays as number | null } : {}),
+          ...(body.ccSelf !== undefined ? { ccSelf: body.ccSelf !== false } : {}),
         });
         if (body.rebuild) await resetToday(c);
         return NextResponse.json({ settings, day: await getDay(c.email) });
