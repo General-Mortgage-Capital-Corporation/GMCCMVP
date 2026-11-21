@@ -518,7 +518,7 @@ export default function DailyDeskTab({
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden><path d="M10 2l6 2.5v5c0 4-2.7 6.8-6 8.5-3.3-1.7-6-4.5-6-8.5v-5L10 2z" /></svg>
                   {day.note ?? "No realtor gets this from more than one GMCC loan officer within 30 days."}
                 </span>
-                {skippedCount > 0 && ready.length + sentCount < (state?.settings.batchSize ?? 5) && (
+                {skippedCount > 0 && ready.length + sentCount < (state?.settings.batchSize ?? 10) && (
                   <button type="button" disabled={busy} onClick={() => run(() => deskApi.more())} className="font-medium text-red-600 hover:text-red-700 disabled:opacity-50">
                     Find replacements for skipped
                   </button>

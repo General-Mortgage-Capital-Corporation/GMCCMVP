@@ -13,6 +13,10 @@ const geoLabel = (r: number, place?: string) => `Within ${r} mi of ${place || "m
 
 export type DeskSettingsInput = Partial<Omit<DeskSettings, "areas" | "autoSeeded">> & { areaInputs: AreaInput[]; rebuild: boolean };
 
+/** Must match SETTINGS_DEFAULTS in lib/daily-desk/server.ts. */
+const DEFAULTS = { batchSize: 10, priceMin: "1000000", priceMax: "10000000", types: ["Single Family"] };
+const isDefaultTypes = (t: string[]) => t.length === DEFAULTS.types.length && DEFAULTS.types.every((x) => t.includes(x));
+
 const DOM_PRESETS: { key: string; label: string; min: number | null; max: number | null }[] = [
   { key: "any", label: "Any", min: null, max: null },
   { key: "new", label: "New · 7 days", min: null, max: 7 },
@@ -113,6 +117,7 @@ export default function DeskSettingsModal({
   const [language, setLanguage] = useState(settings.language ?? "English");
   const [flyerMode, setFlyerMode] = useState<DeskSettings["flyerMode"]>(settings.flyerMode ?? "embed");
   const [followUpDays, setFollowUpDays] = useState<number | null>(settings.followUpDays ?? null);
+  const [ccSelf, setCcSelf] = useState(settings.ccSelf !== false);
   const [instructions, setInstructions] = useState(settings.instructions);
   const [rebuild, setRebuild] = useState(canRebuild);
   const [saving, setSaving] = useState(false);
@@ -137,11 +142,11 @@ export default function DeskSettingsModal({
     return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
   };
   const resetDefaults = () => {
-    setBatchSize(5);
-    setPriceMin("");
-    setPriceMax("");
+    setBatchSize(DEFAULTS.batchSize);
+    setPriceMin(DEFAULTS.priceMin);
+    setPriceMax(DEFAULTS.priceMax);
     setDom({ min: null, max: null });
-    setTypes([]);
+    setTypes(DEFAULTS.types);
     setBedsMin(null);
     setPreferred([]);
     setProgramMode("prefer");
@@ -149,6 +154,7 @@ export default function DeskSettingsModal({
     setLanguage("English");
     setFlyerMode("embed");
     setFollowUpDays(null);
+    setCcSelf(true);
     setInstructions("");
   };
 
@@ -243,14 +249,14 @@ export default function DeskSettingsModal({
             <Field label="Days on market" note={domKey === "any" ? "Default" : undefined}>
               <Segmented value={domKey} options={DOM_PRESETS.map((p) => ({ key: p.key, label: p.label }))} onChange={(k) => { const p = DOM_PRESETS.find((x) => x.key === k)!; setDom({ min: p.min, max: p.max }); }} />
             </Field>
-            <Field label="Price range" note={!priceMin && !priceMax ? "Any (default)" : undefined}>
+            <Field label="Price range" note={num(priceMin) === Number(DEFAULTS.priceMin) && num(priceMax) === Number(DEFAULTS.priceMax) ? "$1M–$10M (default)" : !priceMin && !priceMax ? "Any" : undefined}>
               <div className="flex items-center gap-2">
                 <input value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="Min $" inputMode="numeric" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100" />
                 <span className="text-gray-300">—</span>
                 <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="Max $" inputMode="numeric" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100" />
               </div>
             </Field>
-            <Field label="Home types" note={types.length === 0 ? "All (default)" : undefined}>
+            <Field label="Home types" note={isDefaultTypes(types) ? "Default" : types.length === 0 ? "All" : undefined}>
               <div className="flex flex-wrap gap-1.5">
                 {propertyTypes.map((t) => {
                   const on = types.includes(t);
@@ -288,7 +294,7 @@ export default function DeskSettingsModal({
           </Section>
 
           <Section title="Emails">
-            <Field label="Emails per day" note={batchSize === 5 ? "Default" : `Max ${maxBatch}`}>
+            <Field label="Emails per day" note={batchSize === DEFAULTS.batchSize ? "Default" : `Max ${maxBatch}`}>
               <div className="inline-flex items-center rounded-xl border border-gray-200">
                 <button type="button" onClick={() => setBatchSize(Math.max(1, batchSize - 1))} className="px-3 py-1.5 text-gray-500 hover:text-gray-900" aria-label="Fewer">−</button>
                 <span className="w-8 text-center text-sm font-semibold tabular-nums">{batchSize}</span>
@@ -305,6 +311,9 @@ export default function DeskSettingsModal({
             </Field>
             <Field label="Flyer" note={flyerMode === "embed" ? "Default" : undefined}>
               <Segmented value={flyerMode} options={FLYERS.map((f) => ({ key: f.key, label: f.label }))} onChange={setFlyerMode} />
+            </Field>
+            <Field label="CC me on every email" note={ccSelf ? "On (default)" : "Off"}>
+              <Segmented value={ccSelf ? "on" : "off"} options={[{ key: "on", label: "On" }, { key: "off", label: "Off" }]} onChange={(k) => setCcSelf(k === "on")} />
             </Field>
             <Field label="Remind me to follow up" note={followUpDays == null ? "Off (default)" : "If they haven't replied"}>
               <Segmented value={followUpDays} options={FOLLOW_UPS.map((d) => ({ key: d, label: d == null ? "Off" : `${d} days` }))} onChange={setFollowUpDays} />
@@ -363,6 +372,7 @@ export default function DeskSettingsModal({
                       language,
                       flyerMode,
                       followUpDays,
+                      ccSelf,
                       instructions: instructions.trim(),
                       rebuild: canRebuild && rebuild,
                     });
