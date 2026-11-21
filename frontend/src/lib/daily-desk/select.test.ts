@@ -21,9 +21,9 @@ const listing = (over: Partial<DeskListing>): DeskListing => ({
   agentName: "Pat Agent", agentEmail: "pat@realty.com", agentPhone: null, officeName: null, ...over,
 });
 
-test("batch size defaults to 5 and caps at the max", () => {
-  assert.equal(clampBatchSize(undefined), 5);
-  assert.equal(clampBatchSize(0), 5);
+test("batch size defaults to 10 and caps at the max", () => {
+  assert.equal(clampBatchSize(undefined), 10);
+  assert.equal(clampBatchSize(0), 10);
   assert.equal(clampBatchSize(3), 3);
   assert.equal(clampBatchSize(99), MAX_BATCH_SIZE);
 });

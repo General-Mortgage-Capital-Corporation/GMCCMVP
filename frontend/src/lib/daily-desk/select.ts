@@ -7,7 +7,11 @@
  * lib/daily-desk/server.ts does the fetching, drafting, claiming and sending.
  */
 
-export const DEFAULT_BATCH_SIZE = 5;
+export const DEFAULT_BATCH_SIZE = 10;
+/** Default listing filters for a new desk (James, 2026-11-20): $1M–$10M single-family homes. */
+export const DEFAULT_PRICE_MIN = 1_000_000;
+export const DEFAULT_PRICE_MAX = 10_000_000;
+export const DEFAULT_PROPERTY_TYPES = ["Single Family"];
 export const MAX_BATCH_SIZE = 10;
 export const MAX_AREAS = 3;
 /** Company-wide: no GMCC LO emails the same realtor more than once in this window. */

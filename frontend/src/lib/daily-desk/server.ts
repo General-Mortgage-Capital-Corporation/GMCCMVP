@@ -53,6 +53,9 @@ import {
   MAX_BATCH_SIZE,
   chooseProgram,
   clampBatchSize,
+  DEFAULT_PRICE_MIN,
+  DEFAULT_PRICE_MAX,
+  DEFAULT_PROPERTY_TYPES,
   dayKey,
   normalizeAreas,
   pickCandidates,
@@ -89,6 +92,8 @@ export interface DeskSettings {
   flyerMode: DeskFlyerMode;
   /** Remind the LO to follow up after N days if there's no reply (null = off). */
   followUpDays: number | null;
+  /** CC the LO on every email the desk sends (default on). */
+  ccSelf: boolean;
   /** Extra drafting instructions ("" = none). */
   instructions: string;
   /** True while the areas are the auto-picked ones (LO hasn't edited them). */
@@ -164,18 +169,19 @@ async function bumpStats(day: string, fields: Record<string, number>) {
 
 export const SETTINGS_DEFAULTS = {
   batchSize: DEFAULT_BATCH_SIZE,
-  priceMin: null,
-  priceMax: null,
+  priceMin: DEFAULT_PRICE_MIN as number | null,
+  priceMax: DEFAULT_PRICE_MAX as number | null,
   preferredPrograms: [] as string[],
   programMode: "prefer" as const,
   domMin: null,
   domMax: null,
-  propertyTypes: [] as string[],
+  propertyTypes: [...DEFAULT_PROPERTY_TYPES] as string[],
   bedsMin: null,
   tone: "friendly" as DeskTone,
   language: "English",
   flyerMode: "embed" as DeskFlyerMode,
   followUpDays: null,
+  ccSelf: true,
   instructions: "",
 };
 
@@ -225,18 +231,19 @@ export async function saveSettings(caller: Pick<DeskCaller, "email">, input: Par
   const next: DeskSettings = {
     areas,
     batchSize: clampBatchSize(input.batchSize ?? cur?.batchSize),
-    priceMin: input.priceMin !== undefined ? money(input.priceMin) : cur?.priceMin ?? null,
-    priceMax: input.priceMax !== undefined ? money(input.priceMax) : cur?.priceMax ?? null,
+    priceMin: input.priceMin !== undefined ? money(input.priceMin) : cur ? cur.priceMin : DEFAULT_PRICE_MIN,
+    priceMax: input.priceMax !== undefined ? money(input.priceMax) : cur ? cur.priceMax : DEFAULT_PRICE_MAX,
     preferredPrograms: (input.preferredPrograms ?? cur?.preferredPrograms ?? []).map(String).slice(0, 10),
     programMode: pick("programMode") === "only" ? "only" : "prefer",
     domMin: input.domMin !== undefined ? days(input.domMin) : cur?.domMin ?? null,
     domMax: input.domMax !== undefined ? days(input.domMax) : cur?.domMax ?? null,
-    propertyTypes: (input.propertyTypes ?? cur?.propertyTypes ?? []).map(String).filter((t) => PROPERTY_TYPES.includes(t)).slice(0, 6),
+    propertyTypes: (input.propertyTypes ?? cur?.propertyTypes ?? DEFAULT_PROPERTY_TYPES).map(String).filter((t) => PROPERTY_TYPES.includes(t)).slice(0, 6),
     bedsMin: input.bedsMin !== undefined ? days(input.bedsMin) : cur?.bedsMin ?? null,
     tone: tone === "professional" || tone === "brief" ? tone : "friendly",
     language: (DESK_LANGUAGES as readonly string[]).includes(language) ? language : "English",
     flyerMode: flyerMode === "attach" || flyerMode === "link" || flyerMode === "none" ? flyerMode : "embed",
     followUpDays: followUp && [3, 5, 7, 14].includes(Number(followUp)) ? Number(followUp) : null,
+    ccSelf: pick("ccSelf") !== false,
     instructions: String(input.instructions ?? cur?.instructions ?? "").slice(0, 600),
     autoSeeded: input.areaInputs ? false : cur?.autoSeeded ?? false,
     updatedAt: Date.now(),
@@ -778,6 +785,7 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
         subject: it.subject,
         body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml, embedded ? flyerImagesHtml([embedded]) : "") },
         toRecipients: [{ emailAddress: { address: agent, ...(it.listing.agentName ? { name: it.listing.agentName } : {}) } }],
+        ...(settings.ccSelf ? { ccRecipients: [{ emailAddress: { address: caller.email } }] } : {}),
         ...(embedded
           ? { attachments: [inlineFlyerAttachment(embedded)] }
           : attachment
