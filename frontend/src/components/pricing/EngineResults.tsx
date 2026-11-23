@@ -360,6 +360,11 @@ function GroupedView({ rows }: { rows: PricingResult[] }) {
                   <ChevronIcon open={isOpen} />
                 </div>
               </button>
+              {group.rows.find((r) => r.docs)?.docs && (
+                <div className="px-4 pb-2">
+                  <DocsLinks docs={group.rows.find((r) => r.docs)!.docs!} />
+                </div>
+              )}
 
               {isOpen && (
                 <div className="border-t border-slate-100 bg-slate-50/40 p-3">
@@ -410,6 +415,24 @@ function LoannexRowDetail({ result }: { result: PricingResult }) {
       {showLadder && result.rates && result.rates.length > 0 && (
         <RateLadder rates={result.rates} />
       )}
+    </div>
+  );
+}
+
+/** Flyer / program deck / rate sheet links for a GMCC portfolio program (clicks don't toggle the card). */
+function DocsLinks({ docs }: { docs: NonNullable<PricingResult["docs"]> }) {
+  const a = "inline-flex items-center rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[0.7rem] font-medium text-slate-700 hover:border-red-300 hover:text-red-700";
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1.5" onClick={stop}>
+      <span className="text-[0.6rem] font-bold uppercase tracking-widest text-slate-400">Docs</span>
+      {docs.flyer && <a href={docs.flyer.url} target="_blank" rel="noopener noreferrer" className={a}>Flyer</a>}
+      {docs.guidelines.map((g) => (
+        <a key={g.url} href={g.url} target="_blank" rel="noopener noreferrer" className={a}>{g.label}</a>
+      ))}
+      {docs.rateSheets.map((r) => (
+        <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer" className={a} title={`Rate sheet dated ${r.date}`}>{r.label} · {r.date}</a>
+      ))}
     </div>
   );
 }
@@ -468,6 +491,7 @@ function ResultCard({ result }: { result: PricingResult }) {
               </span>
             )}
           </div>
+          {result.docs && <DocsLinks docs={result.docs} />}
           {result.rate_sheet_as_of && (
             <div className="mt-1">
               <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[0.7rem] font-semibold ${stale ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>

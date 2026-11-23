@@ -161,8 +161,16 @@ export interface PricingResult {
   conditions?: string[];
   rate_sheet_as_of?: string;
   stale_days?: number;
+  /** GMCC portfolio program documents (flyer / deck / rate sheets) — same as the pricing engine's Docs popup. */
+  docs?: ProgramDocs;
   error_code?: ErrorCode;
   error_message?: string;
+}
+
+export interface ProgramDocs {
+  flyer?: { url: string; thumbnailUrl: string };
+  guidelines: { label: string; url: string }[];
+  rateSheets: { label: string; url: string; date: string }[];
 }
 
 /** What the portal found about CRA for the listing address (+ borrower income). */
