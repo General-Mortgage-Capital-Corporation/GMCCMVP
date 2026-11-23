@@ -205,6 +205,27 @@ export default function ScenarioForm({ inputs, onChange, listingPrice, state, cl
         </Field>
       </div>
 
+      {/* CRA: with the listing's address, income decides the LMI-borrower credit. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium text-slate-600" htmlFor="cp-income">
+          Borrower income (yearly)
+        </label>
+        <div className="relative w-40">
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+          <input
+            id="cp-income"
+            type="number"
+            min={0}
+            step={1000}
+            placeholder="optional"
+            value={inputs.annual_income ?? ""}
+            onChange={(e) => set("annual_income", e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))}
+            className="w-full rounded-md border border-slate-200 bg-white py-1.5 pl-5 pr-2 text-sm tabular-nums text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+        <span className="text-[11px] text-slate-400">For CRA programs — we check the address&apos;s census tract and compare income to the area median.</span>
+      </div>
+
       {/* Computed summary — Property and Loan amount are directly editable.
           Down payment is a derived display (= Property − Loan). */}
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2 text-xs text-slate-600">

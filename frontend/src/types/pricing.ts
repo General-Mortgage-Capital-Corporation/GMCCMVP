@@ -100,6 +100,9 @@ export interface PricingScenario {
   secondary_financing_type?: SecondaryFinancingType;
   credit_event?: CreditEvent;
   heloc_drawn_amount?: number;
+  /** Subject address + borrower income: the portal derives the CRA flags from them. */
+  property_address?: string;
+  annual_income?: number;
   heloc_line_amount?: number;
   cltv?: number | null;
   hcltv?: number | null;
@@ -162,12 +165,26 @@ export interface PricingResult {
   error_message?: string;
 }
 
+/** What the portal found about CRA for the listing address (+ borrower income). */
+export interface CraDerivation {
+  county: string | null;
+  tract_income_level: string | null;
+  tract_minority_pct: number | null;
+  area_mfi: number | null;
+  income_pct_of_mfi: number | null;
+  cra_lmi_tract: boolean;
+  cra_mmct: boolean;
+  cra_lmi_borrower: boolean | null;
+  summary: string;
+}
+
 export interface QuoteResponse {
   request_id: string;
   scenario_summary: string;
   results: PricingResult[];
   defaults_applied?: string[];
   errors?: string[];
+  cra?: CraDerivation;
 }
 
 // Property-search-side wrappers
