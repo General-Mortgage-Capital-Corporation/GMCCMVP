@@ -11,6 +11,8 @@ import {
   inlineFlyerAttachment,
   PAIR_DISPLAY_WIDTH,
   pdfShareBytes,
+  embedImageSpec,
+  imageSpecForBytes,
   splitByBudget,
   toggleEmbedId,
 } from "./flyer-embed.ts";
@@ -44,11 +46,19 @@ test("the inline attachment matches the cid in the body", () => {
   assert.equal(a.contentType, "image/jpeg");
 });
 
-test("at most two flyers can be embedded", () => {
-  assert.deepEqual(defaultEmbedIds(["a", "b", "c"]), ["a", "b"]);
-  assert.deepEqual(toggleEmbedId(["a", "b"], "c"), ["a", "b"]);
+test("up to five flyers are embedded by default", () => {
+  assert.deepEqual(defaultEmbedIds(["a", "b", "c", "d", "e", "f"]), ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(toggleEmbedId(["a", "b", "c", "d", "e"], "f"), ["a", "b", "c", "d", "e"]);
   assert.deepEqual(toggleEmbedId(["a", "b"], "a"), ["b"]);
   assert.deepEqual(toggleEmbedId(["b"], "c"), ["b", "c"]);
+});
+
+test("five shown flyers fit one message", () => {
+  const spec = embedImageSpec(5);
+  assert.ok(spec.width < embedImageSpec(1).width);
+  assert.ok(5 * spec.maxBytes + 64 * 1024 <= MAX_ATTACH_BYTES);
+  assert.deepEqual(imageSpecForBytes(undefined), embedImageSpec(1));
+  assert.equal(imageSpecForBytes(spec.maxBytes).maxBytes, spec.maxBytes);
 });
 
 test("PDFs past the size limit are split off, counting what is already on the message", () => {
@@ -85,6 +95,6 @@ test("one flyer still fills the column", () => {
 test("attached PDFs share what is left after the shown flyers", () => {
   assert.equal(pdfShareBytes(1, 0), MAX_ATTACH_BYTES - 64 * 1024);
   assert.ok(pdfShareBytes(4, 2) < pdfShareBytes(3, 2));
-  assert.ok(pdfShareBytes(4, 2) * 2 + 2 * 600 * 1024 <= MAX_ATTACH_BYTES);
+  assert.ok(pdfShareBytes(4, 2) * 2 + 2 * embedImageSpec(2).maxBytes <= MAX_ATTACH_BYTES);
   assert.equal(pdfShareBytes(20, 0), 300 * 1024);
 });
