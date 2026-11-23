@@ -46,6 +46,9 @@ export interface ScenarioInputs {
   rural_property?: boolean;
   // Credit events
   credit_event?: CreditEvent;
+  /** Borrower total annual income — with the listing address it decides the
+   *  CRA flags (LMI borrower ≤ 80% of area median) server-side. */
+  annual_income?: number;
 }
 
 export const DEFAULT_INPUTS: ScenarioInputs = {
@@ -103,10 +106,7 @@ function deriveUnits(rentcast?: string): number | undefined {
 }
 
 export function buildScenario(
-  listing: Pick<
-    RentCastListing,
-    "state" | "price" | "propertyType" | "county"
-  > | null,
+  listing: (Pick<RentCastListing, "state" | "price" | "propertyType" | "county"> & { formattedAddress?: string }) | null,
   inputs: ScenarioInputs,
 ): PricingScenario {
   // Clamp down payment % once, up front. 99% is a hard ceiling so
@@ -178,6 +178,9 @@ export function buildScenario(
     property_units: propertyType === "multi_unit" ? units ?? 2 : undefined,
     condo_type: propertyType === "condo" ? "warrantable" : undefined,
     credit_event: hasCreditEvents(inputs.credit_event) ? inputs.credit_event : undefined,
+    // The portal derives the CRA flags (LMI tract, MMCT, LMI borrower) from these.
+    property_address: listing?.formattedAddress || undefined,
+    annual_income: inputs.annual_income && inputs.annual_income > 0 ? inputs.annual_income : undefined,
   };
 
   // Strip undefined keys so we send a clean payload
