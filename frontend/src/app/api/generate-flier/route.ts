@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
 import { getPartnerContext, mintIdTokenForEmail } from "@/lib/partner-server";
 import { renderFlyerImage } from "@/lib/email/flyer-image";
+import { imageSpecForBytes } from "@/lib/email/flyer-embed";
 import { attachableFlyerPdf } from "@/lib/email/flyer-pdf-compact";
 import { fetchWithRetry } from "@/lib/email/retry-flyer-fetch";
 
@@ -120,7 +121,8 @@ export async function POST(req: NextRequest) {
     const safeProductId = (productId ?? "flyer").replace(/[^a-zA-Z0-9-]/g, "");
     // format: "jpeg" = page 1 as an image, for embedding in an email body.
     if (body.format === "jpeg") {
-      const image = await renderFlyerImage(new Uint8Array(pdfBytes));
+      // maxBytes on a jpeg = this image's share of the message (several flyers shown).
+      const image = await renderFlyerImage(new Uint8Array(pdfBytes), imageSpecForBytes(Number(body.maxBytes) || undefined));
       return new Response(Buffer.from(image.base64, "base64"), {
         headers: {
           "Content-Type": "image/jpeg",

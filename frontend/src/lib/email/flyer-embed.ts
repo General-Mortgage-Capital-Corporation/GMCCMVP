@@ -6,14 +6,17 @@
  * inline attachment and referenced by cid. Hosted images would be blocked by
  * Outlook's "download pictures" prompt; inline ones just show.
  *
- * The cap is on what fits a readable email: at most two flyers in the body,
- * anything else the LO includes goes as a PDF attachment or a link.
+ * The cap is on what fits a readable email: up to five flyers in the body
+ * (2026-11-23, was two), two per row; anything else the LO includes goes as a
+ * PDF attachment or a link. With more than one shown, each image is rendered
+ * at the two-column size with a byte budget (embedImageSpec) so five still fit
+ * Graph's single-message limit.
  *
  * Pure apart from flyerImageFromBlob (browser only, called from the modals).
  */
 import { MAX_ATTACH_BYTES, MAX_INLINE_ATTACHMENT_BASE64 } from "./attachment-policy.ts";
 
-export const MAX_EMBEDDED_FLYERS = 2;
+export const MAX_EMBEDDED_FLYERS = 5;
 
 /** Width the flyer displays at. Rendered at twice this so small print stays sharp. */
 export const EMBED_DISPLAY_WIDTH = 600;
@@ -52,6 +55,28 @@ export function flyerContentId(id: string): string {
 
 /** Width of each flyer when two sit side by side (two columns plus a gap fill 600). */
 export const PAIR_DISPLAY_WIDTH = 294;
+
+/** A single flyer image's size limit (also the old two-flyer size). */
+const SINGLE_IMAGE_MAX_BYTES = 900 * 1024;
+
+/**
+ * Render size for each flyer image when `count` flyers are shown in the body:
+ * one fills the column at 2x; several sit two per row, so 2x the column width
+ * is all they need, and they share ~60% of the message budget.
+ */
+export function embedImageSpec(count: number): { width: number; maxBytes: number } {
+  if (count <= 1) return { width: EMBED_DISPLAY_WIDTH * 2, maxBytes: SINGLE_IMAGE_MAX_BYTES };
+  return {
+    width: PAIR_DISPLAY_WIDTH * 2,
+    maxBytes: Math.min(450 * 1024, Math.floor((MAX_ATTACH_BYTES * 0.6) / count)),
+  };
+}
+
+/** The render spec for a requested per-image byte budget (the jpeg route's maxBytes). */
+export function imageSpecForBytes(maxBytes?: number): { width: number; maxBytes: number } {
+  if (!maxBytes || !Number.isFinite(maxBytes) || maxBytes >= SINGLE_IMAGE_MAX_BYTES) return embedImageSpec(1);
+  return { width: PAIR_DISPLAY_WIDTH * 2, maxBytes: Math.max(120 * 1024, Math.floor(maxBytes)) };
+}
 const PAIR_GAP = 12;
 
 function flyerCell(f: EmbeddedFlyer, width: number): string {
@@ -125,7 +150,7 @@ export function defaultEmbedIds(ids: string[]): string[] {
   return ids.slice(0, MAX_EMBEDDED_FLYERS);
 }
 
-/** Turn one flyer on or off; turning on a third is ignored. */
+/** Turn one flyer on or off; turning one on past the cap is ignored. */
 export function toggleEmbedId(current: string[], id: string): string[] {
   if (current.includes(id)) return current.filter((x) => x !== id);
   return current.length >= MAX_EMBEDDED_FLYERS ? current : [...current, id];
@@ -153,8 +178,6 @@ export function splitByBudget<T extends { base64: string }>(
   return { fit, overflow };
 }
 
-/** Room kept per flyer shown in the body (a page-1 JPEG is about 200-600 KB). */
-const IMAGE_RESERVE_BYTES = 600 * 1024;
 /** Room kept for the optional program-summary attachment. */
 const SUMMARY_RESERVE_BYTES = 64 * 1024;
 /** No PDF is asked to shrink below this; one that can't fit is linked. */
@@ -166,7 +189,7 @@ const MIN_PDF_SHARE_BYTES = 300 * 1024;
  */
 export function pdfShareBytes(flyerCount: number, embeddedCount: number): number {
   const pdfCount = Math.max(1, flyerCount - embeddedCount);
-  const room = MAX_ATTACH_BYTES - embeddedCount * IMAGE_RESERVE_BYTES - SUMMARY_RESERVE_BYTES;
+  const room = MAX_ATTACH_BYTES - (embeddedCount ? embeddedCount * embedImageSpec(embeddedCount).maxBytes : 0) - SUMMARY_RESERVE_BYTES;
   return Math.max(MIN_PDF_SHARE_BYTES, Math.floor(room / pdfCount));
 }
 

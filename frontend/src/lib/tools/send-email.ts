@@ -1,3 +1,4 @@
+import { renderFlyerImage } from "@/lib/email/flyer-image";
 import { tool } from "ai";
 import { z } from "zod";
 import { sendMailAs, type GraphFileAttachment, type GraphMessage } from "@/lib/graph-client";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/email/attachment-policy";
 import {
   MAX_EMBEDDED_FLYERS,
+  embedImageSpec,
   flyerImagesHtml,
   inlineFlyerAttachment,
   type EmbeddedFlyer,
@@ -90,7 +92,7 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
       "Send an email via Microsoft Outlook/Graph API as the signed-in user. " +
       "To include a program flyer, generate it FIRST (generateFlyer) and pass its flyerRef; the result's `flyers` list " +
       "tells you whether each was 'embedded' (shown in the email body), 'attached', or 'linked' (too large for Outlook — a portal link was added under the text). " +
-      "At most 2 flyers can be embedded; more can be attached or linked through moreFlyers. " +
+      `At most ${MAX_EMBEDDED_FLYERS} flyers can be embedded; more can be attached or linked through moreFlyers. ` +
       "Report exactly that to the user. If the body says anything is attached but no PDF is attached, the send is refused. " +
       "ALWAYS call askForConfirmation before using this tool.",
     inputSchema: z.object({
@@ -116,7 +118,7 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
       moreFlyers: z
         .array(z.object({ flyerRef: z.string(), flyerDelivery: z.enum(["embed", "attach", "link"]) }))
         .default([])
-        .describe("Any further flyers for this email. At most 2 flyers in total can use 'embed'."),
+        .describe(`Any further flyers for this email. At most ${MAX_EMBEDDED_FLYERS} flyers in total can use 'embed'.`),
       attachmentFilename: z
         .string()
         .optional()
@@ -209,8 +211,17 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
                 "Re-draft with draftEmail (flyerDelivery: 'attached' or 'linked') and send it with the matching flyerDelivery.",
             };
           }
+          // Several shown: re-render each at the two-column size so they all fit one message.
+          let image = entry.image;
+          if (toEmbed.length > 1) {
+            try {
+              image = await renderFlyerImage(new Uint8Array(Buffer.from(entry.base64, "base64")), embedImageSpec(toEmbed.length));
+            } catch (err) {
+              console.error("[sendEmail] could not re-render flyer image smaller:", err);
+            }
+          }
           embedded.push({
-            ...entry.image,
+            ...image,
             id: f.flyerRef,
             title:
               input.programName && toEmbed.length === 1
@@ -218,7 +229,7 @@ export function createSendEmailTool(auth: AuthContext, ledger?: SendLedger) {
                 : (entry.productId ?? "GMCC program").replace(/-/g, " "),
             ...(entry.productId ? { pdfUrl: portalFlyerUrl(entry.productId, auth.loNmls) } : {}),
           });
-          usedBase64 += entry.image.base64.length;
+          usedBase64 += image.base64.length;
           sentFlyers.push({
             delivery: "embedded",
             productId: entry.productId,
