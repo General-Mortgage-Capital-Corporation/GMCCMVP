@@ -17,6 +17,7 @@ import type {
   PricingResult,
   PricingScenario,
   QuoteApiResponse,
+  CraDerivation,
 } from "@/types/pricing";
 
 /**
@@ -64,6 +65,7 @@ export default function ComparePricingModal({ listing, onClose }: Props) {
   const [submittedScenario, setSubmittedScenario] = useState<PricingScenario | null>(null);
   const [scenarioSummary, setScenarioSummary] = useState<string>("");
   const [defaultsApplied, setDefaultsApplied] = useState<string[]>([]);
+  const [cra, setCra] = useState<CraDerivation | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const draftScenario = useMemo(() => buildScenario(listing, inputs), [listing, inputs]);
@@ -138,6 +140,7 @@ export default function ComparePricingModal({ listing, onClose }: Props) {
       setSubmittedScenario(draftScenario);
       setScenarioSummary(data.scenario_summary || summarizeScenario(draftScenario));
       setDefaultsApplied(data.defaults_applied ?? []);
+      setCra(data.cra ?? null);
       setPhase("results");
       trackEvent("pricing_quote_received", {
         eligible_count: data.results.filter((r) => r.status === "eligible").length,
@@ -189,6 +192,7 @@ export default function ComparePricingModal({ listing, onClose }: Props) {
             results={results!}
             submittedScenario={submittedScenario!}
             defaultsApplied={defaultsApplied}
+            cra={cra}
             enabledEngines={ENABLED_ENGINES}
             onEdit={() => {
               setError(null);
@@ -397,6 +401,7 @@ function ResultsPhase({
   results,
   submittedScenario,
   defaultsApplied,
+  cra,
   enabledEngines,
   onEdit,
 }: {
@@ -404,6 +409,7 @@ function ResultsPhase({
   results: PricingResult[];
   submittedScenario: PricingScenario;
   defaultsApplied: string[];
+  cra: CraDerivation | null;
   enabledEngines: EngineProgram[];
   onEdit: () => void;
 }) {
@@ -421,6 +427,16 @@ function ResultsPhase({
                 {scenarioSummary}
               </span>
             </div>
+            {cra && (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-[0.6rem] font-bold uppercase tracking-widest text-slate-400">CRA</span>
+                {cra.cra_lmi_tract && <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">LMI tract</span>}
+                {cra.cra_mmct && <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">Majority-minority tract</span>}
+                {cra.cra_lmi_borrower && <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">LMI borrower</span>}
+                <span className="text-slate-500">{cra.summary}</span>
+                {cra.cra_lmi_borrower == null && <span className="text-slate-400">· add borrower income to check the LMI-borrower credit</span>}
+              </div>
+            )}
           </div>
           <button
             onClick={onEdit}

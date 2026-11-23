@@ -18,6 +18,7 @@ import { getLOInfo } from "@/lib/lo-info-store";
 import { appendFlyerLink, mentionsAttachment, portalFlyerUrl } from "@/lib/email/attachment-policy";
 import {
   MAX_EMBEDDED_FLYERS,
+  embedImageSpec,
   defaultEmbedIds,
   describeFlyerCounts,
   flyerImageFromBlob,
@@ -342,7 +343,8 @@ export default function MultiEmailModal({
           programsWithFlyer.map(async (p) => {
             const id = p.product_id!;
             if (embedIds.includes(id)) {
-              const imageBlob = await fetchPdf(id, "jpeg");
+              // Several shown → each image is rendered smaller so they all fit one message.
+              const imageBlob = await fetchPdf(id, "jpeg", embedIds.length > 1 ? embedImageSpec(embedIds.length).maxBytes : undefined);
               if (imageBlob) {
                 return {
                   kind: "image" as const,

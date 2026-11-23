@@ -2,15 +2,16 @@
  * Page 1 of a flyer PDF as a JPEG for embedding in an email body (server only).
  *
  * Fonts are drawn as paths so nothing depends on fonts installed on the server.
- * A 3-6 MB flyer comes out around 200 KB, so two fit well inside Graph's 4 MB
- * message limit.
+ * Size comes from embedImageSpec: one flyer at 2x the 600px column; several
+ * at 2x the two-column width with a smaller byte budget, so up to five fit
+ * inside Graph's 4 MB message limit.
  */
-import { EMBED_DISPLAY_WIDTH, type FlyerImage } from "./flyer-embed.ts";
+import { embedImageSpec, type FlyerImage } from "./flyer-embed.ts";
 
-const RENDER_WIDTH = EMBED_DISPLAY_WIDTH * 2;
-const TARGET_MAX_BYTES = 900 * 1024;
-
-export async function renderFlyerImage(pdf: Uint8Array): Promise<FlyerImage> {
+export async function renderFlyerImage(
+  pdf: Uint8Array,
+  spec: { width: number; maxBytes: number } = embedImageSpec(1),
+): Promise<FlyerImage> {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const { createCanvas } = await import("@napi-rs/canvas");
 
@@ -24,7 +25,7 @@ export async function renderFlyerImage(pdf: Uint8Array): Promise<FlyerImage> {
   try {
     const doc = await task.promise;
     const page = await doc.getPage(1);
-    const scale = RENDER_WIDTH / page.getViewport({ scale: 1 }).width;
+    const scale = spec.width / page.getViewport({ scale: 1 }).width;
     const viewport = page.getViewport({ scale });
     const width = Math.round(viewport.width);
     const height = Math.round(viewport.height);
@@ -40,7 +41,10 @@ export async function renderFlyerImage(pdf: Uint8Array): Promise<FlyerImage> {
     }).promise;
 
     let jpeg = canvas.toBuffer("image/jpeg", 80);
-    if (jpeg.length > TARGET_MAX_BYTES) jpeg = canvas.toBuffer("image/jpeg", 60);
+    for (const q of [65, 50, 40]) {
+      if (jpeg.length <= spec.maxBytes) break;
+      jpeg = canvas.toBuffer("image/jpeg", q);
+    }
     return { base64: jpeg.toString("base64"), width, height };
   } finally {
     await task.destroy();
