@@ -4,6 +4,7 @@ import { authedFetch } from "@/lib/authed-fetch";
 import { getAuthToken } from "@/lib/auth-token";
 import { getLOInfo } from "@/lib/lo-info-store";
 import { getRecentSearches } from "@/lib/recent-searches";
+import type { PreviewableMessage } from "@/lib/email/message-preview";
 
 /** Mirrors lib/daily-desk/server.ts (client-safe copy of the shapes). */
 export interface DeskArea { zip?: string; city?: string; state?: string; lat?: number; lng?: number; radiusMi?: number; place?: string; label: string }
@@ -22,6 +23,25 @@ export interface DeskItem {
   id: string; listing: DeskListing; program: string; reason: string; alternatives?: string[]; productId: string | null;
   subject: string; body: string; status: "ready" | "sent" | "skipped" | "failed";
   edited?: boolean; skipReason?: string; error?: string; sentAt?: number; flyer?: "embedded" | "attached" | "linked" | "none";
+  /** This email's own flyer option; unset = settings.flyerMode. */
+  flyerMode?: DeskFlyerMode;
+}
+export type DeskFlyerMode = "embed" | "attach" | "link" | "none";
+export const DESK_FLYER_OPTIONS: { key: DeskFlyerMode; label: string }[] = [
+  { key: "embed", label: "Show in email" },
+  { key: "attach", label: "Attach PDF" },
+  { key: "link", label: "Link" },
+  { key: "none", label: "No flyer" },
+];
+/** The exact message Send would post (from POST action "preview"; nothing is sent). */
+export interface DeskPreview {
+  message: PreviewableMessage;
+  from: string;
+  flyerMode: DeskFlyerMode;
+  flyerModeSource: "card" | "settings";
+  settingsFlyerMode: DeskFlyerMode;
+  delivery: "embedded" | "attached" | "linked" | "none";
+  warnings: string[];
 }
 export interface DeskDay { day: string; status: "building" | "ready" | "needs_setup"; startedAt: number; builtAt?: number; items: DeskItem[]; note?: string }
 export interface DeskSettings {
@@ -32,7 +52,7 @@ export interface DeskSettings {
   propertyTypes: string[]; bedsMin: number | null;
   tone: "friendly" | "professional" | "brief";
   language: string;
-  flyerMode: "embed" | "attach" | "link" | "none";
+  flyerMode: DeskFlyerMode;
   followUpDays: number | null;
   ccSelf: boolean;
 }
@@ -111,6 +131,10 @@ export const deskApi = {
   edit: (itemId: string, subject: string, body: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "edit", itemId, subject, body } }),
   program: (itemId: string, program: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "program", itemId, program } }),
   retry: (itemId: string) => call<{ day: DeskDay }>({ method: "POST", body: { action: "retry", itemId } }),
+  /** Build the email exactly as Send would, without sending; `flyerMode` tries another option without saving it. */
+  preview: (itemId: string, flyerMode?: DeskFlyerMode) => call<{ preview: DeskPreview }>({ method: "POST", body: { action: "preview", itemId, ...(flyerMode ? { flyerMode } : {}) } }),
+  /** This card's flyer option; null = follow the setting. */
+  flyer: (itemId: string, flyerMode: DeskFlyerMode | null) => call<{ day: DeskDay }>({ method: "POST", body: { action: "flyer", itemId, flyerMode } }),
   saveSettings: (s: Partial<Omit<DeskSettings, "areas">> & { areaInputs?: AreaInput[]; rebuild?: boolean }) =>
     call<{ settings: DeskSettings; day: DeskDay | null }>({ method: "POST", body: { action: "settings", ...s } }),
 };

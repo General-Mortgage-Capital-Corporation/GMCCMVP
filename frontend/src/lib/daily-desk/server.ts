@@ -68,6 +68,8 @@ import {
   type DeskFlyerMode,
   type DeskListing,
   type DeskTone,
+  effectiveFlyerMode,
+  isDeskFlyerMode,
 } from "./select";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -119,6 +121,8 @@ export interface DeskItem {
   error?: string;
   sentAt?: number;
   flyer?: "embedded" | "attached" | "linked" | "none";
+  /** This email's own flyer option (overrides settings.flyerMode); unset = the setting. */
+  flyerMode?: DeskFlyerMode;
 }
 
 export interface DeskDay {
@@ -693,26 +697,15 @@ export async function skipItem(caller: Pick<DeskCaller, "email">, itemId: string
   return d;
 }
 
-// ─── Send ────────────────────────────────────────────────────────────────────
+// ─── Message (shared by preview and send) ────────────────────────────────────
 
-export class DeskSendError extends Error {}
+type FlyerKit = {
+  pdfFor: (program: string, productId: string) => Promise<string | null>;
+  imageFor: (program: string, productId: string) => Promise<EmbeddedFlyer | null>;
+};
 
-/**
- * Send the given ready items (or all ready items). Each one is re-checked
- * against the company-wide guard right before sending.
- */
-export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): Promise<{ day: DeskDay; sent: number; skipped: number; failed: number }> {
-  const signatureHtml = (await getStoredSignature(caller.email)) ?? "";
-  if (!signatureHtml || isSignatureContentEmpty(signatureHtml) || findSignaturePlaceholder(signatureHtml)) {
-    throw new DeskSendError("Add your email signature first (gear icon → Signature), then send.");
-  }
-  const day = dayKey();
-  const ref = dayRef(caller.email, day);
-  const cur = (await ref.get()).data() as DeskDay | undefined;
-  if (!cur) throw new DeskSendError("Today's list wasn't found — refresh the page.");
-  const targets = cur.items.filter((i) => i.status === "ready" && (itemIds === "all" || itemIds.includes(i.id)));
-
-  const settings = await getSettings(caller);
+/** Flyer PDFs / images for one request, made once per program. */
+function flyerKit(caller: DeskCaller): FlyerKit {
   const pdfs = new Map<string, string | null>();
   const images = new Map<string, EmbeddedFlyer | null>();
   /** The flyer PDF (base64, already shrunk to fit when possible), once per program. */
@@ -739,6 +732,148 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
     }
     return images.get(productId) ?? null;
   };
+  return { pdfFor, imageFor };
+}
+
+/**
+ * The exact Graph message a desk card sends: flyer per `flyerMode` (anything
+ * that can't be made falls back to a link), body, signature, CC. The send
+ * posts it; the preview returns it unchanged.
+ */
+async function composeDeskMessage(
+  caller: DeskCaller,
+  it: DeskItem,
+  flyerMode: DeskFlyerMode,
+  signatureHtml: string,
+  ccSelf: boolean,
+  kit: FlyerKit,
+): Promise<{ message: GraphMessage; delivery: "embedded" | "attached" | "linked" | "none"; body: string }> {
+  const agent = it.listing.agentEmail;
+  let delivery: "embedded" | "attached" | "linked" | "none" = "none";
+  let embedded: EmbeddedFlyer | null = null;
+  let attachment: string | null = null;
+  let body = it.body;
+  if (it.productId && flyerMode !== "none") {
+    if (flyerMode === "embed") {
+      embedded = await kit.imageFor(it.program, it.productId);
+      if (embedded) delivery = "embedded";
+    } else if (flyerMode === "attach") {
+      const pdf = await kit.pdfFor(it.program, it.productId);
+      if (pdf && pdf.length <= MAX_INLINE_ATTACHMENT_BASE64) {
+        attachment = pdf;
+        delivery = "attached";
+      }
+    }
+    if (delivery === "none") {
+      delivery = "linked";
+      body = appendFlyerLink(body, portalFlyerUrl(it.productId, caller.loNmls));
+    }
+  }
+  const message: GraphMessage = {
+    subject: it.subject,
+    body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml, embedded ? flyerImagesHtml([embedded]) : "") },
+    toRecipients: [{ emailAddress: { address: agent, ...(it.listing.agentName ? { name: it.listing.agentName } : {}) } }],
+    ...(ccSelf ? { ccRecipients: [{ emailAddress: { address: caller.email } }] } : {}),
+    ...(embedded
+      ? { attachments: [inlineFlyerAttachment(embedded)] }
+      : attachment
+        ? {
+            attachments: [
+              {
+                "@odata.type": "#microsoft.graph.fileAttachment" as const,
+                name: `GMCC-${it.program.replace(/[^a-zA-Z0-9]+/g, "-")}.pdf`,
+                contentType: "application/pdf",
+                contentBytes: attachment,
+              },
+            ],
+          }
+        : {}),
+  };
+  return { message, delivery, body };
+}
+
+export interface DeskPreview {
+  /** Exactly what the send would post to Graph (nothing is sent). */
+  message: GraphMessage;
+  from: string;
+  /** The flyer option this preview used, and whether it is the card's own or the setting. */
+  flyerMode: DeskFlyerMode;
+  flyerModeSource: "card" | "settings";
+  settingsFlyerMode: DeskFlyerMode;
+  /** How the flyer actually goes out (a fallback to "linked" shows here). */
+  delivery: "embedded" | "attached" | "linked" | "none";
+  /** Things that would stop or change the send. */
+  warnings: string[];
+}
+
+/**
+ * Build a card's email exactly as Send would — same flyer, body, signature,
+ * recipients — without sending or writing anything. `flyerMode` previews
+ * another flyer option without saving it.
+ */
+export async function previewItem(caller: DeskCaller, itemId: string, flyerMode?: DeskFlyerMode): Promise<DeskPreview> {
+  const [cur, settings, stored] = await Promise.all([getDay(caller.email), getSettings(caller), getStoredSignature(caller.email)]);
+  const it = cur?.items.find((i) => i.id === itemId);
+  if (!cur || !it) throw new Error("That email isn't in today's list.");
+  if (it.status === "skipped") throw new Error("This email was already handled.");
+  const signatureHtml = stored ?? "";
+  const mode = flyerMode ?? effectiveFlyerMode(it, settings);
+  const { message, delivery } = await composeDeskMessage(caller, it, mode, signatureHtml, settings.ccSelf, flyerKit(caller));
+
+  const warnings: string[] = [];
+  if (!signatureHtml || isSignatureContentEmpty(signatureHtml) || findSignaturePlaceholder(signatureHtml)) {
+    warnings.push("Your email signature isn't set up — add it (gear icon → Signature) before sending.");
+  }
+  if (it.productId && mode === "embed" && delivery !== "embedded") warnings.push("The flyer couldn't be shown in the email, so it will be linked instead.");
+  if (it.productId && mode === "attach" && delivery !== "attached") warnings.push("The flyer couldn't be attached, so it will be linked instead.");
+  if (it.status === "ready") {
+    // Read-only look at the company guard (Send re-checks it).
+    const agent = it.listing.agentEmail;
+    const { blocked, reasons } = await blockedRealtors([agent], caller.email).catch(() => ({ blocked: new Set<string>(), reasons: new Map<string, string>() }));
+    if (blocked.has(agent.toLowerCase())) warnings.push(`This email would be held back — ${reasons.get(agent.toLowerCase()) ?? "recently contacted"}.`);
+  }
+  return {
+    message,
+    from: caller.email,
+    flyerMode: mode,
+    flyerModeSource: flyerMode ? "card" : it.flyerMode ? "card" : "settings",
+    settingsFlyerMode: settings.flyerMode,
+    delivery,
+    warnings,
+  };
+}
+
+/** Set (or clear, with null) one card's flyer option. */
+export async function setItemFlyerMode(caller: Pick<DeskCaller, "email">, itemId: string, mode: DeskFlyerMode | null): Promise<DeskDay> {
+  if (mode !== null && !isDeskFlyerMode(mode)) throw new Error("That flyer option isn't eligible.");
+  return mutateItem(caller.email, itemId, (it) => {
+    if (it.status !== "ready" && it.status !== "failed") throw new Error("Only unsent emails can be edited.");
+    if (mode) it.flyerMode = mode;
+    else delete it.flyerMode;
+  });
+}
+
+// ─── Send ────────────────────────────────────────────────────────────────────
+
+export class DeskSendError extends Error {}
+
+/**
+ * Send the given ready items (or all ready items). Each one is re-checked
+ * against the company-wide guard right before sending.
+ */
+export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): Promise<{ day: DeskDay; sent: number; skipped: number; failed: number }> {
+  const signatureHtml = (await getStoredSignature(caller.email)) ?? "";
+  if (!signatureHtml || isSignatureContentEmpty(signatureHtml) || findSignaturePlaceholder(signatureHtml)) {
+    throw new DeskSendError("Add your email signature first (gear icon → Signature), then send.");
+  }
+  const day = dayKey();
+  const ref = dayRef(caller.email, day);
+  const cur = (await ref.get()).data() as DeskDay | undefined;
+  if (!cur) throw new DeskSendError("Today's list wasn't found — refresh the page.");
+  const targets = cur.items.filter((i) => i.status === "ready" && (itemIds === "all" || itemIds.includes(i.id)));
+
+  const settings = await getSettings(caller);
+  const kit = flyerKit(caller);
 
   const results = new Map<string, Partial<DeskItem>>();
   let sent = 0, skipped = 0, failed = 0;
@@ -760,47 +895,8 @@ export async function sendItems(caller: DeskCaller, itemIds: string[] | "all"): 
         continue;
       }
 
-      // Flyer per the LO's setting; anything that can't be made falls back to a link.
-      let delivery: "embedded" | "attached" | "linked" | "none" = "none";
-      let embedded: EmbeddedFlyer | null = null;
-      let attachment: string | null = null;
-      let body = it.body;
-      if (it.productId && settings.flyerMode !== "none") {
-        if (settings.flyerMode === "embed") {
-          embedded = await imageFor(it.program, it.productId);
-          if (embedded) delivery = "embedded";
-        } else if (settings.flyerMode === "attach") {
-          const pdf = await pdfFor(it.program, it.productId);
-          if (pdf && pdf.length <= MAX_INLINE_ATTACHMENT_BASE64) {
-            attachment = pdf;
-            delivery = "attached";
-          }
-        }
-        if (delivery === "none") {
-          delivery = "linked";
-          body = appendFlyerLink(body, portalFlyerUrl(it.productId, caller.loNmls));
-        }
-      }
-      const message: GraphMessage = {
-        subject: it.subject,
-        body: { contentType: "HTML", content: buildHtmlBodyWithSignature(body, signatureHtml, embedded ? flyerImagesHtml([embedded]) : "") },
-        toRecipients: [{ emailAddress: { address: agent, ...(it.listing.agentName ? { name: it.listing.agentName } : {}) } }],
-        ...(settings.ccSelf ? { ccRecipients: [{ emailAddress: { address: caller.email } }] } : {}),
-        ...(embedded
-          ? { attachments: [inlineFlyerAttachment(embedded)] }
-          : attachment
-            ? {
-                attachments: [
-                  {
-                    "@odata.type": "#microsoft.graph.fileAttachment" as const,
-                    name: `GMCC-${it.program.replace(/[^a-zA-Z0-9]+/g, "-")}.pdf`,
-                    contentType: "application/pdf",
-                    contentBytes: attachment,
-                  },
-                ],
-              }
-            : {}),
-      };
+      // Flyer per this email's option (else the LO's setting); anything that can't be made falls back to a link.
+      const { message, delivery, body } = await composeDeskMessage(caller, it, effectiveFlyerMode(it, settings), signatureHtml, settings.ccSelf, kit);
       const r = await sendMailAs(caller.email, message);
       if (!r.ok) throw new Error(r.error ?? "Outlook refused the message.");
 
