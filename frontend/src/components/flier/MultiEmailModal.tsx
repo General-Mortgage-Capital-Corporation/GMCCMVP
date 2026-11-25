@@ -112,13 +112,14 @@ function buildSummaryHtml(
   );
 
   const priceStr = price ? `$${price.toLocaleString()}` : "";
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Program Summary</title></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#374151;line-height:1.6">
 <div style="border-bottom:2px solid #dc2626;padding-bottom:12px;margin-bottom:20px">
 <h1 style="margin:0;font-size:20px;color:#dc2626">GMCC Multi-Program Summary</h1>
-${address ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px">${address}${priceStr ? ` — ${priceStr}` : ""}</p>` : ""}
-<p style="margin:4px 0 0;color:#6b7280;font-size:13px">Programs: ${programs.map((p) => p.name).join(", ")}</p>
+${address ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px">${esc(address)}${priceStr ? ` — ${priceStr}` : ""}</p>` : ""}
+<p style="margin:4px 0 0;color:#6b7280;font-size:13px">Programs: ${programs.map((p) => esc(p.name)).join(", ")}</p>
 </div>
 ${html}
 <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px">

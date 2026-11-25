@@ -27,9 +27,14 @@ function base64ToBlob(b64: string, type: string): Blob {
   return new Blob([bytes], { type });
 }
 
+/** Types safe to open as a same-origin blob tab. Anything else (HTML, SVG…)
+ *  would run script in the app's origin, so it's downloaded instead. */
+const OPENABLE = /^(application\/pdf|image\/(png|jpe?g|gif|webp))$/i;
+
 function openAttachment(b64: string, type: string, name: string) {
-  const url = URL.createObjectURL(base64ToBlob(b64, type));
-  const w = window.open(url, "_blank", "noopener");
+  const openable = OPENABLE.test(type);
+  const url = URL.createObjectURL(base64ToBlob(b64, openable ? type : "application/octet-stream"));
+  const w = openable ? window.open(url, "_blank", "noopener") : null;
   if (!w) {
     // Pop-up blocked: download instead.
     const a = document.createElement("a");
