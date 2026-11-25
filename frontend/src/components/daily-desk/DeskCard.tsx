@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { DeskItem } from "./api";
+import { DESK_FLYER_OPTIONS, type DeskFlyerMode, type DeskItem } from "./api";
 
 const SKIP_REASONS = ["Not a fit for this listing", "I already know this agent", "Outside my area", "Other"];
 
@@ -31,6 +31,8 @@ const I = {
   chevron: "M6 8l4 4 4-4",
   pin: "M10 18s6-5.3 6-10a6 6 0 10-12 0c0 4.7 6 10 6 10zm0-7.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z",
   expand: "M8 4H4v4m12-4h-4m4 0v4M4 16h4m-4 0v-4m12 4h-4m4 0v-4",
+  eye: "M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6S1.5 10 1.5 10zm8.5 2.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z",
+  clip: "M14.5 9.5l-5.3 5.3a3.5 3.5 0 01-5-5l6-6a2.3 2.3 0 013.3 3.3l-6 6a1.2 1.2 0 01-1.7-1.7l5.3-5.3",
 };
 
 export default function DeskCard({
@@ -44,6 +46,9 @@ export default function DeskCard({
   onRetry,
   onProgram,
   onOpenProperty,
+  onPreview,
+  onFlyerMode,
+  settingsFlyerMode,
 }: {
   item: DeskItem;
   index: number;
@@ -55,6 +60,11 @@ export default function DeskCard({
   onRetry: () => void;
   onProgram: (program: string) => Promise<void>;
   onOpenProperty: () => void;
+  /** Open the full preview (exactly what the realtor gets). */
+  onPreview: () => void;
+  /** Set this email's flyer option (null = follow the Today setting). */
+  onFlyerMode: (mode: DeskFlyerMode | null) => Promise<void>;
+  settingsFlyerMode: DeskFlyerMode;
 }) {
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(false);
@@ -64,6 +74,8 @@ export default function DeskCard({
   const [body, setBody] = useState(item.body);
   const [saving, setSaving] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [flyerSaving, setFlyerSaving] = useState(false);
+  const flyerMode = item.flyerMode ?? settingsFlyerMode;
   const l = item.listing;
   const street = l.address.split(",")[0];
   const rest = l.address.split(",").slice(1).join(",").trim();
@@ -313,7 +325,7 @@ export default function DeskCard({
               </motion.div>
               {open && (
                 <p className="mt-2 text-xs text-gray-400">
-                  + your signature{item.productId ? " and the program flyer" : ""}
+                  + your signature{item.productId && flyerMode !== "none" ? ` and the program flyer (${flyerMode === "embed" ? "shown in the email" : flyerMode === "attach" ? "attached as a PDF" : "linked"})` : ""}
                   {item.edited ? " · edited by you" : ""}
                 </p>
               )}
@@ -334,6 +346,38 @@ export default function DeskCard({
             <Icon d={I.pin} className="h-3.5 w-3.5" />
             Map
           </a>
+          {!sent && (
+            <button type="button" onClick={onPreview} disabled={locked || editing} className="inline-flex items-center gap-1 font-medium text-red-600 hover:text-red-700 disabled:opacity-50">
+              <Icon d={I.eye} className="h-3.5 w-3.5" />
+              Preview email
+            </button>
+          )}
+          {!sent && item.productId && (
+            <label className="inline-flex items-center gap-1 text-gray-500" title="How the flyer goes out in this email">
+              <Icon d={I.clip} className="h-3.5 w-3.5" />
+              <span className="sr-only">Flyer for this email</span>
+              <select
+                value={flyerMode}
+                disabled={locked || flyerSaving || item.status !== "ready"}
+                onChange={async (e) => {
+                  const m = e.target.value as DeskFlyerMode;
+                  setFlyerSaving(true);
+                  try {
+                    await onFlyerMode(m === settingsFlyerMode ? null : m);
+                  } finally {
+                    setFlyerSaving(false);
+                  }
+                }}
+                className="cursor-pointer rounded-md border-0 bg-transparent py-0 pl-0 pr-5 text-xs font-medium text-gray-500 hover:text-gray-800 focus:ring-1 focus:ring-red-200 disabled:cursor-default"
+              >
+                {DESK_FLYER_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    Flyer: {o.label}{o.key === settingsFlyerMode ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {sent && item.flyer && item.flyer !== "none" && (
             <span className="text-emerald-700">{item.flyer === "embedded" ? "Flyer shown in the email" : item.flyer === "attached" ? "Flyer attached" : "Flyer linked"}</span>
           )}

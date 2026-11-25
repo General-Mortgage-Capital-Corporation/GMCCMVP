@@ -7,6 +7,8 @@
  *   POST { action: "skip", itemId, reason }
  *   POST { action: "edit", itemId, subject, body }
  *   POST { action: "retry", itemId }
+ *   POST { action: "preview", itemId, flyerMode? }  → { preview }: the exact message Send would post (nothing sent or saved)
+ *   POST { action: "flyer", itemId, flyerMode: "embed"|"attach"|"link"|"none"|null }  → this card's flyer option (null = use settings)
  *   POST { action: "more" }                     → replace skipped cards, up to the batch size
  *   POST { action: "settings", areaInputs?, batchSize?, priceMin?, priceMax?, preferredPrograms?, instructions?, rebuild? }
  */
@@ -20,6 +22,8 @@ import {
   getDay,
   getSettings,
   popularForStates,
+  previewItem,
+  setItemFlyerMode,
   resetToday,
   retryItem,
   reprogramItem,
@@ -31,7 +35,7 @@ import {
   weekStats,
   type DeskCaller,
 } from "@/lib/daily-desk/server";
-import { DEFAULT_BATCH_SIZE, DESK_LANGUAGES, MAX_AREAS, MAX_BATCH_SIZE, RADIUS_OPTIONS, type DeskArea, type DeskFlyerMode, type DeskTone } from "@/lib/daily-desk/select";
+import { DEFAULT_BATCH_SIZE, DESK_LANGUAGES, MAX_AREAS, MAX_BATCH_SIZE, RADIUS_OPTIONS, isDeskFlyerMode, type DeskArea, type DeskFlyerMode, type DeskTone } from "@/lib/daily-desk/select";
 import { getStoredSignature } from "@/lib/signature-server";
 import { findSignaturePlaceholder, isSignatureContentEmpty } from "@/lib/signature-store";
 
@@ -111,6 +115,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ day: await reprogramItem(c, str(body.itemId), str(body.program)) });
       case "retry":
         return NextResponse.json({ day: await retryItem(c, str(body.itemId)) });
+      case "preview":
+        // Builds the message (flyer included) without sending or saving anything.
+        return NextResponse.json({ preview: await previewItem(c, str(body.itemId), isDeskFlyerMode(body.flyerMode) ? body.flyerMode : undefined) });
+      case "flyer": {
+        const mode = body.flyerMode === null ? null : isDeskFlyerMode(body.flyerMode) ? body.flyerMode : undefined;
+        if (mode === undefined) return NextResponse.json({ error: "Unknown flyer option." }, { status: 400 });
+        return NextResponse.json({ day: await setItemFlyerMode(c, str(body.itemId), mode) });
+      }
       case "settings": {
         const settings = await saveSettings(c, {
           ...(Array.isArray(body.areaInputs) ? { areaInputs: body.areaInputs.slice(0, 6).map(areaInput) } : {}),

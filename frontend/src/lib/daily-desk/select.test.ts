@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   chooseProgram,
+  effectiveFlyerMode,
+  isDeskFlyerMode,
   clampBatchSize,
   dayKey,
   extractZip,
@@ -154,4 +156,13 @@ test("draft instructions carry tone, language and the LO's own words", async () 
   assert.match(t, /in Spanish/);
   assert.match(t, /Mention I speak Spanish/);
   assert.doesNotMatch(draftInstructions({ language: "Klingon" }), /Klingon/);
+});
+
+test("a card's own flyer option wins over the setting; junk falls back", () => {
+  assert.equal(effectiveFlyerMode({}, { flyerMode: "embed" }), "embed");
+  assert.equal(effectiveFlyerMode({ flyerMode: "attach" }, { flyerMode: "embed" }), "attach");
+  assert.equal(effectiveFlyerMode({ flyerMode: null }, { flyerMode: "link" }), "link");
+  assert.equal(effectiveFlyerMode({ flyerMode: "bogus" as never }, { flyerMode: "none" }), "none");
+  assert.ok(isDeskFlyerMode("embed") && isDeskFlyerMode("none"));
+  assert.ok(!isDeskFlyerMode("pdf") && !isDeskFlyerMode(undefined));
 });

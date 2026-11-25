@@ -376,6 +376,16 @@ export function popularByState(rows: { propertyAddress?: string; programNames?: 
 
 export type DeskTone = "friendly" | "professional" | "brief";
 export type DeskFlyerMode = "embed" | "attach" | "link" | "none";
+export const DESK_FLYER_MODES: readonly DeskFlyerMode[] = ["embed", "attach", "link", "none"];
+
+export function isDeskFlyerMode(v: unknown): v is DeskFlyerMode {
+  return typeof v === "string" && (DESK_FLYER_MODES as readonly string[]).includes(v);
+}
+
+/** The flyer option a card sends with: its own override, else the LO's setting. */
+export function effectiveFlyerMode(item: { flyerMode?: DeskFlyerMode | null }, settings: { flyerMode: DeskFlyerMode }): DeskFlyerMode {
+  return isDeskFlyerMode(item.flyerMode) ? item.flyerMode : settings.flyerMode;
+}
 export const DESK_LANGUAGES = ["English", "Spanish", "Chinese (Simplified)", "Chinese (Traditional)", "Korean", "Vietnamese", "Tagalog", "Hindi", "Russian", "Arabic"] as const;
 
 const TONE_TEXT: Record<DeskTone, string> = {

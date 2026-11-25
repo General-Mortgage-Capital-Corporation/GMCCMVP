@@ -12,6 +12,7 @@ import { AnimatePresence, animate, motion, useMotionValue, useTransform } from "
 import { trackEvent } from "@/lib/posthog";
 import DeskCard from "./DeskCard";
 import DeskSettingsModal from "./DeskSettingsModal";
+import DeskPreview from "./DeskPreview";
 import { deskApi, locateMe, type AreaInput, type DeskDay, type DeskListing, type DeskState } from "./api";
 
 const BUILD_STEPS = ["Finding new listings in your areas", "Matching each one to GMCC programs", "Checking realtor emails", "Writing your emails"];
@@ -146,6 +147,7 @@ export default function DailyDeskTab({
   const [sending, setSending] = useState<Set<string>>(new Set());
   const [sendingAll, setSendingAll] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [setupAreas, setSetupAreas] = useState("");
   const [setupRadius, setSetupRadius] = useState(5);
   const [locating, setLocating] = useState(false);
@@ -501,6 +503,15 @@ export default function DailyDeskTab({
                     trackEvent("daily_desk_property_opened", {});
                     onOpenProperty(toRentCast(it.listing));
                   }}
+                  settingsFlyerMode={state?.settings.flyerMode ?? "embed"}
+                  onPreview={() => {
+                    trackEvent("daily_desk_previewed", {});
+                    setPreviewId(it.id);
+                  }}
+                  onFlyerMode={async (mode) => {
+                    trackEvent("daily_desk_flyer_mode", { mode: mode ?? "default" });
+                    await run(() => deskApi.flyer(it.id, mode));
+                  }}
                 />
               ))}
 
@@ -537,6 +548,25 @@ export default function DailyDeskTab({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {(() => {
+        const it = previewId ? state?.day?.items.find((x) => x.id === previewId) : null;
+        if (!it || !state) return null;
+        return (
+          <DeskPreview
+            item={it}
+            settingsFlyerMode={state.settings.flyerMode}
+            sending={sending.has(it.id)}
+            onDay={setDay}
+            onSend={async () => {
+              trackEvent("daily_desk_sent_from_preview", {});
+              await send([it.id]);
+              setPreviewId(null);
+            }}
+            onClose={() => setPreviewId(null)}
+          />
+        );
+      })()}
 
       <AnimatePresence>
         {settingsOpen && state && (
