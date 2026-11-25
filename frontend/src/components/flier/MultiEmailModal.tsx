@@ -29,6 +29,20 @@ import {
   toggleEmbedId,
   type EmbeddedFlyer,
 } from "@/lib/email/flyer-embed";
+import EmailPreviewModal from "@/components/email/EmailPreviewModal";
+import type { PreviewAttachment, PreviewableMessage } from "@/lib/email/message-preview";
+
+type GraphAttachment = PreviewAttachment & { "@odata.type": "#microsoft.graph.fileAttachment" };
+
+/** A message ready to post, plus what the confirmation says about it. */
+interface BuiltEmail {
+  /** Exactly what is posted to Graph sendMail. */
+  message: PreviewableMessage;
+  flyerNote: string;
+  withSig: boolean;
+  /** Flyers that couldn't be generated and were left out. */
+  failed: number;
+}
 
 type RecipientTab = "realtor" | "borrower" | "myself";
 
@@ -148,6 +162,10 @@ export default function MultiEmailModal({
   const [agentResearch, setAgentResearch] = useState<string | null>(preResearch ?? null);
   const [sigFixOpen, setSigFixOpen] = useState(false);
   const [sigOk, setSigOk] = useState(() => hasSignature());
+  // Preview: open while `previewing`; `preview` is the built message (null while building).
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState<BuiltEmail | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const autoGenTriggered = useRef(false);
 
   const loName = user?.displayName || user?.email || "Loan Officer";
@@ -287,31 +305,164 @@ export default function MultiEmailModal({
     }
   }, [preResearch, tab, subject, body, generateEmail]);
 
-  async function handleSend() {
-    if (sending) return;
-    if (!hasSignature()) { setSigFixOpen(true); return; }
-    if (!toEmail.trim()) { setError("Recipient email is required."); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return; }
-    if (!subject.trim()) { setError("Subject is required."); return; }
+  /** Required fields; false (with the error shown) when something's missing. */
+  function checkFields(): boolean {
+    if (!hasSignature()) { setSigFixOpen(true); return false; }
+    if (!toEmail.trim()) { setError("Recipient email is required."); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) { setError("Invalid email address."); return false; }
+    if (!subject.trim()) { setError("Subject is required."); return false; }
+    return true;
+  }
 
-    // Send-time deliverability gate. Only `deliverable` sends; anything else
-    // blocks and surfaces a notice. LOs can't self-override — an admin
-    // allowlists a flagged address (after which it verifies as deliverable).
-    if (!skipValidation) {
-      setVerifying(true);
-      try {
-        const [toResult, ccResult] = await Promise.all([
-          verifyEmailForSend(toEmail.trim()),
-          ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
-        ]);
-        let blocked = false;
-        if (toResult && !isSendAllowed(toResult)) { setToBlocked(toResult); blocked = true; } else { setToBlocked(null); }
-        if (ccEmail.trim() && ccResult && !isSendAllowed(ccResult)) { setCcBlocked(ccResult); blocked = true; } else { setCcBlocked(null); }
-        if (blocked) return;
-      } finally {
-        setVerifying(false);
+  // Send-time deliverability gate. Only `deliverable` sends; anything else
+  // blocks and surfaces a notice. LOs can't self-override — an admin
+  // allowlists a flagged address (after which it verifies as deliverable).
+  async function checkDeliverable(): Promise<boolean> {
+    if (skipValidation) return true;
+    setVerifying(true);
+    try {
+      const [toResult, ccResult] = await Promise.all([
+        verifyEmailForSend(toEmail.trim()),
+        ccEmail.trim() ? verifyEmailForSend(ccEmail.trim()) : Promise.resolve(null),
+      ]);
+      let blocked = false;
+      if (toResult && !isSendAllowed(toResult)) { setToBlocked(toResult); blocked = true; } else { setToBlocked(null); }
+      if (ccEmail.trim() && ccResult && !isSendAllowed(ccResult)) { setCcBlocked(ccResult); blocked = true; } else { setCcBlocked(null); }
+      return !blocked;
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  /**
+   * The exact Graph message the send posts: flyers shown / attached / linked,
+   * optional summary, body, signature. Preview renders this same object, and
+   * sending from the preview posts it unchanged.
+   */
+  async function buildMessage(): Promise<BuiltEmail> {
+    // Prepare each flyer: an image for the ones shown in the email, a PDF for
+    // the rest. If an image can't be made, that flyer goes as a PDF instead.
+    const embedded: EmbeddedFlyer[] = [];
+    const pdfs: { id: string; name: string; base64: string }[] = [];
+    let failed = 0;
+    // What each PDF may weigh so they all fit next to the shown flyers; a
+    // bigger one comes back shrunk rather than becoming a link.
+    const pdfMaxBytes = pdfShareBytes(
+      programsWithFlyer.length,
+      programsWithFlyer.filter((p) => embedIds.includes(p.product_id!)).length,
+    );
+    if (programsWithFlyer.length > 0) {
+      setSendProgress(`Generating ${programsWithFlyer.length} flyer(s)...`);
+      const results = await Promise.allSettled(
+        programsWithFlyer.map(async (p) => {
+          const id = p.product_id!;
+          if (embedIds.includes(id)) {
+            // Several shown → each image is rendered smaller so they all fit one message.
+            const imageBlob = await fetchPdf(id, "jpeg", embedIds.length > 1 ? embedImageSpec(embedIds.length).maxBytes : undefined);
+            if (imageBlob) {
+              return {
+                kind: "image" as const,
+                flyer: {
+                  id,
+                  title: p.name,
+                  pdfUrl: portalFlyerUrl(id, getLOInfo().nmls),
+                  ...(await flyerImageFromBlob(imageBlob, blobToBase64)),
+                },
+              };
+            }
+          }
+          const blob = await fetchPdf(id, "pdf", pdfMaxBytes);
+          if (!blob) throw new Error(`Failed to generate ${id} flyer`);
+          return { kind: "pdf" as const, pdf: { id, name: `${id}-flyer.pdf`, base64: await blobToBase64(blob) } };
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "rejected") failed++;
+        else if (r.value.kind === "image") embedded.push(r.value.flyer);
+        else pdfs.push(r.value.pdf);
       }
     }
+
+    const summaryAttachment: GraphAttachment | null =
+      attachSummary && summary
+        ? {
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            name: "program-summary.html",
+            contentType: "text/html",
+            contentBytes: btoa(unescape(encodeURIComponent(buildSummaryHtml(summary, programs, propertyAddress, listingPrice)))),
+          }
+        : null;
+
+    // Graph takes one request of at most 4 MB: PDFs that don't fit become links.
+    const used =
+      embedded.reduce((n, f) => n + f.base64.length, 0) + (summaryAttachment?.contentBytes.length ?? 0);
+    const { fit: attachedPdfs, overflow: linkedPdfs } = splitByBudget(pdfs, used);
+    const sendBody = linkedPdfs.reduce(
+      (text, pdf) => appendFlyerLink(text, portalFlyerUrl(pdf.id, getLOInfo().nmls)),
+      body,
+    );
+    const flyerNote = describeFlyerCounts({ embedded: embedded.length, attached: attachedPdfs.length, linked: linkedPdfs.length, failed });
+
+    // Build email body — append signature if the user has one saved
+    const sig = getSignatureHtml();
+    const useHtml = !!sig || embedded.length > 0;
+    const emailBody = useHtml
+      ? { contentType: "HTML" as const, content: buildHtmlBodyWithSignature(sendBody, sig, flyerImagesHtml(embedded)) }
+      : { contentType: "Text" as const, content: sendBody };
+
+    const attachments: GraphAttachment[] = [
+      ...embedded.map(inlineFlyerAttachment),
+      ...attachedPdfs.map((a) => ({
+        "@odata.type": "#microsoft.graph.fileAttachment" as const,
+        name: a.name,
+        contentType: "application/pdf",
+        contentBytes: a.base64,
+      })),
+      ...(summaryAttachment ? [summaryAttachment] : []),
+    ];
+    const message: PreviewableMessage = {
+      subject,
+      body: emailBody,
+      toRecipients: [
+        { emailAddress: { address: toEmail.trim(), name: toName.trim() || undefined } },
+      ],
+      ...(ccEmail.trim()
+        ? { ccRecipients: [{ emailAddress: { address: ccEmail.trim() } }] }
+        : {}),
+      attachments,
+    };
+    return { message, flyerNote, withSig: !!sig, failed };
+  }
+
+  async function handlePreview() {
+    if (previewing || sending) return;
+    if (!checkFields()) return;
+    setError(null);
+    setPreviewError(null);
+    setPreview(null);
+    setPreviewing(true);
+    try {
+      const built = await buildMessage();
+      setPreview(built);
+      trackEvent("email_previewed", { recipientType: tab, programCount: programs.length, embedded: embedIds.length });
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Couldn't build the preview.");
+    } finally {
+      setSendProgress("");
+    }
+  }
+
+  function closePreview() {
+    setPreviewing(false);
+    setPreview(null);
+    setPreviewError(null);
+  }
+
+  /** Send; from the preview, `previewed` is the message shown there, posted as-is. */
+  async function handleSend(previewed?: BuiltEmail) {
+    if (sending) return;
+    if (!checkFields()) return;
+    if (!(await checkDeliverable())) { closePreview(); return; }
 
     setError(null);
     setSending(true);
@@ -326,102 +477,9 @@ export default function MultiEmailModal({
         return;
       }
 
-      // Prepare each flyer: an image for the ones shown in the email, a PDF for
-      // the rest. If an image can't be made, that flyer goes as a PDF instead.
-      const embedded: EmbeddedFlyer[] = [];
-      const pdfs: { id: string; name: string; base64: string }[] = [];
-      let failed = 0;
-      // What each PDF may weigh so they all fit next to the shown flyers; a
-      // bigger one comes back shrunk rather than becoming a link.
-      const pdfMaxBytes = pdfShareBytes(
-        programsWithFlyer.length,
-        programsWithFlyer.filter((p) => embedIds.includes(p.product_id!)).length,
-      );
-      if (programsWithFlyer.length > 0) {
-        setSendProgress(`Generating ${programsWithFlyer.length} flyer(s)...`);
-        const results = await Promise.allSettled(
-          programsWithFlyer.map(async (p) => {
-            const id = p.product_id!;
-            if (embedIds.includes(id)) {
-              // Several shown → each image is rendered smaller so they all fit one message.
-              const imageBlob = await fetchPdf(id, "jpeg", embedIds.length > 1 ? embedImageSpec(embedIds.length).maxBytes : undefined);
-              if (imageBlob) {
-                return {
-                  kind: "image" as const,
-                  flyer: {
-                    id,
-                    title: p.name,
-                    pdfUrl: portalFlyerUrl(id, getLOInfo().nmls),
-                    ...(await flyerImageFromBlob(imageBlob, blobToBase64)),
-                  },
-                };
-              }
-            }
-            const blob = await fetchPdf(id, "pdf", pdfMaxBytes);
-            if (!blob) throw new Error(`Failed to generate ${id} flyer`);
-            return { kind: "pdf" as const, pdf: { id, name: `${id}-flyer.pdf`, base64: await blobToBase64(blob) } };
-          }),
-        );
-        for (const r of results) {
-          if (r.status === "rejected") failed++;
-          else if (r.value.kind === "image") embedded.push(r.value.flyer);
-          else pdfs.push(r.value.pdf);
-        }
-      }
+      const { message, flyerNote, withSig } = previewed ?? (await buildMessage());
 
       setSendProgress("Sending email...");
-
-      const summaryAttachment =
-        attachSummary && summary
-          ? {
-              "@odata.type": "#microsoft.graph.fileAttachment",
-              name: "program-summary.html",
-              contentType: "text/html",
-              contentBytes: btoa(unescape(encodeURIComponent(buildSummaryHtml(summary, programs, propertyAddress, listingPrice)))),
-            }
-          : null;
-
-      // Graph takes one request of at most 4 MB: PDFs that don't fit become links.
-      const used =
-        embedded.reduce((n, f) => n + f.base64.length, 0) + (summaryAttachment?.contentBytes.length ?? 0);
-      const { fit: attachedPdfs, overflow: linkedPdfs } = splitByBudget(pdfs, used);
-      const sendBody = linkedPdfs.reduce(
-        (text, pdf) => appendFlyerLink(text, portalFlyerUrl(pdf.id, getLOInfo().nmls)),
-        body,
-      );
-      setSentFlyers(
-        describeFlyerCounts({ embedded: embedded.length, attached: attachedPdfs.length, linked: linkedPdfs.length, failed }),
-      );
-
-      // Build email body — append signature if the user has one saved
-      const sig = getSignatureHtml();
-      const useHtml = !!sig || embedded.length > 0;
-      setSentWithSig(!!sig);
-      const emailBody = useHtml
-        ? { contentType: "HTML" as const, content: buildHtmlBodyWithSignature(sendBody, sig, flyerImagesHtml(embedded)) }
-        : { contentType: "Text" as const, content: sendBody };
-
-      const message: Record<string, unknown> = {
-        subject,
-        body: emailBody,
-        toRecipients: [
-          { emailAddress: { address: toEmail.trim(), name: toName.trim() || undefined } },
-        ],
-        ...(ccEmail.trim()
-          ? { ccRecipients: [{ emailAddress: { address: ccEmail.trim() } }] }
-          : {}),
-        attachments: [
-          ...embedded.map(inlineFlyerAttachment),
-          ...attachedPdfs.map((a) => ({
-            "@odata.type": "#microsoft.graph.fileAttachment",
-            name: a.name,
-            contentType: "application/pdf",
-            contentBytes: a.base64,
-          })),
-          ...(summaryAttachment ? [summaryAttachment] : []),
-        ],
-      };
-
       const res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
         method: "POST",
         headers: {
@@ -439,8 +497,11 @@ export default function MultiEmailModal({
         return;
       }
 
+      setSentFlyers(flyerNote);
+      setSentWithSig(withSig);
       setSent(true);
-      trackEvent("email_sent", { recipientType: tab, programs: programs.map(p => p.name), property: propertyAddress, programCount: programs.length });
+      closePreview();
+      trackEvent("email_sent", { recipientType: tab, programs: programs.map(p => p.name), property: propertyAddress, programCount: programs.length, previewed: !!previewed });
 
       // Record all sent emails (fire and forget)
       if (tab !== "myself") {
@@ -853,6 +914,14 @@ export default function MultiEmailModal({
                       Cancel
                     </button>
                     <button
+                      onClick={handlePreview}
+                      disabled={sending || verifying || previewing}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      title="See the whole email — body, flyers, signature and attachments — before it goes out"
+                    >
+                      Preview
+                    </button>
+                    <button
                       onClick={() => handleSend()}
                       disabled={sending || verifying}
                       className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
@@ -867,6 +936,24 @@ export default function MultiEmailModal({
           </div>
         </div>
       </div>
+    {previewing && (
+        <EmailPreviewModal
+          message={preview?.message ?? null}
+          from={user?.email ?? undefined}
+          loading={!preview}
+          error={previewError}
+          notes={preview ? [`Flyers: ${preview.flyerNote}.`] : []}
+          warnings={preview ? [
+            ...(preview.failed ? [`${preview.failed} flyer${preview.failed > 1 ? "s" : ""} couldn't be generated and ${preview.failed > 1 ? "are" : "is"} left out.`] : []),
+            ...(mentionsAttachment(body) && !preview.message.attachments?.some((a) => !a.isInline)
+              ? ["Your message says \u201cattached\u201d, but nothing is attached as a file."]
+              : []),
+          ] : []}
+          onClose={closePreview}
+          onSend={preview ? () => handleSend(preview) : undefined}
+          sending={sending || verifying}
+        />
+      )}
     {sigFixOpen && (
         <SignatureFixModal
           onClose={() => setSigFixOpen(false)}
