@@ -43,6 +43,17 @@ export {
 } from "@/lib/email-deliverability-types";
 
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+/**
+ * An inconclusive answer ("unknown": the mail server timed out / refused the
+ * check) is NOT a verdict on the address — big brokerages (cbrealty.com,
+ * cbnorcal.com, corcoran.com, elliman.com, camoves.com…) routinely time out.
+ * Cache it briefly so a retry later actually re-checks instead of repeating
+ * the same block for 90 days.
+ */
+const UNKNOWN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+export function cacheTtlMs(status: DeliverabilityStatus): number {
+  return status === "unknown" ? UNKNOWN_CACHE_TTL_MS : CACHE_TTL_MS;
+}
 
 const SYNTAX_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -99,7 +110,7 @@ export async function readCachedDeliverability(
     if (!snap.exists) return null;
     const data = snap.data() as Partial<CacheRecord>;
     if (!data.status || !data.checkedAt) return null;
-    if (Date.now() - data.checkedAt.toMillis() >= CACHE_TTL_MS) return null;
+    if (Date.now() - data.checkedAt.toMillis() >= cacheTtlMs(data.status)) return null;
     return {
       email: normalized,
       status: data.status,

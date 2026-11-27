@@ -81,6 +81,10 @@ export function describeReason(
       return "Role-based address (info@/admin@/etc.) — usually undeliverable for outreach.";
     case "accept_all":
       return "Catch-all domain — we cannot confirm the mailbox actually exists.";
+    case "timeout":
+    case "unavailable_smtp":
+    case "unsupported":
+      return "The realtor's mail server didn't answer our check (common for large brokerages), so we couldn't confirm the mailbox — it may still be a good address. Try again later, or email ai@gmccloan.com to approve it.";
     case "unverifiable":
     case "unknown":
     case "transient_failure":
