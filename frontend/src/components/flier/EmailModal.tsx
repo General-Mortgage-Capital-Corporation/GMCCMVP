@@ -167,7 +167,22 @@ export default function EmailModal({
       setSubject("");
       setBody("");
     }
-  }, [tab, user, realtorEmail, realtorName]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Reset ONLY when the tab changes. It used to also depend on `user` and the
+    // realtor fields, and AuthContext swaps in a new user object on every token
+    // refresh — often right as the LO hits Send — which wiped an edited subject
+    // and body ("Subject is required", blank fields; Laurie's Radius Check lab,
+    // 2026-11-26). The recipient is kept current by the effect below instead.
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the recipient in sync without touching the subject or body.
+  const userEmail = user?.email ?? "";
+  useEffect(() => {
+    if (tab === "myself") setToEmail(userEmail);
+    else if (tab === "realtor") {
+      setToEmail(realtorEmail);
+      setToName(realtorName);
+    }
+  }, [tab, userEmail, realtorEmail, realtorName]);
 
   const generateEmail = useCallback(async (prompt: string, researchOverride?: string | null) => {
     setAiLoading(true);
